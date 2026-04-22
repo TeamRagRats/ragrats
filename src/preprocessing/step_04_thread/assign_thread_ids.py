@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Iterable
 from uuid import UUID, uuid5
 
-from ..step_02_parse.merge_metadata import EmailRecord
-from .build_threads import NAMESPACE, build_threads
-from .normalize_subject import normalize_subject
+from step_02_parse.merge_metadata import EmailRecord
+from step_04_thread.build_threads import NAMESPACE, build_threads
+from step_04_thread.normalize_subject import normalize_subject
 
 
 def assign_thread_ids(voyage_key: str, records: Iterable[EmailRecord]) -> dict[UUID, UUID]:

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
-from .derive_voyage_key import derive_voyage_key
+from step_01_discover.derive_voyage_key import derive_voyage_key
 
 
 @dataclass(frozen=True)
@@ -37,7 +37,7 @@ def walk_mailbox(data_root: Path) -> Iterator[MailboxItem]:
 if __name__ == "__main__":
     import os
     import sys
-    from ..shared.config import load_config
+    from shared.config import load_config
 
     cfg = load_config()
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else cfg.data_root

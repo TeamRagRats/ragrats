@@ -6,7 +6,7 @@ from uuid import UUID
 
 import psycopg
 
-from ..step_05_attachments.extract_attachments import WrittenAttachment
+from step_05_attachments.extract_attachments import WrittenAttachment
 
 _DELETE = "DELETE FROM attachments WHERE email_id = %s"
 _INSERT = """

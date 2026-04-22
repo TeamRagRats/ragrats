@@ -16,7 +16,7 @@ class Config:
 
 
 def load_config() -> Config:
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
     load_dotenv(repo_root / ".env")
     database_url = os.environ["DATABASE_URL"]
     data_root = Path(os.environ["DATA_ROOT"])

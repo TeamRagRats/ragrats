@@ -5,8 +5,10 @@ from __future__ import annotations
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
-    _repo_root = _Path(__file__).resolve().parents[2]
+    _here = _Path(__file__).resolve().parent
+    _repo_root = _here.parents[1]
     sys.path.insert(0, str(_repo_root))
+    sys.path.insert(0, str(_here))
     __package__ = "src.preprocessing"
 
 import argparse
@@ -18,25 +20,25 @@ from uuid import UUID
 import psycopg
 from tqdm import tqdm
 
-from .shared.config import Config, load_config
-from .shared.db import connect
-from .step_01_discover.pair_eml_json import validate_pairs
-from .step_01_discover.walk_mailbox import MailboxItem, walk_mailbox
-from .step_02_parse.merge_metadata import EmailRecord, merge_metadata
-from .step_02_parse.parse_eml import parse_eml
-from .step_02_parse.parse_json import parse_json
-from .step_03_clean.clean_body import clean_body
-from .step_04_thread.assign_thread_ids import assign_thread_ids
-from .step_05_attachments.extract_attachments import extract_attachments
-from .step_06_load.upsert_attachments import upsert_attachments
-from .step_06_load.upsert_emails import upsert_email
-from .step_07_logging.run_logger import (
+from shared.config import Config, load_config
+from shared.db import connect
+from step_01_discover.pair_eml_json import validate_pairs
+from step_01_discover.walk_mailbox import MailboxItem, walk_mailbox
+from step_02_parse.merge_metadata import EmailRecord, merge_metadata
+from step_02_parse.parse_eml import parse_eml
+from step_02_parse.parse_json import parse_json
+from step_03_clean.clean_body import clean_body
+from step_04_thread.assign_thread_ids import assign_thread_ids
+from step_05_attachments.extract_attachments import extract_attachments
+from step_06_load.upsert_attachments import upsert_attachments
+from step_06_load.upsert_emails import upsert_email
+from step_07_logging.run_logger import (
     finish_run,
     record_file_counters,
     start_run,
     step,
 )
-from .step_07_logging.summary import (
+from step_07_logging.summary import (
     VoyageSummary,
     format_final_table,
     format_per_voyage_line,

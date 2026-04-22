@@ -5,7 +5,7 @@ from typing import Iterator
 
 import psycopg
 
-from .config import load_config
+from shared.config import load_config
 
 
 @contextmanager

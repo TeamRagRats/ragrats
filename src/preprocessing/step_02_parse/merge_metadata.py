@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from .parse_eml import AttachmentPart, ParsedEml
+from step_02_parse.parse_eml import AttachmentPart, ParsedEml
 
 
 @dataclass

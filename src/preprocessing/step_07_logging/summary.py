@@ -74,7 +74,7 @@ def load_latest_summaries(conn: psycopg.Connection) -> list[VoyageSummary]:
 
 
 if __name__ == "__main__":
-    from ..shared.db import connect
+    from shared.db import connect
 
     with connect() as conn:
         summaries = load_latest_summaries(conn)

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import Iterable
 from uuid import UUID
 
-from ..step_02_parse.merge_metadata import EmailRecord
-from .normalize_subject import normalize_subject
+from step_02_parse.merge_metadata import EmailRecord
+from step_04_thread.normalize_subject import normalize_subject
 
 # Mailbee strips In-Reply-To / References in some cases, which is why we 
 # use a hybrid approach: header-chains first, then fallback to 
