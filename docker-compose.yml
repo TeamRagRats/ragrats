@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ragrats_database
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: teamragrats
+      POSTGRES_PASSWORD: ragrats
+      POSTGRES_DB: ragrats
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data

@@ -1,0 +1,6 @@
+/data/
+.env
+.venv/
+data/attachment/
+__pycache__/
+*.pyc

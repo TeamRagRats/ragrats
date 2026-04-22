@@ -1,0 +1,4 @@
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+beautifulsoup4>=4.12
+tqdm>=4.66
