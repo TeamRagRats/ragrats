@@ -20,6 +20,13 @@ CREATE INDEX IF NOT EXISTS emails_voyage_idx  ON emails(voyage_key);
 CREATE INDEX IF NOT EXISTS emails_thread_idx  ON emails(thread_id);
 CREATE INDEX IF NOT EXISTS emails_sent_at_idx ON emails(sent_at);
 
+CREATE TABLE IF NOT EXISTS docling (
+    sha256          CHAR(64) PRIMARY KEY,
+    utf8_text       TEXT NOT NULL,
+    llm_attachment  TEXT,
+    processed_at    TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS attachments (
     id              BIGSERIAL PRIMARY KEY,
     email_id        UUID NOT NULL REFERENCES emails(email_id) ON DELETE CASCADE,
@@ -29,10 +36,11 @@ CREATE TABLE IF NOT EXISTS attachments (
     file_type       TEXT,
     size_bytes      BIGINT,
     sha256          CHAR(64),
-    docling_ready   BOOLEAN NOT NULL DEFAULT FALSE
+    docling_sha256  CHAR(64) REFERENCES docling(sha256)
 );
-CREATE INDEX IF NOT EXISTS attachments_email_idx  ON attachments(email_id);
-CREATE INDEX IF NOT EXISTS attachments_sha256_idx ON attachments(sha256);
+CREATE INDEX IF NOT EXISTS attachments_email_idx   ON attachments(email_id);
+CREATE INDEX IF NOT EXISTS attachments_sha256_idx  ON attachments(sha256);
+CREATE INDEX IF NOT EXISTS attachments_docling_idx ON attachments(docling_sha256);
 
 CREATE TABLE IF NOT EXISTS import_runs (
     run_id          UUID PRIMARY KEY,
