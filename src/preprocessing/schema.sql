@@ -22,17 +22,17 @@ CREATE INDEX IF NOT EXISTS emails_sent_at_idx ON emails(sent_at);
 
 CREATE TABLE IF NOT EXISTS docling (
     sha256          CHAR(64) PRIMARY KEY,
-    utf8_text       TEXT NOT NULL,
+    docling_document TEXT NOT NULL,
     llm_attachment  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS attachments (
-    id              BIGSERIAL PRIMARY KEY,
     email_id        UUID NOT NULL REFERENCES emails(email_id) ON DELETE CASCADE,
     voyage_key      TEXT NOT NULL,
     file_path       TEXT NOT NULL,
     type            TEXT,
-    sha256          CHAR(64)
+    sha256          CHAR(64),
+    PRIMARY KEY (email_id, sha256)
 );
 CREATE INDEX IF NOT EXISTS attachments_email_idx   ON attachments(email_id);
 CREATE INDEX IF NOT EXISTS attachments_sha256_idx  ON attachments(sha256);
