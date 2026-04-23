@@ -68,3 +68,36 @@ CREATE TABLE IF NOT EXISTS file_counters (
     n_errors        BIGINT DEFAULT 0,
     wall_time_ms    BIGINT DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS email_attach_summaries (
+    email_id     UUID PRIMARY KEY REFERENCES emails(email_id) ON DELETE CASCADE,
+    voyage_key   TEXT NOT NULL,
+    sent_at      TIMESTAMPTZ,
+    summary      TEXT,
+    status       TEXT NOT NULL CHECK (status IN ('ok','error')),
+    log          TEXT,
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS email_attach_summaries_voyage_idx ON email_attach_summaries(voyage_key);
+
+CREATE TABLE IF NOT EXISTS phase_summaries (
+    voyage_key   TEXT NOT NULL,
+    phase_index  INTEGER NOT NULL,
+    phase_range  TEXT,
+    date_start   TIMESTAMPTZ,
+    date_end     TIMESTAMPTZ,
+    email_count  INTEGER,
+    summary      TEXT,
+    status       TEXT NOT NULL CHECK (status IN ('ok','error')),
+    log          TEXT,
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (voyage_key, phase_index)
+);
+
+CREATE TABLE IF NOT EXISTS voyage_summaries (
+    voyage_key   TEXT PRIMARY KEY,
+    summary      TEXT,
+    email_count  INTEGER,
+    has_fixture  BOOLEAN DEFAULT FALSE,
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
