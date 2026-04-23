@@ -35,12 +35,10 @@ CREATE TABLE IF NOT EXISTS attachments (
     file_path       TEXT NOT NULL,
     file_type       TEXT,
     size_bytes      BIGINT,
-    sha256          CHAR(64),
-    docling_sha256  CHAR(64) REFERENCES docling(sha256)
+    sha256          CHAR(64)
 );
 CREATE INDEX IF NOT EXISTS attachments_email_idx   ON attachments(email_id);
 CREATE INDEX IF NOT EXISTS attachments_sha256_idx  ON attachments(sha256);
-CREATE INDEX IF NOT EXISTS attachments_docling_idx ON attachments(docling_sha256);
 
 CREATE TABLE IF NOT EXISTS import_runs (
     run_id          UUID PRIMARY KEY,
