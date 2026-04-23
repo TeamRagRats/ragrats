@@ -12,7 +12,7 @@ Local Postgres for the voyage mailbox import pipeline. Runs in Docker.
 | Password    | `ragrats`           |
 | Database    | `ragrats`           |
 | Container   | `ragrats_database`  |
-| Data volume | `./data/postgres/`  |
+| Data volume | `data/postgres/` (repo root) |
 
 Connection string:
 ```
@@ -27,9 +27,9 @@ This is already set as `DATABASE_URL` in `.env`.
 ## First-time setup
 
 ```bash
-cd /home/golddigger/Desktop/ragrats
+cd /home/golddigger/Desktop/ragrats/docker/postgres
 
-# 1. Start the container (initializes ./data/postgres on first run)
+# 1. Start the container (initializes ../../data/postgres on first run)
 docker compose up -d
 
 # 2. Verify it's ready
@@ -37,7 +37,7 @@ docker compose logs postgres --tail=20        # look for: "database system is re
 
 # 3. Create the tables
 psql "postgresql://teamragrats:ragrats@localhost:5433/ragrats" \
-  -f src/preprocessing/schema.sql
+  -f ../../src/preprocessing/schema.sql
 ```
 
 Tables created: `emails`, `attachments`, `import_runs`, `step_timings`, `file_counters`.
@@ -45,7 +45,11 @@ The schema is idempotent — re-running `psql ... -f schema.sql` is safe.
 
 ## Daily use
 
+All `docker compose` commands must be run from `docker/postgres/`:
+
 ```bash
+cd /home/golddigger/Desktop/ragrats/docker/postgres
+
 docker compose up -d          # start (if stopped)
 docker compose stop           # stop without losing data
 docker compose ps             # status
@@ -68,11 +72,12 @@ Destroys all imported data. The container will re-initialize with the
 credentials from `docker-compose.yml` on the next `up`.
 
 ```bash
+cd /home/golddigger/Desktop/ragrats/docker/postgres
 docker compose down
-rm -rf data/postgres
+rm -rf ../../data/postgres
 docker compose up -d
 psql "postgresql://teamragrats:ragrats@localhost:5433/ragrats" \
-  -f src/preprocessing/schema.sql
+  -f ../../src/preprocessing/schema.sql
 ```
 
 ## Running the import
