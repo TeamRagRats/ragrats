@@ -1,0 +1,21 @@
+services:
+  docling:
+    build:
+      context: ../..
+      dockerfile: docker/docling/Dockerfile
+    container_name: ragrats_docling
+    env_file: ../../.env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ../../data/attachments:/input:ro
+      - ../../data:/output
+    shm_size: '16gb'
