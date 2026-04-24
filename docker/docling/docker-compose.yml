@@ -18,6 +18,8 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - PYTHONPATH=/app:/app/preprocessing
+      - DATABASE_URL=postgresql://teamragrats:ragrats@ragrats_database:5432/ragrats
+    command: ["sleep", "infinity"]
     volumes:
       - ../../data/attachment:/input:ro
       - ../../data:/output

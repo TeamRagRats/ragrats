@@ -16,7 +16,7 @@ from step_08_docling.constants import (
     LEGACY_EXTENSIONS,
     LIBREOFFICE_TIMEOUT_S,
 )
-from step_08_docling.queue import QueueItem
+from step_08_docling.job_queue import QueueItem
 
 
 def convert_legacy_files(

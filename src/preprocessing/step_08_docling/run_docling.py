@@ -34,7 +34,7 @@ from step_08_docling.constants import (
 )
 from step_08_docling.docling_runner import build_docling_converter, process_single_file
 from step_08_docling.legacy import convert_legacy_files
-from step_08_docling.queue import QueueItem, fetch_queue, queue_stats
+from step_08_docling.job_queue import QueueItem, fetch_queue, queue_stats
 from step_08_docling.resources import (
     check_cuda_available,
     cleanup_memory,
