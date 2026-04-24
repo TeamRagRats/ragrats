@@ -1,0 +1,26 @@
+services:
+  vllm:
+    image: nvcr.io/nvidia/vllm:26.02-py3
+    container_name: ragrats_vllm
+    ipc: host
+    ports:
+      - "127.0.0.1:8002:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    command: >
+      --model nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
+      --dtype auto
+      --max-model-len 8192
+      --gpu-memory-utilization 0.70
+      --trust-remote-code
+      --port 8000
