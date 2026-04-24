@@ -15,8 +15,8 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
-from step_08_summaries.llm_client import LLMClient
-from step_08_summaries.prompts import EMAIL_SUMMARY_SYSTEM, build_email_summary_prompt
+from step_07_summaries.llm_client import LLMClient
+from step_07_summaries.prompts import EMAIL_SUMMARY_SYSTEM, build_email_summary_prompt
 
 BATCH_SIZE = 20
 

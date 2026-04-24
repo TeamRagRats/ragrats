@@ -22,9 +22,9 @@ import time
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_08_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
-import step_08_summaries.email_summaries as step1
-import step_08_summaries.voyage_summaries as step2
+from step_07_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
+import step_07_summaries.email_summaries as step1
+import step_07_summaries.voyage_summaries as step2
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
