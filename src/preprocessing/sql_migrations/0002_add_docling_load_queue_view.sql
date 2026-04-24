@@ -1,0 +1,4 @@
+CREATE OR REPLACE VIEW docling_load_queue AS
+SELECT DISTINCT sha256
+FROM attachments
+WHERE sha256 IS NOT NULL;
