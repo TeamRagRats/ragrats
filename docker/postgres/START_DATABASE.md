@@ -86,19 +86,19 @@ Once the DB is up and the schema is applied:
 
 ```bash
 # Dry run on a single voyage (no DB / disk writes)
-python3 src/preprocessing/run_pipeline.py --voyage AFRICAN_JUNIPER_1 --dry-run
+python3 src/preprocessing/run_ingest.py --voyage AFRICAN_JUNIPER_1 --dry-run
 
 # Real import, single voyage
-python3 src/preprocessing/run_pipeline.py --voyage AFRICAN_JUNIPER_1
+python3 src/preprocessing/run_ingest.py --voyage AFRICAN_JUNIPER_1
 
 # Full import
-python3 src/preprocessing/run_pipeline.py
+python3 src/preprocessing/run_ingest.py
 
 # Resume after a crash (skips email_ids already in DB)
-python3 src/preprocessing/run_pipeline.py --resume
+python3 src/preprocessing/run_ingest.py --resume
 
 # Print per-voyage summary from the DB without importing
-python3 src/preprocessing/run_pipeline.py --summary-only
+python3 src/preprocessing/run_ingest.py --summary-only
 ```
 
 ## Sanity queries

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-# Allow running as `python3 run_pipeline.py` from inside src/preprocessing/
-# in addition to `python -m src.preprocessing.run_pipeline` from the repo root.
+# Allow running as `python3 run_ingest.py` from inside src/preprocessing/
+# in addition to `python -m src.preprocessing.run_ingest` from the repo root.
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
