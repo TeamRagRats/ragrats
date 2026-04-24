@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS attachments (
     email_id        UUID NOT NULL REFERENCES emails(email_id) ON DELETE CASCADE,
     voyage_key      TEXT NOT NULL,
     file_path       TEXT NOT NULL,
-    type            TEXT,
+    file_type            TEXT,
     sha256          CHAR(64),
     PRIMARY KEY (email_id, sha256)
 );
