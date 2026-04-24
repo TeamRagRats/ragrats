@@ -30,8 +30,10 @@ from step_02_parse.parse_json import parse_json
 from step_03_clean.clean_body import clean_body
 from step_04_thread.assign_thread_ids import assign_thread_ids
 from step_05_attachments.extract_attachments import extract_attachments
+from step_01_discover.read_fixtures_xlsx import read_fixtures_xlsx
 from step_06_load.upsert_attachments import upsert_attachments
 from step_06_load.upsert_emails import upsert_email
+from step_06_load.upsert_fixtures import upsert_fixtures
 from step_07_logging.run_logger import (
     finish_run,
     record_file_counters,
@@ -153,6 +155,16 @@ def run_summary_only() -> int:
 
 def run_import(args: argparse.Namespace) -> int:
     cfg = load_config()
+
+    fixture_path = cfg.repo_root / "data" / "ARC_FIXTURES_20.xlsx"
+    if not args.dry_run and fixture_path.exists():
+        rows = read_fixtures_xlsx(fixture_path)
+        with connect() as conn:
+            with conn.cursor() as cur:
+                n = upsert_fixtures(cur, rows)
+            conn.commit()
+        print(f"[fixtures] upserted {n} rows")
+
     items_all = list(walk_mailbox(cfg.data_root))
     paired, pair_errors = validate_pairs(items_all)
     for e in pair_errors:
