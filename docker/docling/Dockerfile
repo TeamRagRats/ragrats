@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir \
-    torch --index-url https://download.pytorch.org/whl/cu126
+    torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
 RUN pip3 install --no-cache-dir \
     docling \

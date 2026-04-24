@@ -29,7 +29,7 @@ def _to_container_path(db_path: str) -> Path:
     # DB stores paths relative to repo root, e.g. "data/attachments/<voyage>/<file>".
     # The container mounts host data/attachments -> /input, so strip the prefix.
     p = db_path.replace("\\", "/")
-    for prefix in ("data/attachments/", "attachments/"):
+    for prefix in ("data/attachments/", "data/attachment/", "attachments/", "attachment/"):
         if p.startswith(prefix):
             return Path(INPUT_ROOT) / p[len(prefix):]
     # Fallback: assume the path is already relative to the attachments root.
@@ -79,12 +79,15 @@ def fetch_queue(
         for sha, email_id, voyage_key, file_path, file_type in cur.fetchall():
             cpath = _to_container_path(file_path)
             ref, num = _parse_email_ref(cpath.name)
+            # file_type in DB is MIME (application/pdf); docling/legacy logic needs
+            # the filename extension, so prefer suffix and fall back to the stored value.
+            ext = cpath.suffix.lower() or (file_type or "").lower()
             items.append(QueueItem(
                 sha256=sha,
                 email_id=str(email_id),
                 voyage_key=voyage_key,
                 file_path=file_path,
-                file_type=(file_type or cpath.suffix).lower(),
+                file_type=ext,
                 container_path=cpath,
                 email_ref=ref,
                 attachment_num=num,
