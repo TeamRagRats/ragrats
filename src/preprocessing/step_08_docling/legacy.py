@@ -11,12 +11,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from step_07_docling.constants import (
+from step_08_docling.constants import (
     LEGACY_DIR,
     LEGACY_EXTENSIONS,
     LIBREOFFICE_TIMEOUT_S,
 )
-from step_07_docling.queue import QueueItem
+from step_08_docling.queue import QueueItem
 
 
 def convert_legacy_files(

@@ -25,7 +25,7 @@ Basale kørsel — alle uprocesserede filer:
 ```bash
 docker compose -f docker/docling/docker-compose.yml run --rm \
   -e DATABASE_URL=postgresql://teamragrats:ragrats@ragrats_database:5432/ragrats \
-  docling python3 -m preprocessing.step_07_docling.run_docling --resume
+  docling python3 -m preprocessing.step_08_docling.run_docling --resume
 ```
 
 `DATABASE_URL` overrides `.env`-værdien så containeren rammer postgres-containeren på dens interne netværksnavn (ikke host-localhost).
@@ -46,14 +46,14 @@ docker compose -f docker/docling/docker-compose.yml run --rm \
 ```bash
 docker compose -f docker/docling/docker-compose.yml run --rm \
   -e DATABASE_URL=postgresql://teamragrats:ragrats@ragrats_database:5432/ragrats \
-  docling python3 -m preprocessing.step_07_docling.run_docling --limit 5
+  docling python3 -m preprocessing.step_08_docling.run_docling --limit 5
 ```
 
 **Én voyage, fuld kørsel:**
 ```bash
 docker compose -f docker/docling/docker-compose.yml run --rm \
   -e DATABASE_URL=postgresql://teamragrats:ragrats@ragrats_database:5432/ragrats \
-  docling python3 -m preprocessing.step_07_docling.run_docling \
+  docling python3 -m preprocessing.step_08_docling.run_docling \
   --voyage CAPTAIN_RAVI_1 --resume
 ```
 
@@ -61,7 +61,7 @@ docker compose -f docker/docling/docker-compose.yml run --rm \
 ```bash
 docker compose -f docker/docling/docker-compose.yml run --rm \
   -e DATABASE_URL=postgresql://teamragrats:ragrats@ragrats_database:5432/ragrats \
-  docling python3 -m preprocessing.step_07_docling.run_docling --resume
+  docling python3 -m preprocessing.step_08_docling.run_docling --resume
 ```
 
 **Re-processer alt (fx efter schema-ændring):**
@@ -69,7 +69,7 @@ docker compose -f docker/docling/docker-compose.yml run --rm \
 # udeladt --resume
 docker compose -f docker/docling/docker-compose.yml run --rm \
   -e DATABASE_URL=postgresql://teamragrats:ragrats@ragrats_database:5432/ragrats \
-  docling python3 -m preprocessing.step_07_docling.run_docling
+  docling python3 -m preprocessing.step_08_docling.run_docling
 ```
 
 ## Tjek resultatet

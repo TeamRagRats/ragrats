@@ -5,7 +5,7 @@ from __future__ import annotations
 # the ragrats_docling GPU container, and writes results to docling + docling_logging.
 #
 # Run (inside the container):
-#   python3 -m preprocessing.step_07_docling.run_docling --limit 5 --voyage <key>
+#   python3 -m preprocessing.step_08_docling.run_docling --limit 5 --voyage <key>
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -14,7 +14,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _repo_root = _here.parents[2]
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here.parents[0]))
-    __package__ = "preprocessing.step_07_docling"
+    __package__ = "preprocessing.step_08_docling"
 
 import argparse
 import logging
@@ -24,18 +24,18 @@ from datetime import datetime, timezone
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_07_docling import db as ddb
-from step_07_docling.constants import (
+from step_08_docling import db as ddb
+from step_08_docling.constants import (
     BATCH_SIZE,
     GPU_MEM_CRITICAL_PCT,
     GPU_MEM_WARN_PCT,
     RAM_CRITICAL_PCT,
     RAM_WARN_PCT,
 )
-from step_07_docling.docling_runner import build_docling_converter, process_single_file
-from step_07_docling.legacy import convert_legacy_files
-from step_07_docling.queue import QueueItem, fetch_queue, queue_stats
-from step_07_docling.resources import (
+from step_08_docling.docling_runner import build_docling_converter, process_single_file
+from step_08_docling.legacy import convert_legacy_files
+from step_08_docling.queue import QueueItem, fetch_queue, queue_stats
+from step_08_docling.resources import (
     check_cuda_available,
     cleanup_memory,
     get_gpu_info,

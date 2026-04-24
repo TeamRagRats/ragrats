@@ -10,7 +10,7 @@ from typing import Optional
 
 import psycopg
 
-from step_07_docling.constants import ATTACHMENT_PATTERN, INPUT_ROOT
+from step_08_docling.constants import ATTACHMENT_PATTERN, INPUT_ROOT
 
 
 @dataclass
