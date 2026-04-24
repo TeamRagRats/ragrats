@@ -4,7 +4,7 @@ ALTER TABLE attachments
     ADD COLUMN IF NOT EXISTS docling_ready BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Backfill: mirrors is_docling_ready() in classify_attachment.py —
--- excludes image/* and zip MIME types; everything else is marked ready.
+-- excludes image/* and zip MIME types, everything else is marked ready.
 UPDATE attachments
 SET docling_ready = (
     file_type IS NULL
