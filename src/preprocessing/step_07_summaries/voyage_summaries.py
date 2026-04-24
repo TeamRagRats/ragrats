@@ -17,8 +17,10 @@ import psycopg
 from shared.logging.run_logger import step
 from step_07_summaries.llm_client import LLMClient
 from step_07_summaries.prompts import (
+    FIXTURE_SUMMARY_SYSTEM,
     PHASE_SUMMARY_SYSTEM,
     VOYAGE_SUMMARY_SYSTEM,
+    build_fixture_summary_prompt,
     build_phase_summary_prompt,
     build_voyage_summary_from_phases_prompt,
 )
@@ -66,6 +68,25 @@ def get_email_summaries(conn: psycopg.Connection, voyage_key: str) -> list[dict]
             {"date": _format_ts(r[0]), "sent_at": r[0], "status": (r[2] or "UNKNOWN").upper(), "summary": r[1] or ""}
             for r in cur.fetchall()
         ]
+
+
+def get_fixture(conn: psycopg.Connection, voyage_key: str) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM fixtures WHERE voyage_key = %s", (voyage_key,))
+        row = cur.fetchone()
+        if row is None:
+            return None
+        cols = [d.name for d in cur.description]
+        return dict(zip(cols, row))
+
+
+def _generate_fixture_summary(fixture: dict, llm: LLMClient) -> str:
+    summary, _ = llm.chat_with_usage(
+        FIXTURE_SUMMARY_SYSTEM,
+        build_fixture_summary_prompt(fixture),
+        max_tokens=512,
+    )
+    return summary
 
 
 def get_existing_phases(conn: psycopg.Connection, voyage_key: str) -> dict[int, dict]:
@@ -169,6 +190,15 @@ def run(
                 log.warning(f"  [step2 {i}/{len(pending)}] {voyage_key} → ingen email summaries, springer over")
                 continue
 
+            fixture = get_fixture(conn, voyage_key)
+            fixture_paragraph: str | None = None
+            if fixture:
+                try:
+                    fixture_paragraph = _generate_fixture_summary(fixture, llm)
+                    log.info(f"  [step2 {i}/{len(pending)}] {voyage_key} fixture summary OK")
+                except Exception as exc:
+                    log.warning(f"  [step2 {i}/{len(pending)}] {voyage_key} fixture summary FEJL: {exc}")
+
             batches = [emails[j:j + PHASE_BATCH_SIZE] for j in range(0, len(emails), PHASE_BATCH_SIZE)]
             existing = get_existing_phases(conn, voyage_key)
             missing = [(idx, b) for idx, b in enumerate(batches) if existing.get(idx, {}).get("status") != "ok"]
@@ -201,7 +231,7 @@ def run(
             try:
                 voyage_summary, _ = llm.chat_with_usage(
                     VOYAGE_SUMMARY_SYSTEM,
-                    build_voyage_summary_from_phases_prompt(voyage_key, None, ok_phases),
+                    build_voyage_summary_from_phases_prompt(voyage_key, fixture_paragraph, ok_phases),
                     max_tokens=VOYAGE_MAX_TOKENS,
                 )
             except Exception as exc:
@@ -213,12 +243,12 @@ def run(
                 cur.execute(
                     """
                     INSERT INTO voyage_summaries (voyage_key, summary, email_count, has_fixture, generated_at)
-                    VALUES (%s, %s, %s, FALSE, %s)
+                    VALUES (%s, %s, %s, %s, %s)
                     ON CONFLICT (voyage_key) DO UPDATE SET
                         summary = EXCLUDED.summary, email_count = EXCLUDED.email_count,
-                        generated_at = EXCLUDED.generated_at
+                        has_fixture = EXCLUDED.has_fixture, generated_at = EXCLUDED.generated_at
                     """,
-                    (voyage_key, voyage_summary, len(emails), datetime.now(timezone.utc)),
+                    (voyage_key, voyage_summary, len(emails), fixture_paragraph is not None, datetime.now(timezone.utc)),
                 )
             conn.commit()
             generated += 1
