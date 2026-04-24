@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Parses a .eml file into a ParsedEml dataclass (subject, addresses, body text/html, attachments).
+# Defines the AttachmentPart dataclass used downstream by extract_attachments.py.
+# Consumed by merge_metadata.py.
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email import policy

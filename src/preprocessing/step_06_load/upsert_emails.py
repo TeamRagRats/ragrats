@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Inserts or updates a single EmailRecord into the emails table (ON CONFLICT email_id).
+# Stores eml_path relative to repo root. Called per-record inside run_ingest.py.
+
 import json
 from pathlib import Path
 from typing import Iterable

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Converts a voyage folder name (e.g. "African Juniper - v1 - Usiminas") to a
+# stable uppercase key (e.g. "AFRICAN_JUNIPER_1"). Used by walk_mailbox.py.
+
 import re
 
 _VERSION_RE = re.compile(r"^v(\d+)$", re.IGNORECASE)

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Converts a vessel name and voyage number from the fixtures xlsx into a stable
+# uppercase key (e.g. "VESSEL_NAME_3"). Used by read_fixtures_xlsx.py.
+
 import re
 
 

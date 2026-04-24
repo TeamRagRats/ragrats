@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Bulk-upserts fixture rows (from the ARC_FIXTURES xlsx) into the fixtures table.
+# Dynamically builds the INSERT from column names so schema changes in the xlsx are picked up.
+# Called once at the start of run_ingest.py.
+
 import psycopg
 
 

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Replaces all attachment rows for an email (delete + insert) in the attachments table.
+# Stores file_path relative to repo root. Called per-email in run_ingest.py after extract_attachments.
+
 from pathlib import Path
 from typing import Iterable
 from uuid import UUID

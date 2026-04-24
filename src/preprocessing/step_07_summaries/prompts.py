@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Loads system prompt markdown files from system_prompts/ at import time and provides
+# user prompt builder functions for each summary type (email, fixture, phase, voyage).
+# Used by email_summaries.py and voyage_summaries.py.
+
 import json
 from pathlib import Path
 

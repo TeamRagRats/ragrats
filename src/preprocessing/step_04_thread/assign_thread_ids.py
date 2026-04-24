@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Orchestrates threading for a single voyage: sorts records, calls build_threads,
+# and generates a deterministic UUID5 thread_id per cluster (seeded by voyage_key + earliest email).
+# Returns a dict mapping email_id → thread_id. Used in run_ingest.py.
+
 from typing import Iterable
 from uuid import UUID, uuid5
 

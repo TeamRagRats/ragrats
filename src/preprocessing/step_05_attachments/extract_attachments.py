@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# Writes attachment payloads to disk under attachment_root/voyage_key/.
+# Deduplicates by SHA-256: identical content reuses the existing file; name collisions
+# get a counter suffix. Returns a list of WrittenAttachment for DB insertion.
+# Uses hash_attachment and classify_attachment; consumed by run_ingest.py.
+
 import re
 from dataclasses import dataclass
 from pathlib import Path

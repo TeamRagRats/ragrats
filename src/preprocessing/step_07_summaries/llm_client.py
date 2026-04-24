@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# OpenAI-compatible HTTP client for a local vLLM server. Auto-detects the first available model,
+# retries on transient failures, and disables chain-of-thought via chat_template_kwargs.
+# LLM_BASE_URL / LLM_MODEL / LLM_API_KEY env vars override defaults.
+# Used by email_summaries.py and voyage_summaries.py; wait_for_server used in run_summaries.py.
+
 import os
 import time
 import urllib.request

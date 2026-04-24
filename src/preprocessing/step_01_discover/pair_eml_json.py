@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Validates that each MailboxItem from walk_mailbox has both a .eml and a .json sidecar on disk.
+# Returns (valid_items, orphan_errors). Used in run_ingest.py before the import loop.
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator

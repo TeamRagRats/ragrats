@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# SHA-256 hash of raw attachment bytes. Used by extract_attachments.py to detect
+# duplicate files and avoid overwriting distinct content with the same filename.
+
 import hashlib
 
 

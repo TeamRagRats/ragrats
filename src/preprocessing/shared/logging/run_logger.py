@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# DB-backed run and step lifecycle tracking. Writes rows to import_runs and step_timings tables.
+# start_run/finish_run bracket a full pipeline run; the step() context manager times individual steps.
+# Used by run_ingest.py, run_summaries.py, and step_07_summaries (email_summaries, voyage_summaries).
+
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Iterator

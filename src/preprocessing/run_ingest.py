@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+# Main entry point for the ingest pipeline (steps 1–6).
+# Discovers voyage mailbox folders, parses .eml + sidecar JSON, cleans bodies, assigns thread IDs,
+# extracts attachments to disk, and upserts everything into Postgres.
+# Supports --dry-run, --resume, --voyage filter, and --summary-only.
+# Run: python run_ingest.py [--dry-run] [--voyage KEY] [--resume]
+
 # Allow running as `python3 run_ingest.py` from inside src/preprocessing/
 # in addition to `python -m src.preprocessing.run_ingest` from the repo root.
 if __name__ == "__main__" and __package__ in (None, ""):
@@ -34,13 +40,13 @@ from step_01_discover.read_fixtures_xlsx import read_fixtures_xlsx
 from step_06_load.upsert_attachments import upsert_attachments
 from step_06_load.upsert_emails import upsert_email
 from step_06_load.upsert_fixtures import upsert_fixtures
-from step_07_logging.run_logger import (
+from shared.logging.run_logger import (
     finish_run,
     record_file_counters,
     start_run,
     step,
 )
-from step_07_logging.summary import (
+from shared.logging.summary import (
     VoyageSummary,
     format_final_table,
     format_per_voyage_line,

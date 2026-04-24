@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# VoyageSummary dataclass and formatting/loading helpers for per-voyage import stats.
+# Reads from the file_counters table (written by run_logger.record_file_counters).
+# Used in run_ingest.py to print the final summary table.
+
 from dataclasses import dataclass
 from typing import Iterable
 

@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+# Step 2 of the summaries pipeline. Map-reduces email summaries into a voyage narrative:
+# MAP — generates phase summaries for batches of 50 emails in parallel;
+# REDUCE — combines all phase summaries into a single voyage story via LLM.
+# Writes to phase_summaries and voyage_summaries tables.
+# Called from run_summaries.py; depends on llm_client, prompts, and shared/logging.
+
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -8,9 +14,9 @@ from uuid import UUID
 
 import psycopg
 
-from step_07_logging.run_logger import step
-from step_08_summaries.llm_client import LLMClient
-from step_08_summaries.prompts import (
+from shared.logging.run_logger import step
+from step_07_summaries.llm_client import LLMClient
+from step_07_summaries.prompts import (
     PHASE_SUMMARY_SYSTEM,
     VOYAGE_SUMMARY_SYSTEM,
     build_phase_summary_prompt,

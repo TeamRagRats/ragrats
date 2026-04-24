@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Context manager that opens a psycopg connection using the Config from shared/config.py.
+# Used by run_ingest.py, run_summaries.py, sql_migrations/migrate.py, and shared/logging/summary.py.
+
 from contextlib import contextmanager
 from typing import Iterator
 

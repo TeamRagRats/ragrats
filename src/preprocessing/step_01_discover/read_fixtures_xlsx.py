@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Reads the ARC_FIXTURES xlsx into a list of dicts, adding a voyage_key derived
+# from vessel_name + voyage_no via derive_fixture_key. Used in run_ingest.py.
+
 from pathlib import Path
 
 import pandas as pd

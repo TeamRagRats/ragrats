@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Combines a ParsedEml and its Mailbee JSON sidecar into a single EmailRecord dataclass.
+# EmailRecord is the central data structure passed through steps 3–6.
+# Consumed by run_ingest.py (and clean_body, assign_thread_ids, upsert_email indirectly).
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path

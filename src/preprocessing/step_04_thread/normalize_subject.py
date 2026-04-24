@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Strips reply/forward prefixes (Re:, Fwd:, SV:, etc.) and lowercases a subject string
+# so emails with the same topic can be matched regardless of prefix depth.
+# Used by build_threads.py and assign_thread_ids.py.
+
 import re
 
 _PREFIX_RE = re.compile(r"^\s*(re|fw|fwd|sv|vs|tr|aw)\s*:\s*", re.IGNORECASE)

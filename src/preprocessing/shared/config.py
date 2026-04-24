@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Loads environment configuration from .env and exposes a frozen Config dataclass.
+# Reads DATABASE_URL, DATA_ROOT, and ATTACHMENT_ROOT. Used by shared/db.py and run_ingest.py.
+
 import os
 from dataclasses import dataclass
 from pathlib import Path

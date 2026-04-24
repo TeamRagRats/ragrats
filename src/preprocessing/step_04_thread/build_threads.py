@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Union-find clustering that groups emails into threads. Primary signal: In-Reply-To / References
+# headers. Fallback: normalized subject + shared participant overlap (handles cases where
+# Mailbee stripped threading headers). Consumed exclusively by assign_thread_ids.py.
+
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Iterable

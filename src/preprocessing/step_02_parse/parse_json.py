@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Reads the Mailbee sidecar .json file that accompanies each .eml, returning it as a dict.
+# Provides DocumentGid (used as email_id), Direction, and Mailboxes metadata.
+# Consumed by merge_metadata.py.
+
 import json
 from pathlib import Path
 from typing import Any

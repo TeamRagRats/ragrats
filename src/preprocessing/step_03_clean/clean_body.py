@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# Strips quoted lines (>), forwarded-email header blocks, and common signature lines
+# from email body text. Result is stored as EmailRecord.body_cleaned.
+# Called in run_ingest.py directly after parse; stub — can be extended.
+
 import re
 
 # Stub cleaner — improve later. Strips the common header/sig/quote noise only.

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+# Entry point for file discovery. Walks data_root looking for voyage folders,
+# then yields one MailboxItem per .eml file found in IN/ and OUT/ subdirectories.
+# Uses derive_voyage_key to convert folder names to stable keys.
+# Consumed by run_ingest.py and pair_eml_json.py.
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
