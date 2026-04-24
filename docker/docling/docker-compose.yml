@@ -5,6 +5,8 @@ services:
       dockerfile: docker/docling/Dockerfile
     container_name: ragrats_docling
     env_file: ../../.env
+    networks:
+      - postgres_default
     deploy:
       resources:
         reservations:
@@ -15,7 +17,13 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTHONPATH=/app:/app/preprocessing
     volumes:
-      - ../../data/attachments:/input:ro
+      - ../../data/attachment:/input:ro
       - ../../data:/output
+      - ../../src/preprocessing:/app/preprocessing:ro
     shm_size: '16gb'
+
+networks:
+  postgres_default:
+    external: true
