@@ -52,6 +52,8 @@ Before interviewing, do light exploration (Read/Glob/Grep) to ground your questi
 
 Do **not** silently create a new numbered step — the numbering is a load-bearing convention and renumbering breaks imports, docs, and mental models.
 
+**SQL-logik (kogebogen):** Al DDL (tabeller, views, indeks) hører hjemme i `src/preprocessing/sql_migrations/`. Ny SQL-logik placeres altid som en ny nummereret fil: `0002_<beskrivelse>.sql`. Brug `CREATE OR REPLACE VIEW` til views og `CREATE TABLE IF NOT EXISTS` til tabeller. Kør `python sql_migrations/migrate.py` for at anvende — den springer allerede-kørte filer over automatisk. Redigér **ikke** eksisterende migrationsfiler; tilføj altid en ny.
+
 ### 5. Interview about crucial decisions
 
 Use the `AskUserQuestion` tool to ask 1–4 questions covering only **decisions that meaningfully change the implementation** and that you cannot answer from the code. Examples of good interview topics:
