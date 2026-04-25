@@ -4,7 +4,11 @@ from __future__ import annotations
 # docling_spec_changes branch. Differs from the main runner in build_docling_converter():
 #   - TableFormerMode.ACCURATE set explicitly (guards against future Docling default shifts)
 #   - TableStructureOptions.do_cell_matching = True (aligns PDF text with TableFormer grid)
-#   - do_picture_description = True with Phi-3.5-vision (microsoft/Phi-3.5-vision-instruct)
+#   - do_picture_description = True with IBM Granite Vision 3.3-2b
+#     (Phi-3.5-vision was tried first but Docling's PictureDescriptionVlmModel
+#     hardcodes from_pretrained without trust_remote_code=True, which Phi requires.
+#     Granite Vision is one of Docling's officially listed example VLMs and works
+#     with the standard loader.)
 #   - Heron layout model selected when the installed Docling version exposes it; otherwise
 #     we log a warning and fall through to whatever Docling picks as default.
 # Otherwise behaviour is identical to the main runner — markdown-only persistence,
@@ -57,11 +61,11 @@ def _try_heron_layout_options() -> Optional[Any]:
 
 
 def _picture_description_options() -> Optional[Any]:
-    """Return PictureDescriptionVlmOptions for Phi-3.5-vision, or None if API missing."""
+    """Return PictureDescriptionVlmOptions for Granite Vision 3.3-2b, or None if API missing."""
     try:
         from docling.datamodel.pipeline_options import PictureDescriptionVlmOptions  # type: ignore
         return PictureDescriptionVlmOptions(
-            repo_id="microsoft/Phi-3.5-vision-instruct",
+            repo_id="ibm-granite/granite-vision-3.3-2b",
             prompt="Describe this image in detail. If it contains text, charts, or diagrams, transcribe the key information.",
         )
     except Exception as exc:  # noqa: BLE001
