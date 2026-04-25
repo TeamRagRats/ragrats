@@ -76,12 +76,12 @@ def get_pending_emails(conn: psycopg.Connection, limit: int | None = None) -> li
 def get_attachments(conn: psycopg.Connection, email_id: str) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT a.file_path, d.llm_attachment
+            SELECT a.file_path, ls.structured_md
             FROM attachments a
-            JOIN docling d ON d.sha256 = a.sha256
+            JOIN llm_structured ls ON ls.sha256 = a.sha256
             WHERE a.email_id = %s
-              AND d.llm_attachment IS NOT NULL
-              AND TRIM(d.llm_attachment) != ''
+              AND ls.structured_md IS NOT NULL
+              AND TRIM(ls.structured_md) <> ''
         """, (email_id,))
         return [{"filename": r[0] or "", "content": r[1] or ""} for r in cur.fetchall()]
 
