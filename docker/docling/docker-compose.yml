@@ -24,8 +24,14 @@ services:
       - ../../data/attachment:/input:ro
       - ../../data:/output
       - ../../src/preprocessing:/app/preprocessing:ro
+      - hf_cache:/root/.cache/huggingface
+      - docling_cache:/root/.cache/docling
     shm_size: '16gb'
 
 networks:
   postgres_default:
     external: true
+
+volumes:
+  hf_cache:
+  docling_cache:
