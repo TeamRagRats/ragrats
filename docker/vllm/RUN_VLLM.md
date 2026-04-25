@@ -9,6 +9,19 @@
 
 2. **Enough disk space** — first startup downloads `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4` (~30B parameters) into `~/.cache/huggingface`. Make sure the drive has space before starting.
 
+## Persistent caches
+
+The compose file mounts four caches so model weights and compiled kernels survive container restarts:
+
+| Cache | Location | Contents |
+|---|---|---|
+| HuggingFace | host `~/.cache/huggingface` (bind mount) | Model weights and tokenizer |
+| vLLM       | named volume `vllm_cache`           | Internal vLLM artefacts |
+| TorchInductor | named volume `torchinductor_cache` | Compiled GPU kernels |
+| Triton     | named volume `triton_cache`          | Triton kernel cache |
+
+Inspect the named volumes with `docker volume ls | grep vllm`. They survive `docker compose down` (only removed by `docker compose down -v`).
+
 ## Start the server
 
 ```bash
