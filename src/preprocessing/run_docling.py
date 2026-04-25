@@ -1,20 +1,26 @@
 from __future__ import annotations
 
-# Main entry point for the docling pipeline (step 8).
-# Reads files from the docling_load_queue view, converts them with Docling inside
-# the ragrats_docling GPU container, and writes results to docling + docling_logging.
+# Entry point for the docling pipeline (step 8). Reads files from the
+# docling_load_queue view, converts them with Docling inside the ragrats_docling
+# GPU container, and writes results to docling + docling_logging.
+#
+# The converter is configured for high-quality output: ACCURATE table mode +
+# do_cell_matching, do_picture_description with IBM Granite Vision 3.3-2b as the
+# local VLM, and the Heron layout model when available. Sequential — no parallel
+# workers. The --sha256 flag (repeatable) re-processes specific files without
+# manually clearing DB rows.
 #
 # Run (inside the container):
-#   python3 -m preprocessing.step_08_docling.run_docling --limit 5 --voyage <key>
+#   python3 -m preprocessing.run_docling --resume --voyage <key>
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    _repo_root = _here.parents[2]
+    _repo_root = _here.parents[1]
     sys.path.insert(0, str(_repo_root))
-    sys.path.insert(0, str(_here.parents[0]))
-    __package__ = "preprocessing.step_08_docling"
+    sys.path.insert(0, str(_here))
+    __package__ = "preprocessing"
 
 import argparse
 import logging
@@ -174,12 +180,15 @@ def _fmt_time(s: float) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Docling pipeline — step 8")
+    parser = argparse.ArgumentParser(description="Docling pipeline — sequential, ACCURATE + picture description")
     parser.add_argument("--limit", type=int, default=None, metavar="N")
     parser.add_argument("--voyage", type=str, default=None, help="Filter by voyage_key")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--resume", action="store_true",
-                        help="Skip files already marked status='done' in docling_logging")
+                        help="Skip files already marked status='done' in docling_logging "
+                             "(ignored when --sha256 is set so test re-runs always execute).")
+    parser.add_argument("--sha256", action="append", default=[], metavar="HASH",
+                        help="Process only the listed sha256(s). Repeatable. Implies --resume=False.")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -194,11 +203,28 @@ def main() -> None:
             cuda = check_cuda_available()
             _print_preflight(logger, stats, cuda)
 
-            tasks = fetch_queue(conn, voyage=args.voyage, resume=args.resume, limit=args.limit)
+            sha_filter = {h.lower() for h in args.sha256} if args.sha256 else None
+            effective_resume = args.resume and not sha_filter
+
+            tasks = fetch_queue(conn, voyage=args.voyage, resume=effective_resume, limit=args.limit)
+
+            if sha_filter:
+                tasks = [t for t in tasks if t.sha256.lower() in sha_filter]
+                missing = sha_filter - {t.sha256.lower() for t in tasks}
+                if missing:
+                    logger.warning(
+                        "sha256 filter: %d hash(es) not found in docling_load_queue: %s",
+                        len(missing), ", ".join(sorted(missing))
+                    )
+                logger.info("sha256 filter active — %d task(s) will run (resume forced off).", len(tasks))
+
             if not tasks:
                 logger.info("Queue empty — nothing to process.")
                 return
-            logger.info(f"Fetched {len(tasks)} tasks (resume={args.resume}, limit={args.limit}, voyage={args.voyage})")
+            logger.info(
+                f"Fetched {len(tasks)} tasks (resume={effective_resume}, "
+                f"limit={args.limit}, voyage={args.voyage}, sha256_filter={bool(sha_filter)})"
+            )
 
             tasks = convert_legacy_files(tasks, logger)
             if not tasks:
