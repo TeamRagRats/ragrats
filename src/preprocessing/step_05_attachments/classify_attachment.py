@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 
-_EXCLUDED_PREFIXES = ("image/",)
+_EXCLUDED_PREFIXES = ("image/", "video/")
 _EXCLUDED_TYPES = {
     "application/zip",
     "application/x-zip-compressed",
