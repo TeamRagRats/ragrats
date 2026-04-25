@@ -133,7 +133,6 @@ def _process_batch(
                 conn,
                 sha256=result.sha256,
                 markdown=result.markdown,
-                docling_document=result.docling_document,
                 char_count=result.char_count,
                 token_count=result.token_count,
             )
@@ -161,7 +160,6 @@ def _process_batch(
 
         # Free large objects before next file.
         result.markdown = None
-        result.docling_document = None
 
     return done, errors
 

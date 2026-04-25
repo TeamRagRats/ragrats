@@ -92,7 +92,7 @@ def extract_attachments(
                 file_type=part.mime_type,
                 size_bytes=len(part.payload),
                 sha256=sha256,
-                docling_ready=is_docling_ready(part.mime_type),
+                docling_ready=is_docling_ready(part.mime_type, final_name),
             )
         )
     return out

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 # Wraps Docling's DocumentConverter. Builds a GPU-backed converter once and
-# processes files one at a time, exporting both Markdown (for display/summarisation)
-# and the full Docling document dict (for provenance / future chunking).
+# processes files one at a time, exporting Markdown only. The full DoclingDocument
+# dict is no longer built or persisted — embedded image payloads pushed the
+# serialised JSONB past Postgres' 256 MB per-value limit and nothing downstream
+# consumed it.
 
 import time
 from dataclasses import dataclass
@@ -18,7 +20,6 @@ class FileResult:
     file_type: str
     file_size_bytes: int
     markdown: Optional[str] = None
-    docling_document: Optional[dict] = None
     char_count: int = 0
     token_count: int = 0
     status: str = "pending"          # 'done' | 'error'
@@ -69,7 +70,6 @@ def process_single_file(task, converter) -> FileResult:
         result.markdown = md
         result.char_count = len(md)
         result.token_count = len(md) // 4  # rough estimate, same as old pipeline
-        result.docling_document = doc_result.document.export_to_dict()
 
         if md.strip():
             result.status = "done"
