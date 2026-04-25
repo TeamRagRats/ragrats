@@ -29,7 +29,7 @@ services:
       - torchinductor_cache:/root/.cache/torchinductor
       - triton_cache:/root/.cache/triton
     command: >
-      --model nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
+      vllm serve nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
       --dtype auto
       --max-model-len 131072
       --gpu-memory-utilization 0.85
