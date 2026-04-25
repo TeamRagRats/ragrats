@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 # Determines whether an attachment is eligible for Docling text extraction.
-# Excludes image/* and zip MIME types; all others (PDF, Office, etc.) are marked ready.
+# Excludes image/* and archive MIME types (zip, rar, 7z, tar, gz, bz2); all others
+# (PDF, Office, etc.) are marked ready. Archives are excluded because Docling cannot
+# extract text from them and they would otherwise sit in the queue forever.
 # Used by extract_attachments.py to set the docling_ready flag on each WrittenAttachment.
 
 _EXCLUDED_PREFIXES = ("image/",)
-_EXCLUDED_TYPES = {"application/zip", "application/x-zip-compressed", "application/x-zip"}
+_EXCLUDED_TYPES = {
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-zip",
+    "application/x-rar-compressed",
+    "application/vnd.rar",
+    "application/x-rar",
+    "application/x-7z-compressed",
+    "application/x-tar",
+    "application/gzip",
+    "application/x-gzip",
+    "application/x-bzip2",
+}
 
 
 def is_docling_ready(mime_type: str | None) -> bool:
