@@ -45,7 +45,13 @@ def fetch_pending(
     if include_done:
         parts.append(pgsql.SQL("WHERE TRUE "))
     else:
-        parts.append(pgsql.SQL("WHERE (l.status IS NULL OR l.status = 'error') "))
+        # 'pending' rows older than 30 min are treated as orphaned (vLLM crashed
+        # or container got recreated mid-batch) and re-fetched.
+        parts.append(pgsql.SQL(
+            "WHERE (l.status IS NULL "
+            "       OR l.status = 'error' "
+            "       OR (l.status = 'pending' AND l.started_at < now() - INTERVAL '30 minutes')) "
+        ))
 
     if voyage:
         parts.append(pgsql.SQL("AND q.voyage_key = %s "))

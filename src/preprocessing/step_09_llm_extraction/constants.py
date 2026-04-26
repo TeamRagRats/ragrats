@@ -5,6 +5,12 @@ from __future__ import annotations
 # --max-model-len 131072 so a single server covers all tiers; the worker counts
 # below cap concurrent KV-cache pressure.
 
+# Minimum "real" chars required after stripping <!-- image --> placeholders,
+# HTML comments, and whitespace. Below this the LLM has nothing to anchor on
+# and hallucinates a generic shipping doc. Mirrored by the llm_load_queue view
+# filter (migration 0013); this constant is the runtime defense-in-depth.
+MIN_CONTENT_CHARS = 50
+
 # Char ranges per size category (chars in docling.markdown).
 SMALL_MAX_CHARS  = 30_000
 MEDIUM_MAX_CHARS = 95_000
@@ -29,9 +35,13 @@ CLASSIFY_INPUT_TRUNCATE_CHARS = 25_000
 FULL_MAX_TOKENS     = 8_196
 CLASSIFY_MAX_TOKENS = 512
 
-# vLLM model context length. Used by the pre-flight token check to refuse
-# requests that would overflow the server (which would otherwise return 400).
-MODEL_MAX_CONTEXT_TOKENS = 131_072
+# vLLM model context length. MUST match --max-model-len in
+# docker/vllm/docker-compose.yml — used by the pre-flight token check to
+# refuse requests that would overflow the server (which would otherwise
+# return 400). Lowered from 131072 to 32768 to fit in unified memory budget;
+# medium-tier docs (~95k chars ≈ 24k tokens) still fit FULL mode with the
+# 8196-token output budget. Larger docs route to CLASSIFY mode automatically.
+MODEL_MAX_CONTEXT_TOKENS = 32_768
 
 # Rough chars-per-token ratio for shipping documents. Used only by the
 # pre-flight token estimator; the actual tokenizer would be more accurate but

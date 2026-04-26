@@ -5,6 +5,7 @@ from __future__ import annotations
 # would overflow vLLM, and returns a result dataclass that the main thread
 # writes to the DB.
 
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -16,9 +17,13 @@ from step_09_llm_extraction.constants import (
     CLASSIFY_INPUT_TRUNCATE_CHARS,
     CLASSIFY_MAX_TOKENS,
     FULL_MAX_TOKENS,
+    MIN_CONTENT_CHARS,
     MODEL_MAX_CONTEXT_TOKENS,
     SAFETY_MARGIN_TOKENS,
 )
+
+# Strips HTML comments (Docling emits <!-- image --> for figures) and whitespace.
+_PLACEHOLDER_RE = re.compile(r"<!--[^>]*-->|\s+")
 from step_09_llm_extraction.db import QueueItem
 from step_09_llm_extraction.prompts import (
     CLASSIFY_SYSTEM_PROMPT,
@@ -71,6 +76,17 @@ def process_single_document(
     t0 = time.monotonic()
 
     try:
+        real_chars = len(_PLACEHOLDER_RE.sub("", item.markdown))
+        if real_chars < MIN_CONTENT_CHARS:
+            result.status = "skipped"
+            result.error_message = (
+                f"insufficient_content: {real_chars} real chars after stripping "
+                f"placeholders (min={MIN_CONTENT_CHARS})"
+            )
+            result.duration_s = round(time.monotonic() - t0, 3)
+            result.finished_at = datetime.now(timezone.utc)
+            return result
+
         if classify_threshold == -1 or item.char_count < classify_threshold:
             mode = "full"
             system_prompt = FULL_SYSTEM_PROMPT

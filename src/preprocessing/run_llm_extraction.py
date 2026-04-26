@@ -300,7 +300,7 @@ def main() -> None:
     base_url = os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL)
     if not args.dry_run:
         logger.info(f"Waiting for vLLM server: {base_url}")
-        if not wait_for_server(base_url, timeout_s=300):
+        if not wait_for_server(base_url, timeout_s=600):
             logger.error(f"vLLM server not reachable: {base_url}")
             sys.exit(1)
         llm = LLMClient(base_url=base_url)
@@ -343,6 +343,7 @@ def main() -> None:
                 return
 
             grand_done = grand_err = grand_skip = 0
+            assert llm is not None  # narrowed: dry-run already returned above
             for tier in ("small", "medium", "large", "huge"):
                 items = by_tier[tier]
                 if not items:

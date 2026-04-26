@@ -31,8 +31,8 @@ services:
     command: >
       vllm serve nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
       --dtype auto
-      --max-model-len 131072
-      --gpu-memory-utilization 0.85
+      --max-model-len 32768
+      --gpu-memory-utilization 0.70
       --trust-remote-code
       --port 8000
 
