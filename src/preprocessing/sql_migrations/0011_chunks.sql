@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS chunks_source_idx  ON chunks (source_type, source_id);
 CREATE INDEX IF NOT EXISTS chunks_voyage_idx  ON chunks (voyage_key);
 
+-- m = 16: antal forbindelser per node i HNSW-grafen. Højere = bedre recall, mere RAM.
+-- ef_construction = 64: antal kandidater overvejet ved INSERT. Højere = bedre grafkvalitet, langsommere indsætning.
+-- Begge er standardværdier og passer til vores datastørrelse.
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
     ON chunks USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);
