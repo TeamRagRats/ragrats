@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# Entry point for the docling pipeline (step 8). Reads files from the
+# Entry point for the docling pipeline (step 7). Reads files from the
 # docling_load_queue view, converts them with Docling inside the ragrats_docling
 # GPU container, and writes results to docling + docling_logging.
 #
@@ -30,18 +30,18 @@ from datetime import datetime, timezone
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_08_docling import db as ddb
-from step_08_docling.constants import (
+from step_07_docling import db as ddb
+from step_07_docling.constants import (
     BATCH_SIZE,
     GPU_MEM_CRITICAL_PCT,
     GPU_MEM_WARN_PCT,
     RAM_CRITICAL_PCT,
     RAM_WARN_PCT,
 )
-from step_08_docling.docling_runner import build_docling_converter, process_single_file
-from step_08_docling.legacy import convert_legacy_files
-from step_08_docling.job_queue import QueueItem, fetch_queue, queue_stats
-from step_08_docling.resources import (
+from step_07_docling.docling_runner import build_docling_converter, process_single_file
+from step_07_docling.legacy import convert_legacy_files
+from step_07_docling.job_queue import QueueItem, fetch_queue, queue_stats
+from step_07_docling.resources import (
     check_cuda_available,
     cleanup_memory,
     get_gpu_info,
