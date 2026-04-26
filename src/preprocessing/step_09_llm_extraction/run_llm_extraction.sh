@@ -42,7 +42,7 @@ remaining_pending() {
 
 count=0
 while [ "$count" -lt "$MAX_RESTARTS" ]; do
-  python3 -m preprocessing.run_llm_extraction "$@" &
+  python3 src/preprocessing/run_llm_extraction.py "$@" &
   PY_PID=$!
   bash "$WATCHDOG" "$PY_PID" &
   WD_PID=$!
