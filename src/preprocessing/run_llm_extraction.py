@@ -139,7 +139,14 @@ def _process_batch(
         ) else "full"
         ldb.log_pending(conn, item, size_cat, mode_pre, started, run_id, batch_idx)
 
-    results: list[tuple[ldb.QueueItem, ExtractionResult]] = []
+    # Per-row DB writes inside as_completed: each finished doc is persisted
+    # before the next future is awaited. Otherwise a 6-min batch leaves all
+    # 15 rows 'pending' and the watchdog (3-min stuck threshold) kills the
+    # orchestrator before any DB write lands.
+    # Thread-safe: only the main thread (this loop) ever touches `conn`.
+    done = errors = skipped = 0
+    gpu = get_gpu_info()
+    ram = get_ram_info()
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = {
             ex.submit(
@@ -158,62 +165,56 @@ def _process_batch(
                     error_message=f"{type(exc).__name__}: {exc}",
                     started_at=started, finished_at=datetime.now(timezone.utc),
                 )
-            results.append((item, res))
 
-    # Single-threaded DB writes (psycopg connection is not thread-safe).
-    done = errors = skipped = 0
-    gpu = get_gpu_info()
-    ram = get_ram_info()
-    for item, res in results:
-        if res.status == "done":
-            ldb.upsert_structured(
+            if res.status == "done":
+                ldb.upsert_structured(
+                    conn,
+                    sha256=res.sha256,
+                    mode=res.mode,
+                    document_type=res.document_type,
+                    structured_md=res.structured_md,
+                    input_token_count=res.input_tokens,
+                    output_token_count=res.output_tokens,
+                    model_name=llm.model,
+                )
+                done += 1
+            elif res.status == "skipped":
+                skipped += 1
+            else:
+                errors += 1
+
+            ldb.log_finished(
                 conn,
                 sha256=res.sha256,
-                mode=res.mode,
-                document_type=res.document_type,
-                structured_md=res.structured_md,
-                input_token_count=res.input_tokens,
-                output_token_count=res.output_tokens,
-                model_name=llm.model,
+                finished_at=res.finished_at or datetime.now(timezone.utc),
+                duration_ms=int(res.duration_s * 1000),
+                status=res.status,
+                error_message=res.error_message,
+                input_tokens=res.input_tokens or None,
+                output_tokens=res.output_tokens or None,
+                gpu_util_pct=gpu["gpu_util_pct"] if gpu else None,
+                gpu_mem_pct=gpu["mem_used_pct"] if gpu else None,
+                ram_pct=ram["used_pct"] if ram else None,
             )
-            done += 1
-        elif res.status == "skipped":
-            skipped += 1
-        else:
-            errors += 1
 
-        ldb.log_finished(
-            conn,
-            sha256=res.sha256,
-            finished_at=res.finished_at or datetime.now(timezone.utc),
-            duration_ms=int(res.duration_s * 1000),
-            status=res.status,
-            error_message=res.error_message,
-            input_tokens=res.input_tokens or None,
-            output_tokens=res.output_tokens or None,
-            gpu_util_pct=gpu["gpu_util_pct"] if gpu else None,
-            gpu_mem_pct=gpu["mem_used_pct"] if gpu else None,
-            ram_pct=ram["used_pct"] if ram else None,
-        )
-
-        idx = done_so_far + done + errors + skipped
-        if res.status == "done":
-            logger.info(
-                f"  [{tier} {idx}/{pending_total}] {res.sha256[:12]} "
-                f"mode={res.mode} chars={item.char_count} "
-                f"in={res.input_tokens} out={res.output_tokens} "
-                f"({res.duration_s:.1f}s)"
-            )
-        elif res.status == "skipped":
-            logger.warning(
-                f"  [{tier} {idx}/{pending_total}] {res.sha256[:12]} "
-                f"SKIP — {res.error_message}"
-            )
-        else:
-            logger.error(
-                f"  [{tier} {idx}/{pending_total}] {res.sha256[:12]} "
-                f"ERR — {res.error_message}"
-            )
+            idx = done_so_far + done + errors + skipped
+            if res.status == "done":
+                logger.info(
+                    f"  [{tier} {idx}/{pending_total}] {res.sha256[:12]} "
+                    f"mode={res.mode} chars={item.char_count} "
+                    f"in={res.input_tokens} out={res.output_tokens} "
+                    f"({res.duration_s:.1f}s)"
+                )
+            elif res.status == "skipped":
+                logger.warning(
+                    f"  [{tier} {idx}/{pending_total}] {res.sha256[:12]} "
+                    f"SKIP — {res.error_message}"
+                )
+            else:
+                logger.error(
+                    f"  [{tier} {idx}/{pending_total}] {res.sha256[:12]} "
+                    f"ERR — {res.error_message}"
+                )
 
     return done, errors, skipped
 
