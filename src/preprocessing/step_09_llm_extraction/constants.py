@@ -18,8 +18,8 @@ LARGE_MAX_CHARS  = 300_000   # > LARGE_MAX_CHARS => huge => CLASSIFY mode
 
 # Concurrent workers per tier. Tiers are processed sequentially.
 WORKERS_BY_TIER: dict[str, int] = {
-    "small":  3,
-    "medium": 2,
+    "small":  4,
+    "medium": 4,
     "large":  1,
     "huge":   1,
 }
@@ -32,7 +32,7 @@ DEFAULT_CLASSIFY_THRESHOLD = LARGE_MAX_CHARS
 CLASSIFY_INPUT_TRUNCATE_CHARS = 25_000
 
 # Output budgets.
-FULL_MAX_TOKENS     = 8_196
+FULL_MAX_TOKENS     = 5_000
 CLASSIFY_MAX_TOKENS = 512
 
 # vLLM model context length. MUST match --max-model-len in
