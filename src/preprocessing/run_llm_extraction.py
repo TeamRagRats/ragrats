@@ -27,8 +27,8 @@ from datetime import datetime, timezone
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run, step
-from step_07_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
-from step_08_docling.resources import (
+from step_08_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
+from step_07_docling.resources import (
     cleanup_memory,
     get_gpu_info,
     get_ram_info,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# Main entry point for the summaries pipeline (step 7).
+# Main entry point for the summaries pipeline (step 8).
 # Waits for the vLLM server, then runs email summarisation (step 1) and voyage summarisation (step 2).
 # Retries the full pipeline up to MAX_RETRIES times if the LLM server goes down mid-run.
 # Run: python run_summaries.py [--step 1|2] [--limit N] [--workers N] [--verbose]
@@ -22,9 +22,9 @@ import time
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_07_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
-import step_07_summaries.email_summaries as step1
-import step_07_summaries.voyage_summaries as step2
+from step_08_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
+import step_08_summaries.email_summaries as step1
+import step_08_summaries.voyage_summaries as step2
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
