@@ -16,9 +16,9 @@ def _load(name: str) -> str:
 
 
 EMAIL_SUMMARY_SYSTEM = _load("summaries/email_summary.md")
-FIXTURE_SUMMARY_SYSTEM = _load("fixture_summary.md")
-PHASE_SUMMARY_SYSTEM = _load("phase_summary.md")
-VOYAGE_SUMMARY_SYSTEM = _load("voyage_summary.md")
+FIXTURE_SUMMARY_SYSTEM = _load("summaries/fixture_summary.md")
+PHASE_SUMMARY_SYSTEM = _load("summaries/phase_summary.md")
+VOYAGE_SUMMARY_SYSTEM = _load("summaries/voyage_summary.md")
 
 
 # ---------------------------------------------------------------------------
