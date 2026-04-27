@@ -15,6 +15,7 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
+import step_08_summaries.db as sdb
 from step_08_summaries.llm_client import LLMClient
 from step_08_summaries.prompts import EMAIL_SUMMARY_SYSTEM, build_email_summary_prompt
 
@@ -99,21 +100,29 @@ def _process_email(email: dict, llm: LLMClient) -> dict:
         from_addr=email.get("from_addr", "UNKNOWN"),
     )
     t0 = time.monotonic()
+    finished_at = datetime.now(timezone.utc)
     try:
-        summary, _ = llm.chat_with_usage(EMAIL_SUMMARY_SYSTEM, user_prompt)
+        summary, usage = llm.chat_with_usage(EMAIL_SUMMARY_SYSTEM, user_prompt)
+        secs = time.monotonic() - t0
+        finished_at = datetime.now(timezone.utc)
         return {
             "status": "ok",
             "email_id": email["email_id"], "voyage_key": email["voyage_key"],
             "sent_at": email["sent_at"], "summary": summary,
-            "secs": time.monotonic() - t0,
+            "secs": secs, "finished_at": finished_at,
             "attach_count": len(email.get("attachments", [])),
+            "input_tokens": usage.get("prompt_tokens"),
+            "output_tokens": usage.get("completion_tokens"),
         }
     except Exception as exc:
         return {
             "status": "error",
             "email_id": email["email_id"], "voyage_key": email["voyage_key"],
-            "sent_at": email["sent_at"],
+            "sent_at": email["sent_at"], "finished_at": datetime.now(timezone.utc),
+            "secs": time.monotonic() - t0,
             "error": f"{type(exc).__name__}: {exc}",
+            "attach_count": len(email.get("attachments", [])),
+            "input_tokens": None, "output_tokens": None,
         }
 
 
@@ -149,12 +158,34 @@ def run(
             for email in batch:
                 email["attachments"] = get_attachments(conn, email["email_id"])
 
+            batch_started = datetime.now(timezone.utc)
+            for email in batch:
+                sdb.log_pending(
+                    conn,
+                    email_id=email["email_id"],
+                    voyage_key=email["voyage_key"],
+                    attach_count=len(email.get("attachments", [])),
+                    started_at=batch_started,
+                    run_id=run_id,
+                    batch_idx=batch_idx,
+                )
+
             batch_results: list[dict] = []
             with ThreadPoolExecutor(max_workers=workers) as executor:
                 for future in as_completed({executor.submit(_process_email, e, llm): e for e in batch}):
                     done += 1
                     r = future.result()
                     batch_results.append(r)
+                    sdb.log_finished(
+                        conn,
+                        email_id=r["email_id"],
+                        finished_at=r["finished_at"],
+                        duration_ms=int(r["secs"] * 1000),
+                        status=r["status"],
+                        error_message=r.get("error"),
+                        input_tokens=r.get("input_tokens"),
+                        output_tokens=r.get("output_tokens"),
+                    )
                     if r["status"] == "ok":
                         attach_info = f" (+{r['attach_count']} attach)" if r["attach_count"] else ""
                         log.info(f"  [step1 {done}/{len(pending)}] {r['email_id']}{attach_info} OK ({r['secs']:.1f}s)")
