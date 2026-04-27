@@ -15,7 +15,7 @@ def _load(name: str) -> str:
     return (_SYSTEM_PROMPTS_DIR / name).read_text(encoding="utf-8").strip()
 
 
-EMAIL_SUMMARY_SYSTEM = _load("email_summary.md")
+EMAIL_SUMMARY_SYSTEM = _load("summaries/email_summary.md")
 FIXTURE_SUMMARY_SYSTEM = _load("fixture_summary.md")
 PHASE_SUMMARY_SYSTEM = _load("phase_summary.md")
 VOYAGE_SUMMARY_SYSTEM = _load("voyage_summary.md")
