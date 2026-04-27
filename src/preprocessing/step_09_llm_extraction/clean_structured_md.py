@@ -24,21 +24,27 @@ import psycopg
 from shared.db import connect
 
 # Matches a Key Information list line whose value is null-ish.
-# Covers: empty, N/A, not specified/applicable/identifiable/available/provided/stated/mentioned,
-# none, unknown, tbd, and unfilled bracket placeholders like [Name and IMO].
+# Label may be bold (**Field**) or plain (Field).
+# Value may have trailing parentheticals or extra text after the null keyword —
+# e.g. "Not specified (damage during loading)", "None provided", "N/A (test cert)".
 _NULL_LINE = re.compile(
     r"""^
-    \s* - \s+ \*\* [^*]+ \*\* : \s*   # - **Field**:  (leading label)
-    (?:                                 # followed by a null-ish value, or nothing:
-        not \s+ (?:specified | applicable | identifiable | available | provided | stated | mentioned)
-        | n \s* / \s* a                 # N/A, n/a, N / A, …
-        | none
-        | unknown
-        | tbd
-        | \[ [^\]]* \]                  # [any placeholder text]
+    \s*-\s+                             # bullet
+    (?:\*\*[^*]+\*\*|[^:*\n]+)         # **Bold Field** or plain Field
+    :\s*                                # colon + optional whitespace
+    (?:                                 # null-ish value, or empty:
+        \[?\s*                          # optional leading [ (e.g. [Not specified])
+        (?:
+            not\s+(?:specified|applicable|identifiable|available|provided|stated|mentioned)
+            |n\s*/\s*a                  # N/A, n/a, N / A …
+            |none\b
+            |unknown\b
+            |tbd\b
+        )
+        .*                              # trailing text: parentheticals, clauses, etc.
+        |\[[^\]]*\].*                   # [any bracket placeholder] + optional trailing text
     )?
-    \s* $
-    """,
+    $""",
     re.IGNORECASE | re.VERBOSE,
 )
 
