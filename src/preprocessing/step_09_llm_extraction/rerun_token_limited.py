@@ -17,9 +17,9 @@ if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    _repo_root = _here.parents[1]
+    _repo_root = _here.parents[2]
     sys.path.insert(0, str(_repo_root))
-    sys.path.insert(0, str(_here))
+    sys.path.insert(0, str(_here.parent))
     __package__ = "preprocessing"
 
 import argparse
