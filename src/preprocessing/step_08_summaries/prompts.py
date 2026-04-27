@@ -25,27 +25,34 @@ VOYAGE_SUMMARY_SYSTEM = _load("voyage_summary.md")
 # User prompt builders
 # ---------------------------------------------------------------------------
 
+_SEP = "-" * 50
+
+
 def build_email_summary_prompt(
     direction: str,
     date: str,
     body: str,
     attachments: list[dict],
+    from_addr: str = "UNKNOWN",
 ) -> str:
-    attach_block = ""
-    if attachments:
-        lines = []
-        for att in attachments:
-            lines.append(f"--- Attachment: {att['filename']} ---")
-            lines.append((att.get("content") or "").strip())
-        attach_block = "\n\n" + "\n".join(lines)
-
-    return (
-        f"Direction: {direction}\n"
-        f"Date: {date}\n\n"
-        f"Email body:\n{body.strip()}"
-        f"{attach_block}\n\n"
-        "Create a 2–8 sentence summary of this email."
-    )
+    dir_label = (direction or "UNKNOWN").upper()
+    lines = [
+        _SEP,
+        f"EMAIL {dir_label} FROM {from_addr} [{date}]:",
+        "",
+        body.strip(),
+    ]
+    for i, att in enumerate(attachments, 1):
+        doc_type = att.get("document_type") or "UNKNOWN"
+        lines += [
+            "",
+            _SEP,
+            f"ATTACHMENT {i}: {att['filename']}",
+            f"{doc_type} + ATTACHMENT STRUCTURED",
+            "",
+            (att.get("content") or "").strip(),
+        ]
+    return "\n".join(lines)
 
 
 def build_fixture_summary_prompt(fixture_json: str | dict) -> str:

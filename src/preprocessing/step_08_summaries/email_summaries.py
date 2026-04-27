@@ -50,7 +50,7 @@ def _format_ts(ts) -> str:
 
 def get_pending_emails(conn: psycopg.Connection, limit: int | None = None) -> list[dict]:
     sql = """
-        SELECT e.email_id, e.voyage_key, e.sent_at, e.direction, e.body_cleaned
+        SELECT e.email_id, e.voyage_key, e.sent_at, e.direction, e.body_cleaned, e.from_addr
         FROM emails e
         WHERE e.email_id NOT IN (
             SELECT email_id FROM email_attach_summaries WHERE status = 'ok'
@@ -68,6 +68,7 @@ def get_pending_emails(conn: psycopg.Connection, limit: int | None = None) -> li
                 "sent_at": r[2],
                 "direction": (r[3] or "UNKNOWN").upper(),
                 "body": r[4] or "",
+                "from_addr": r[5] or "UNKNOWN",
             }
             for r in cur.fetchall()
         ]
@@ -76,14 +77,17 @@ def get_pending_emails(conn: psycopg.Connection, limit: int | None = None) -> li
 def get_attachments(conn: psycopg.Connection, email_id: str) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT a.file_path, ls.structured_md
+            SELECT a.file_name, ls.document_type, ls.structured_md
             FROM attachments a
             JOIN llm_structured ls ON ls.sha256 = a.sha256
             WHERE a.email_id = %s
               AND ls.structured_md IS NOT NULL
               AND TRIM(ls.structured_md) <> ''
         """, (email_id,))
-        return [{"filename": r[0] or "", "content": r[1] or ""} for r in cur.fetchall()]
+        return [
+            {"filename": r[0] or "", "document_type": r[1] or "UNKNOWN", "content": r[2] or ""}
+            for r in cur.fetchall()
+        ]
 
 
 def _process_email(email: dict, llm: LLMClient) -> dict:
@@ -92,6 +96,7 @@ def _process_email(email: dict, llm: LLMClient) -> dict:
         date=_format_ts(email["sent_at"]),
         body=email["body"],
         attachments=email.get("attachments", []),
+        from_addr=email.get("from_addr", "UNKNOWN"),
     )
     t0 = time.monotonic()
     try:
