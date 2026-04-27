@@ -141,7 +141,7 @@ def _process_batch(
 
     # Per-row DB writes inside as_completed: each finished doc is persisted
     # before the next future is awaited. Otherwise a 6-min batch leaves all
-    # 15 rows 'pending' and the watchdog (3-min stuck threshold) kills the
+    # 15 rows 'pending' and the watchdog (10-min stuck threshold) kills the
     # orchestrator before any DB write lands.
     # Thread-safe: only the main thread (this loop) ever touches `conn`.
     done = errors = skipped = 0

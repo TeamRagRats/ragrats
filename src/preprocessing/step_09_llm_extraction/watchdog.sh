@@ -14,8 +14,8 @@ set -u
 
 PY_PID="${1:?usage: watchdog.sh <python-pid>}"
 POLL_S="${WATCHDOG_POLL_S:-20}"
-STUCK_S="${WATCHDOG_STUCK_S:-180}"        # 3 min
-API_FAIL_LIMIT="${WATCHDOG_API_FAIL_LIMIT:-2}"
+STUCK_S="${WATCHDOG_STUCK_S:-600}"        # 10 min
+API_FAIL_LIMIT="${WATCHDOG_API_FAIL_LIMIT:-15}"   # 15 * POLL_S = 5 min — survives cold model load
 COMPOSE_FILE="${VLLM_COMPOSE_FILE:-docker/vllm/docker-compose.yml}"
 DB_USER="${RAGRATS_DB_USER:-teamragrats}"
 DB_NAME="${RAGRATS_DB_NAME:-ragrats}"
