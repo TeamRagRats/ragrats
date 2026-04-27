@@ -43,7 +43,7 @@ from step_09_llm_extraction.constants import DEFAULT_CLASSIFY_THRESHOLD, categor
 from step_09_llm_extraction.extractor import ExtractionResult, process_single_document
 
 DEFAULT_MAX_TOKENS = 16_000
-DEFAULT_TOKEN_LIMITS = (5000, 8196)
+DEFAULT_TOKEN_LIMITS = (5000, 8196, 16000)
 DEFAULT_WORKERS = 4
 DEFAULT_BATCH_SIZE = 10
 DEFAULT_FULL_TIMEOUT = 150  # seconds per SHA; on timeout falls back to classify
