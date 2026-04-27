@@ -43,10 +43,11 @@ CLASSIFY_MAX_TOKENS = 512
 # 8196-token output budget. Larger docs route to CLASSIFY mode automatically.
 MODEL_MAX_CONTEXT_TOKENS = 32_768
 
-# Rough chars-per-token ratio for shipping documents. Used only by the
-# pre-flight token estimator; the actual tokenizer would be more accurate but
-# this is good enough as a safety guard with the SAFETY_MARGIN_TOKENS buffer.
-CHARS_PER_TOKEN = 4
+# Rough chars-per-token ratio. Lowered from 4 to 3 because dense maritime
+# tables/forms often tokenize at ~1.8-2.0 chars/token and slipped past the
+# pre-flight at the looser estimate (vLLM rejected with 400 BadRequestError).
+# CLASSIFY-fallback in extractor.py also catches the remaining slip-throughs.
+CHARS_PER_TOKEN = 3
 
 # Tokens reserved on top of estimated input + max_tokens for chat template,
 # system prompt overhead, and tokenizer variance.

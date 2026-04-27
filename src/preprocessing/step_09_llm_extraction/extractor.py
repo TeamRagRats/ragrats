@@ -63,6 +63,40 @@ def _parse_classify_output(text: str) -> tuple[Optional[str], Optional[str]]:
     return doc_type, summary
 
 
+def _is_context_overflow_error(exc: Exception) -> bool:
+    """Detect vLLM 400 BadRequestError caused by input + max_tokens > context."""
+    msg = str(exc).lower()
+    return (
+        "maximum context length" in msg
+        or "max_tokens" in msg and "too large" in msg
+        or "input_tokens" in msg
+        or "context_length_exceeded" in msg
+    )
+
+
+def _run_classify(
+    item: QueueItem,
+    llm: LLMClient,
+    temperature: float,
+    result: ExtractionResult,
+) -> None:
+    """Run CLASSIFY mode and populate `result`. Raises on hard failure."""
+    user_prompt = item.markdown[:CLASSIFY_INPUT_TRUNCATE_CHARS]
+    text, usage = llm.chat_with_usage(
+        system_prompt=CLASSIFY_SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+        temperature=temperature,
+        max_tokens=CLASSIFY_MAX_TOKENS,
+        timeout=600,
+    )
+    result.mode = "classify"
+    result.input_tokens = int(usage.get("prompt_tokens", 0))
+    result.output_tokens = int(usage.get("completion_tokens", 0))
+    doc_type, summary = _parse_classify_output(text)
+    result.document_type = doc_type
+    result.structured_md = summary or text
+
+
 def process_single_document(
     item: QueueItem,
     llm: LLMClient,
@@ -70,7 +104,13 @@ def process_single_document(
     full_max_tokens: int = FULL_MAX_TOKENS,
     temperature: float = 0.1,
 ) -> ExtractionResult:
-    """Worker entry point. Thread-safe: only reads `item` and `llm`; writes nothing."""
+    """Worker entry point. Thread-safe: only reads `item` and `llm`; writes nothing.
+
+    Two-stage strategy: try FULL mode for small/medium docs. If pre-flight
+    refuses or vLLM returns a context-length 400, fall back to CLASSIFY
+    (input truncated to CLASSIFY_INPUT_TRUNCATE_CHARS, ~512-token output) so
+    every doc gets *some* structured output.
+    """
     result = ExtractionResult(sha256=item.sha256, mode="full", status="error")
     result.started_at = datetime.now(timezone.utc)
     t0 = time.monotonic()
@@ -87,56 +127,49 @@ def process_single_document(
             result.finished_at = datetime.now(timezone.utc)
             return result
 
-        if classify_threshold == -1 or item.char_count < classify_threshold:
-            mode = "full"
-            system_prompt = FULL_SYSTEM_PROMPT
-            user_prompt = item.markdown
-            max_tokens = full_max_tokens
+        # Decide initial mode by size threshold.
+        use_full = classify_threshold == -1 or item.char_count < classify_threshold
+
+        # Pre-flight: if FULL would overflow context, route straight to CLASSIFY
+        # instead of skipping. CLASSIFY truncates input to 25k chars + 512-token
+        # output → comfortably fits 32k context.
+        if use_full:
+            est_input = _estimate_tokens(item.markdown, FULL_SYSTEM_PROMPT)
+            if est_input + full_max_tokens + SAFETY_MARGIN_TOKENS > MODEL_MAX_CONTEXT_TOKENS:
+                use_full = False
+
+        if use_full:
+            result.mode = "full"
+            try:
+                text, usage = llm.chat_with_usage(
+                    system_prompt=FULL_SYSTEM_PROMPT,
+                    user_prompt=item.markdown,
+                    temperature=temperature,
+                    max_tokens=full_max_tokens,
+                    timeout=1800,
+                )
+                result.input_tokens = int(usage.get("prompt_tokens", 0))
+                result.output_tokens = int(usage.get("completion_tokens", 0))
+                result.structured_md = text
+                # FULL output starts with "# <Detected Document Type>".
+                for line in text.splitlines():
+                    s = line.strip()
+                    if s.startswith("#"):
+                        result.document_type = s.lstrip("#").strip() or None
+                        break
+                result.status = "done"
+            except Exception as exc:
+                if _is_context_overflow_error(exc):
+                    # Fall back to CLASSIFY — pre-flight estimate was too loose.
+                    _run_classify(item, llm, temperature, result)
+                    result.status = "done"
+                    result.error_message = "fallback_classify: full overflowed context"
+                else:
+                    raise
         else:
-            mode = "classify"
-            system_prompt = CLASSIFY_SYSTEM_PROMPT
-            user_prompt = item.markdown[:CLASSIFY_INPUT_TRUNCATE_CHARS]
-            max_tokens = CLASSIFY_MAX_TOKENS
+            _run_classify(item, llm, temperature, result)
+            result.status = "done"
 
-        result.mode = mode
-
-        est_input = _estimate_tokens(user_prompt, system_prompt)
-        if est_input + max_tokens + SAFETY_MARGIN_TOKENS > MODEL_MAX_CONTEXT_TOKENS:
-            # Pre-flight refusal: would overflow vLLM. Mark skipped and bail
-            # without an HTTP call.
-            result.mode = "classify"
-            result.status = "skipped"
-            result.error_message = (
-                f"pre-flight: estimated {est_input} input tokens + "
-                f"{max_tokens} output > model limit {MODEL_MAX_CONTEXT_TOKENS}"
-            )
-            return result
-
-        text, usage = llm.chat_with_usage(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            timeout=1800,
-        )
-
-        result.input_tokens = int(usage.get("prompt_tokens", 0))
-        result.output_tokens = int(usage.get("completion_tokens", 0))
-
-        if mode == "classify":
-            doc_type, summary = _parse_classify_output(text)
-            result.document_type = doc_type
-            result.structured_md = summary or text
-        else:
-            result.structured_md = text
-            # FULL output starts with "# <Detected Document Type>" per the prompt.
-            for line in text.splitlines():
-                s = line.strip()
-                if s.startswith("#"):
-                    result.document_type = s.lstrip("#").strip() or None
-                    break
-
-        result.status = "done"
     except Exception as exc:
         result.status = "error"
         result.error_message = f"{type(exc).__name__}: {exc}"
