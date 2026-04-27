@@ -34,6 +34,7 @@ from typing import Optional
 import psycopg
 
 from shared.db import connect
+from shared.logging.run_logger import finish_run, start_run
 from step_07_docling.resources import cleanup_memory, get_gpu_info, get_ram_info
 from step_08_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_09_llm_extraction import db as ldb
@@ -78,6 +79,7 @@ def _process_batch(
     full_max_tokens: int,
     temperature: float,
     batch_idx: int,
+    run_id,
     logger: logging.Logger,
     total: int,
     done_so_far: int,
@@ -93,7 +95,7 @@ def _process_batch(
             else "full"
         )
         if not dry_run:
-            ldb.log_pending(conn, item, size_cat, mode_pre, started, None, batch_idx)
+            ldb.log_pending(conn, item, size_cat, mode_pre, started, run_id, batch_idx)
 
     if dry_run:
         for item in batch:
@@ -271,35 +273,45 @@ def main() -> None:
             + (" [DRY-RUN]" if args.dry_run else "")
         )
 
+        run_id = None if args.dry_run else start_run(conn)
         total_done = total_err = total_skip = 0
         processed = 0
         batch_size = args.batch_size
         t_start = time.monotonic()
+        status = "ok"
 
-        while processed < total:
-            batch = items[processed : processed + batch_size]
-            batch_idx = (processed // max(batch_size, 1)) + 1
-            logger.info(f"--- batch {batch_idx} ({len(batch)} docs) ---")
+        try:
+            while processed < total:
+                batch = items[processed : processed + batch_size]
+                batch_idx = (processed // max(batch_size, 1)) + 1
+                logger.info(f"--- batch {batch_idx} ({len(batch)} docs) ---")
 
-            done, errs, skipped = _process_batch(
-                conn, llm, batch,
-                workers=args.max_workers,
-                classify_threshold=args.classify_threshold,
-                full_max_tokens=args.max_tokens,
-                temperature=args.temperature,
-                batch_idx=batch_idx,
-                logger=logger,
-                total=total,
-                done_so_far=total_done + total_err + total_skip,
-                dry_run=args.dry_run,
-            )
-            total_done += done
-            total_err += errs
-            total_skip += skipped
-            processed += len(batch)
+                done, errs, skipped = _process_batch(
+                    conn, llm, batch,
+                    workers=args.max_workers,
+                    classify_threshold=args.classify_threshold,
+                    full_max_tokens=args.max_tokens,
+                    temperature=args.temperature,
+                    batch_idx=batch_idx,
+                    run_id=run_id,
+                    logger=logger,
+                    total=total,
+                    done_so_far=total_done + total_err + total_skip,
+                    dry_run=args.dry_run,
+                )
+                total_done += done
+                total_err += errs
+                total_skip += skipped
+                processed += len(batch)
 
-            if not args.dry_run:
-                cleanup_memory(logger)
+                if not args.dry_run:
+                    cleanup_memory(logger)
+        except Exception:
+            status = "failed"
+            raise
+        finally:
+            if run_id is not None:
+                finish_run(conn, run_id, status=status)
 
         elapsed = time.monotonic() - t_start
         logger.info(
