@@ -28,7 +28,7 @@ from step_09_summaries.prompts import (
 PHASE_BATCH_SIZE = 50
 PHASE_MAX_TOKENS = 2048
 VOYAGE_MAX_TOKENS = 16384
-DEFAULT_WORKERS = 4
+DEFAULT_WORKERS = 1
 
 
 def _format_ts(ts) -> str:
