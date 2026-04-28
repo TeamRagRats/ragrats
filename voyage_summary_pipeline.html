@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voyage Summary Pipeline</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3348;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #4ade80;
+    --green-dim: #1a3d2b;
+    --blue: #60a5fa;
+    --blue-dim: #1a2d4a;
+    --amber: #fbbf24;
+    --amber-dim: #2d2010;
+    --purple: #a78bfa;
+    --purple-dim: #1e1a3d;
+    --red: #f87171;
+    --stage1: #4ade80;
+    --stage2: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  header span {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  /* Progress bar */
+  .progress-container {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    overflow-x: auto;
+  }
+
+  .progress-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: max-content;
+  }
+
+  .progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    padding: 0 0.25rem;
+  }
+
+  .progress-step .dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    transition: all 0.2s;
+    position: relative;
+    z-index: 1;
+  }
+
+  .progress-step.s1 .dot { border-color: #1a3d2b; }
+  .progress-step.s2 .dot { border-color: #1a2d4a; }
+
+  .progress-step.active .dot {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #0f1117;
+    box-shadow: 0 0 12px rgba(251,191,36,0.5);
+  }
+
+  .progress-step.done .dot {
+    color: #0f1117;
+  }
+  .progress-step.done.s1 .dot { background: var(--stage1); border-color: var(--stage1); }
+  .progress-step.done.s2 .dot { background: var(--stage2); border-color: var(--stage2); }
+
+  .progress-step .label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 4px;
+    white-space: nowrap;
+    text-align: center;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .progress-step.active .label { color: var(--amber); }
+
+  .progress-line {
+    height: 2px;
+    width: 24px;
+    background: var(--border);
+    margin-bottom: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 6rem;
+  }
+
+  .step-card {
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .step-card.active {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .step-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--border);
+    flex-shrink: 0;
+    width: 2.5rem;
+    text-align: right;
+  }
+
+  .step-title-group { flex: 1; }
+
+  .stage-badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .badge-s1 { background: var(--green-dim); color: var(--green); }
+  .badge-s2 { background: var(--blue-dim); color: var(--blue); }
+
+  .step-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .step-desc {
+    font-size: 0.95rem;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Blocks */
+  .block {
+    margin-bottom: 1.25rem;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .block-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .block-sql .block-header    { background: var(--amber-dim);  color: var(--amber); }
+  .block-system .block-header { background: var(--green-dim);  color: var(--green); }
+  .block-user .block-header   { background: var(--blue-dim);   color: var(--blue);  }
+  .block-api .block-header    { background: var(--purple-dim); color: var(--purple);}
+  .block-flow .block-header   { background: #1a1a2e;           color: var(--muted); }
+
+  .block pre {
+    background: var(--surface2);
+    padding: 1rem 1.1rem;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text);
+  }
+
+  .block-sql pre    { color: #fcd34d; }
+  .block-system pre { color: #86efac; }
+  .block-user pre   { color: #93c5fd; }
+  .block-api pre    { color: #c4b5fd; }
+  .block-flow pre   { color: var(--muted); }
+
+  /* Placeholder highlights in user prompt */
+  .ph { color: var(--amber); font-style: italic; }
+
+  /* Dataflow arrow */
+  .dataflow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+  }
+
+  .dataflow-arrow { color: var(--amber); font-size: 1.1rem; }
+  .dataflow-text  { color: var(--muted); }
+  .dataflow-value { color: var(--text); font-weight: 500; }
+
+  /* Nav buttons */
+  .nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 0.9rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .nav-btn {
+    padding: 0.55rem 1.4rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .nav-btn:hover { background: var(--border); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .nav-btn.primary {
+    background: var(--amber);
+    color: #0f1117;
+    border-color: var(--amber);
+    font-weight: 700;
+  }
+
+  .nav-btn.primary:hover { background: #f59e0b; border-color: #f59e0b; }
+
+  .nav-counter {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  /* SQL keyword highlight */
+  .kw  { color: #f472b6; }
+  .fn  { color: #38bdf8; }
+  .str { color: #a3e635; }
+  .cmt { color: #4b5563; font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  <h1>Voyage Summary Pipeline</h1>
+  <span>— klik gennem alle 14 trin</span>
+</header>
+
+<div class="progress-container">
+  <div class="progress-track" id="progressTrack">
+    <!-- generated by JS -->
+  </div>
+</div>
+
+<div class="main" id="main">
+
+<!-- ═══════════════════════════════════════════════════════ STEP 1 -->
+<div class="step-card" data-step="1" data-stage="1">
+  <div class="step-header">
+    <div class="step-number">1</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s1">Stage 1 · Email Summaries</div>
+      <div class="step-title">Hent emails uden summary</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Første trin i Stage 1. Vi spørger databasen: hvilke emails mangler stadig en summary?
+    En email er "pending" hvis den ikke allerede har en <code>status='ok'</code>-række i <code>email_attach_summaries</code>.
+    Resultatet er en ordnet liste af emails, sorteret efter afsendelsestidspunkt.
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — get_pending_emails()</div>
+    <pre><span class="kw">SELECT</span>
+    e.email_id,
+    e.voyage_key,
+    e.sent_at,
+    e.direction,
+    e.body_cleaned
+<span class="kw">FROM</span> emails e
+<span class="kw">WHERE</span> e.email_id <span class="kw">NOT IN</span> (
+    <span class="kw">SELECT</span> email_id
+    <span class="kw">FROM</span> email_attach_summaries
+    <span class="kw">WHERE</span> status = <span class="str">'ok'</span>
+)
+<span class="kw">ORDER BY</span> e.sent_at <span class="kw">ASC NULLS LAST</span>
+[<span class="kw">LIMIT</span> {limit}]  <span class="cmt">-- kun hvis --limit flag er sat</span></pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">Liste af <code>{ email_id, voyage_key, sent_at, direction, body }</code> — én pr. pending email</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 2 -->
+<div class="step-card" data-step="2" data-stage="1">
+  <div class="step-header">
+    <div class="step-number">2</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s1">Stage 1 · Email Summaries</div>
+      <div class="step-title">Hent attachments for hver email</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    For hver email fra trin 1 hentes tilhørende vedhæftede filer. Kun filer der allerede er struktureret af Docling (i <code>llm_structured</code>-tabellen) inkluderes — rå binærer hoppes over. Indholdet er Markdown-struktureret tekst (tabeller, afsnit osv.).
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — get_attachments(email_id)</div>
+    <pre><span class="kw">SELECT</span>
+    a.file_path,
+    ls.structured_md
+<span class="kw">FROM</span> attachments a
+<span class="kw">JOIN</span> llm_structured ls <span class="kw">ON</span> ls.sha256 = a.sha256
+<span class="kw">WHERE</span> a.email_id = <span class="str">%s</span>
+  <span class="kw">AND</span> ls.structured_md <span class="kw">IS NOT NULL</span>
+  <span class="kw">AND</span> <span class="fn">TRIM</span>(ls.structured_md) &lt;&gt; <span class="str">''</span></pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">Liste af <code>{ filename, content }</code> — 0 eller flere attachments pr. email</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 3 -->
+<div class="step-card" data-step="3" data-stage="1">
+  <div class="step-header">
+    <div class="step-number">3</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s1">Stage 1 · Email Summaries</div>
+      <div class="step-title">Byg email summary prompt</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Nu samles email-body og attachments til et LLM-prompt. Prompten er i to dele: en fast <strong>system</strong>-prompt der definerer rollen, og en <strong>user</strong>-prompt med det konkrete indhold. Se præcis hvad der sendes nedenfor.
+  </p>
+
+  <div class="block block-system">
+    <div class="block-header">🤖 SYSTEM PROMPT — system_prompts/summaries/email_summary.md</div>
+    <pre>You are a shipping industry analyst. Your task is to write a concise summary
+of a single email and its attachments from a bulk shipping operation.
+
+Focus only on facts relevant to the voyage: cargo type and quantity, port names,
+dates (laycan, ETA, ETD), freight rates, counterparty names, operational issues,
+and any decisions or instructions. Ignore pleasantries and boilerplate.
+
+Create 2-8 sentences in plain English. Do not use bullet points.</pre>
+  </div>
+
+  <div class="block block-user">
+    <div class="block-header">✉️ USER PROMPT — build_email_summary_prompt()</div>
+    <pre>Direction: <span class="ph">{INCOMING | OUTGOING}</span>
+Date: <span class="ph">{2024-03-15 14:32 UTC}</span>
+
+Email body:
+<span class="ph">{body_cleaned — den rensede tekst fra emails.body_cleaned}</span>
+
+--- Attachment: <span class="ph">{filename}</span> ---
+<span class="ph">{structured_md — Docling-udtrukket Markdown fra llm_structured}</span>
+
+<span class="cmt">[gentages for hvert attachment med structured_md]</span>
+
+Create a 2–8 sentence summary of this email.</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Videre til:</span>
+    <span class="dataflow-value">LLM API-kald (trin 4)</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 4 -->
+<div class="step-card" data-step="4" data-stage="1">
+  <div class="step-header">
+    <div class="step-number">4</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s1">Stage 1 · Email Summaries</div>
+      <div class="step-title">LLM-kald: email summary</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Prompten fra trin 3 sendes til den lokale vLLM-server. 5 emails behandles parallelt (ThreadPoolExecutor med 5 workers). Ved fejl: op til 3 forsøg med exponential backoff (2s, 4s).
+  </p>
+
+  <div class="block block-api">
+    <div class="block-header">⚡ API REQUEST — LLMClient.chat_with_usage()</div>
+    <pre>POST http://localhost:8002/v1/chat/completions
+
+{
+  "model": <span class="ph">"{auto-detected fra /v1/models}"</span>,
+  "temperature": 0.3,
+  "max_tokens": 1024,
+  "timeout": 300,
+  "extra_body": {
+    "chat_template_kwargs": { "enable_thinking": false }
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": <span class="ph">"{EMAIL_SUMMARY_SYSTEM — fra trin 3}"</span>
+    },
+    {
+      "role": "user",
+      "content": <span class="ph">"{build_email_summary_prompt(...) — fra trin 3}"</span>
+    }
+  ]
+}</pre>
+  </div>
+
+  <div class="block block-flow">
+    <div class="block-header">↩ RESPONSE</div>
+    <pre>response.choices[0].message.content  →  2-8 sætningers summary
+response.usage.prompt_tokens          →  logges (ikke gemt i DB)
+response.usage.completion_tokens      →  logges (ikke gemt i DB)</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">Tekst-summary pr. email (2–8 sætninger på engelsk)</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 5 -->
+<div class="step-card" data-step="5" data-stage="1">
+  <div class="step-header">
+    <div class="step-number">5</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s1">Stage 1 · Email Summaries</div>
+      <div class="step-title">Gem email summary i databasen</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Summaries gemmes i <code>email_attach_summaries</code>. Batches af 20 emails committes samlet. Ved fejl gemmes fejlbeskeden i <code>log</code>-kolonnen med <code>status='error'</code>. Eksisterende fejlrækker slettes først (så de kan genprocesseres).
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — ryd op + indsæt (batch commit pr. 20 emails)</div>
+    <pre><span class="cmt">-- Slet eksisterende fejlrækker for batch (så de kan genprocesseres)</span>
+<span class="kw">DELETE FROM</span> email_attach_summaries
+<span class="kw">WHERE</span> status = <span class="str">'error'</span>
+  <span class="kw">AND</span> email_id = <span class="fn">ANY</span>(<span class="str">%s</span>);
+
+<span class="cmt">-- Ved success (status='ok'):</span>
+<span class="kw">INSERT INTO</span> email_attach_summaries
+    (email_id, voyage_key, sent_at, summary, status, log, generated_at)
+<span class="kw">VALUES</span> (<span class="str">%s</span>, <span class="str">%s</span>, <span class="str">%s</span>, <span class="str">%s</span>, <span class="str">'ok'</span>, <span class="str">%s</span>, <span class="str">%s</span>)
+<span class="kw">ON CONFLICT</span> (email_id) <span class="kw">DO UPDATE SET</span>
+    summary = EXCLUDED.summary,
+    status = <span class="str">'ok'</span>,
+    log = EXCLUDED.log,
+    generated_at = EXCLUDED.generated_at;
+
+<span class="cmt">-- Ved fejl (status='error'):</span>
+<span class="kw">INSERT INTO</span> email_attach_summaries
+    (email_id, voyage_key, sent_at, summary, status, log, generated_at)
+<span class="kw">VALUES</span> (<span class="str">%s</span>, <span class="str">%s</span>, <span class="str">%s</span>, <span class="str">''</span>, <span class="str">'error'</span>, <span class="str">%s</span>, <span class="str">%s</span>)
+<span class="kw">ON CONFLICT</span> (email_id) <span class="kw">DO UPDATE SET</span>
+    status = <span class="str">'error'</span>,
+    log = EXCLUDED.log,
+    generated_at = EXCLUDED.generated_at;</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">✓</span>
+    <span class="dataflow-text">Stage 1 færdig.</span>
+    <span class="dataflow-value">Alle emails har nu en summary-række i <code>email_attach_summaries</code></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 6 -->
+<div class="step-card" data-step="6" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">6</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · Voyage Summaries</div>
+      <div class="step-title">Hent voyages uden summary</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Stage 2 starter med at finde hvilke voyages der er klar: dvs. voyages der har mindst én <code>ok</code>-email summary, men endnu ikke en færdig <code>voyage_summaries</code>-række.
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — get_pending_voyages()</div>
+    <pre><span class="kw">SELECT DISTINCT</span> voyage_key
+<span class="kw">FROM</span> email_attach_summaries
+<span class="kw">WHERE</span> voyage_key <span class="kw">IS NOT NULL</span>
+  <span class="kw">AND</span> status = <span class="str">'ok'</span>
+  <span class="kw">AND</span> voyage_key <span class="kw">NOT IN</span> (
+      <span class="kw">SELECT</span> voyage_key <span class="kw">FROM</span> voyage_summaries
+  )
+<span class="kw">ORDER BY</span> voyage_key
+[<span class="kw">LIMIT</span> {limit}]</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">Liste af voyage_key strenge, fx <code>["V2024-001", "V2024-002", ...]</code></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 7 -->
+<div class="step-card" data-step="7" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">7</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · Voyage Summaries</div>
+      <div class="step-title">Hent email summaries + fixture data</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    For hver voyage hentes to ting: (1) alle email summaries fra Stage 1, sorteret kronologisk — disse er "råmaterialet" til faseinddelingen; (2) fixture-data fra <code>fixtures</code>-tabellen, hvis den eksisterer for denne voyage.
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — get_email_summaries(voyage_key)</div>
+    <pre><span class="kw">SELECT</span>
+    s.sent_at,
+    s.summary,
+    e.direction
+<span class="kw">FROM</span> email_attach_summaries s
+<span class="kw">LEFT JOIN</span> emails e <span class="kw">ON</span> e.email_id = s.email_id
+<span class="kw">WHERE</span> s.voyage_key = <span class="str">%s</span>
+  <span class="kw">AND</span> s.status = <span class="str">'ok'</span>
+<span class="kw">ORDER BY</span> s.sent_at <span class="kw">ASC NULLS LAST</span></pre>
+  </div>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — get_fixture(voyage_key)</div>
+    <pre><span class="kw">SELECT</span> * <span class="kw">FROM</span> fixtures
+<span class="kw">WHERE</span> voyage_key = <span class="str">%s</span>
+<span class="cmt">-- Returnerer én række eller NULL (fixture er valgfri)</span></pre>
+  </div>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — get_existing_phases(voyage_key)</div>
+    <pre><span class="kw">SELECT</span>
+    phase_index, phase_range, date_start, date_end,
+    email_count, summary, status
+<span class="kw">FROM</span> phase_summaries
+<span class="kw">WHERE</span> voyage_key = <span class="str">%s</span>
+<span class="cmt">-- Bruges til at springe allerede-genererede faser over (idempotent)</span></pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">N emails → splittes i batches af 50 → <code>len(emails) / 50</code> faser (oprundet)</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 8 -->
+<div class="step-card" data-step="8" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">8</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · MAP-fase</div>
+      <div class="step-title">Byg phase summary prompt</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Emailsummaries deles i faser af 50 ad gangen (PHASE_BATCH_SIZE = 50). For hver fase bygges en prompt der beder LLM om at opsummere netop det udsnit af voyage-historikken. Faser der allerede er genereret med <code>status='ok'</code> springes over.
+  </p>
+
+  <div class="block block-system">
+    <div class="block-header">🤖 SYSTEM PROMPT — system_prompts/summaries/phase_summary.md</div>
+    <pre>You are a shipping industry analyst. You will receive a chronologically ordered
+batch of email and attachment summaries covering part of a single voyage.
+Each entry is tagged (INCOMING) or (OUTGOING), indicating whether the email was
+received by the operator or sent by them. Use this direction to describe who
+did what: INCOMING = a counterparty contacted us; OUTGOING = we communicated
+to a counterparty.
+
+Write a phase summary in plain English covering what happened in this slice of the voyage:
+operational decisions, counterparty communications, cargo particulars, port calls, dates,
+freight and commercial terms, operational issues, and any notable context. Do not restate
+the same fact more than once. If multiple emails cover the same topic, consolidate into a
+single statement. Reference specific dates when describing events.
+Do not use bullet points. Do not speculate about events outside the given slice; this is
+one phase of a larger voyage and later phases will cover subsequent events.
+
+If any mistakes, errors, disputes, claims, incidents, or unforeseen events occurred in
+this slice (e.g. stevedore damage, off-hire, delays, cargo claims, berthing issues,
+weather problems, charterparty breaches), mention them inline with the relevant date.
+The final voyage narrative will aggregate these across all phases.</pre>
+  </div>
+
+  <div class="block block-user">
+    <div class="block-header">✉️ USER PROMPT — build_phase_summary_prompt()</div>
+    <pre>Voyage: <span class="ph">{voyage_key}</span>
+Phase: <span class="ph">{emails 1-50}</span>
+
+Email thread slice (<span class="ph">{50}</span> emails, chronological):
+[1] <span class="ph">{2024-01-10}</span> (<span class="ph">{INCOMING}</span>)  <span class="ph">{email summary fra trin 4-5}</span>
+[2] <span class="ph">{2024-01-11}</span> (<span class="ph">{OUTGOING}</span>)  <span class="ph">{email summary fra trin 4-5}</span>
+[3] <span class="ph">{2024-01-11 14:22 UTC}</span> (<span class="ph">{INCOMING}</span>)  <span class="ph">{email summary fra trin 4-5}</span>
+<span class="cmt">... (op til 50 linjer)</span>
+
+Write the phase summary.</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Videre til:</span>
+    <span class="dataflow-value">LLM API-kald pr. fase (trin 9) — faser køres parallelt med 1 worker (default)</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 9 -->
+<div class="step-card" data-step="9" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">9</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · MAP-fase</div>
+      <div class="step-title">LLM-kald: phase summary</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Hver fase sendes til LLM med højere max_tokens end email-kaldene (2048 vs 1024), da en fase dækker op til 50 emails. Faser køres parallelt med ThreadPoolExecutor.
+  </p>
+
+  <div class="block block-api">
+    <div class="block-header">⚡ API REQUEST — _run_phase()</div>
+    <pre>POST http://localhost:8002/v1/chat/completions
+
+{
+  "model": <span class="ph">"{auto-detected}"</span>,
+  "temperature": 0.3,
+  "max_tokens": 2048,        <span class="cmt">← dobbelt vs email-kald</span>
+  "timeout": 300,
+  "extra_body": {
+    "chat_template_kwargs": { "enable_thinking": false }
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": <span class="ph">"{PHASE_SUMMARY_SYSTEM — fra trin 8}"</span>
+    },
+    {
+      "role": "user",
+      "content": <span class="ph">"{build_phase_summary_prompt(...) — fra trin 8}"</span>
+    }
+  ]
+}</pre>
+  </div>
+
+  <div class="block block-flow">
+    <div class="block-header">↩ RESPONSE</div>
+    <pre>response.choices[0].message.content  →  fase-summary (ét sammenhængende afsnit)
+Timing måles: time.monotonic() bruges til at logge sekunder pr. fase</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">Tekst-summary der dækker ét udsnit (op til 50 emails) af voyage-historikken</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 10 -->
+<div class="step-card" data-step="10" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">10</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · MAP-fase</div>
+      <div class="step-title">Gem phase summary</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Fase-summaries gemmes løbende efterhånden som de færdiggøres (ikke batched). Designet er delete-then-insert (idempotent): køres pipelinen om, overskrives kun de faser der mangler eller fejlede.
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — _upsert_phase()</div>
+    <pre><span class="cmt">-- Slet eksisterende (idempotent ved genkørsel)</span>
+<span class="kw">DELETE FROM</span> phase_summaries
+<span class="kw">WHERE</span> voyage_key = <span class="str">%s</span> <span class="kw">AND</span> phase_index = <span class="str">%s</span>;
+
+<span class="cmt">-- Indsæt ny (ved success):</span>
+<span class="kw">INSERT INTO</span> phase_summaries
+    (voyage_key, phase_index, phase_range, date_start, date_end,
+     email_count, summary, status, log, generated_at)
+<span class="kw">VALUES</span> (
+    <span class="str">%s</span>,                    <span class="cmt">-- voyage_key, fx 'V2024-001'</span>
+    <span class="str">%s</span>,                    <span class="cmt">-- phase_index (0-baseret)</span>
+    <span class="str">%s</span>,                    <span class="cmt">-- phase_range, fx 'emails 1-50'</span>
+    <span class="str">%s</span>, <span class="str">%s</span>,              <span class="cmt">-- date_start, date_end</span>
+    <span class="str">%s</span>,                    <span class="cmt">-- email_count</span>
+    <span class="str">%s</span>,                    <span class="cmt">-- summary tekst</span>
+    <span class="str">'ok'</span>,
+    <span class="str">%s</span>,                    <span class="cmt">-- log: fx 'OK 12.3s'</span>
+    <span class="str">%s</span>                     <span class="cmt">-- generated_at (now UTC)</span>
+);</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Når alle faser er OK:</span>
+    <span class="dataflow-value">REDUCE-fasen starter (trin 11–14) — alle phase summaries hentes fra DB</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 11 -->
+<div class="step-card" data-step="11" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">11</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · REDUCE-fase</div>
+      <div class="step-title">Byg fixture summary (hvis fixture findes)</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Hvis der er fixture-data for voyagen (charterparty-aftalen), opsummeres den til et kort afsnit. Dette fixture-paragraph bruges som kontekst i det endelige voyage-summary. Har voyagen ingen fixture, springes dette trin over og der bruges en placeholder.
+  </p>
+
+  <div class="block block-system">
+    <div class="block-header">🤖 SYSTEM PROMPT — system_prompts/summaries/fixture_summary.md</div>
+    <pre>You are a shipping industry analyst. Your task is to summarise a fixture record
+from a bulk shipping voyage into a short paragraph.
+
+Include: vessel name, trade route (load port -> discharge port), cargo type and
+quantity, freight rate, laytime terms, and any notable clauses. Write 3-5
+sentences in plain English.</pre>
+  </div>
+
+  <div class="block block-user">
+    <div class="block-header">✉️ USER PROMPT — build_fixture_summary_prompt()</div>
+    <pre>Fixture data:
+<span class="ph">{fixture JSON — alle kolonner fra fixtures-tabellen, pretty-printed:
+{
+  "voyage_key": "V2024-001",
+  "vessel_name": "MV EXAMPLE",
+  "load_port": "Rotterdam",
+  "discharge_port": "Singapore",
+  "cargo_type": "Grain",
+  "quantity_mt": 50000,
+  "freight_rate": "USD 28.50/MT",
+  ...
+}}</span>
+
+Write a 3–5 sentence summary of this fixture.</pre>
+  </div>
+
+  <div class="block block-api">
+    <div class="block-header">⚡ API PARAMETERS</div>
+    <pre>max_tokens: 512    <span class="cmt">← lille output, kun 3-5 sætninger</span>
+temperature: 0.3
+enable_thinking: false</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">fixture_paragraph — ét afsnit der beskriver aftalen (eller None hvis ingen fixture)</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 12 -->
+<div class="step-card" data-step="12" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">12</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · REDUCE-fase</div>
+      <div class="step-title">Byg voyage summary prompt</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Det centrale REDUCE-trin: alle fase-summaries fra trin 10 og fixture-paragraph fra trin 11 samles i én stor prompt. LLM-opgaven er at <em>integrere</em> faserne til en sammenhængende voyage-fortælling — ikke blot genfortælle dem fase for fase.
+  </p>
+
+  <div class="block block-system">
+    <div class="block-header">🤖 SYSTEM PROMPT — system_prompts/summaries/voyage_summary.md</div>
+    <pre>You are a shipping industry analyst writing an internal voyage report.
+
+You will receive a fixture summary followed by a sequence of phase summaries
+that together cover a complete voyage. Each phase summary was generated from
+a slice of the email thread and already aggregates many emails. Your job is
+NOT to retell each phase — your job is to INTEGRATE the phases into a single
+coherent narrative of the whole voyage. Treat the phase summaries as source
+material, not as sections you have to reproduce.
+
+Emails in the underlying thread were tagged (INCOMING) — a counterparty
+contacted the operator — or (OUTGOING) — the operator communicated to a
+counterparty. Use this direction to describe who did what when it matters.
+
+Hard rules:
+- Do NOT structure the output phase by phase. Do NOT write headings like
+  "Phase 1", "Phase 2", etc. Do NOT walk through the phases sequentially
+  just because they appear in the input.
+- Organise the narrative by the voyage lifecycle:
+  pre-fixture and negotiation -> loading phase -> voyage -> discharge ->
+  post-voyage issues. Dates drive the order, not the phase boundaries.
+- Consolidate repeated or overlapping information: if several phases
+  describe the same event (ETA updates, counterparty exchanges, weather
+  delays), report the event once, with the relevant dates, and move on.
+- Preserve specific facts: counterparty names, vessel movements, ports,
+  cargo particulars, laycan/ETA/ETB/ETS, freight terms, demurrage/despatch,
+  and any operational decisions. Drop pleasantries and duplicate ETAs.
+- Plain English prose. No bullet points in the main narrative. Reference
+  specific dates when describing events.
+
+Length: aim for a detailed but focused narrative — roughly 2500-4000 tokens.
+Prefer a tight, integrated story over an exhaustive enumeration. If you
+find yourself reproducing a phase summary, stop and synthesise instead.
+
+If any mistakes, errors, disputes, claims, incidents, or unforeseen events
+occurred during the voyage (e.g. stevedore damage, off-hire, delays, cargo
+claims, berthing issues, weather problems, charterparty breaches), add a
+separate section at the end titled "Issues and Unforeseen Events" that lists
+and briefly explains each incident with the relevant date. If no such
+events occurred, omit this section entirely.</pre>
+  </div>
+
+  <div class="block block-user">
+    <div class="block-header">✉️ USER PROMPT — build_voyage_summary_from_phases_prompt()</div>
+    <pre>Voyage: <span class="ph">{voyage_key}</span>
+
+Fixture:
+<span class="ph">{fixture_paragraph fra trin 11
+ — eller "(no fixture data available)" hvis ingen fixture}</span>
+
+Phase summaries (<span class="ph">{N}</span> phases, chronological):
+=== Phase 1/<span class="ph">{N}</span>: emails 1-50 [<span class="ph">{date_start}</span> - <span class="ph">{date_end}</span>] (50 emails) ===
+<span class="ph">{phase summary tekst fra trin 9}</span>
+
+=== Phase 2/<span class="ph">{N}</span>: emails 51-100 [<span class="ph">{date_start}</span> - <span class="ph">{date_end}</span>] (50 emails) ===
+<span class="ph">{phase summary tekst fra trin 9}</span>
+
+=== Phase 3/<span class="ph">{N}</span>: emails 101-127 [<span class="ph">{date_start}</span> - <span class="ph">{date_end}</span>] (27 emails) ===
+<span class="ph">{phase summary tekst fra trin 9}</span>
+
+<span class="cmt">... (én sektion pr. fase)</span>
+
+Write a comprehensive voyage narrative that integrates all phases into a single coherent story.</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Videre til:</span>
+    <span class="dataflow-value">Det største LLM-kald i hele pipelinen (trin 13) — max 16.384 output tokens</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 13 -->
+<div class="step-card" data-step="13" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">13</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · REDUCE-fase</div>
+      <div class="step-title">LLM-kald: voyage narrative</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Det endelige og mest krævende LLM-kald. max_tokens er sat til 16.384 fordi voyage-narrativen skal være en detaljeret rapport på 2500–4000 tokens. Timeout er 300 sekunder for at give modellen tid til lange outputs.
+  </p>
+
+  <div class="block block-api">
+    <div class="block-header">⚡ API REQUEST — voyage REDUCE</div>
+    <pre>POST http://localhost:8002/v1/chat/completions
+
+{
+  "model": <span class="ph">"{auto-detected}"</span>,
+  "temperature": 0.3,
+  "max_tokens": 16384,       <span class="cmt">← 16× så stort som email-kald</span>
+  "timeout": 300,
+  "extra_body": {
+    "chat_template_kwargs": { "enable_thinking": false }
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": <span class="ph">"{VOYAGE_SUMMARY_SYSTEM — fra trin 12}"</span>
+    },
+    {
+      "role": "user",
+      "content": <span class="ph">"{build_voyage_summary_from_phases_prompt(...) — fra trin 12}"</span>
+    }
+  ]
+}</pre>
+  </div>
+
+  <div class="block block-flow">
+    <div class="block-header">↩ FORVENTET RESPONSE-STRUKTUR</div>
+    <pre>Én sammenhængende tekst organiseret efter voyage-lifecycle:
+
+  [Pre-fixture og forhandling]
+  [Loading-fase]
+  [Voyage]
+  [Discharge]
+  [Post-voyage]
+
+  Issues and Unforeseen Events   ← kun hvis der var hændelser
+  ─────────────────────────────
+  [Liste over incidents med datoer]
+
+Mål: 2500-4000 tokens (~1800-3000 ord)</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">↓</span>
+    <span class="dataflow-text">Output:</span>
+    <span class="dataflow-value">Færdig voyage narrative — én sammenhængende fortælling om hele voyagen</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ STEP 14 -->
+<div class="step-card" data-step="14" data-stage="2">
+  <div class="step-header">
+    <div class="step-number">14</div>
+    <div class="step-title-group">
+      <div class="stage-badge badge-s2">Stage 2 · REDUCE-fase</div>
+      <div class="step-title">Gem voyage summary</div>
+    </div>
+  </div>
+  <p class="step-desc">
+    Den færdige voyage narrative gemmes i <code>voyage_summaries</code>. ON CONFLICT sikrer at en genkørsel opdaterer eksisterende rækker i stedet for at fejle. Feltet <code>has_fixture</code> angiver om fixture-data var tilgængeligt.
+  </p>
+
+  <div class="block block-sql">
+    <div class="block-header">📋 SQL — gem voyage summary</div>
+    <pre><span class="kw">INSERT INTO</span> voyage_summaries
+    (voyage_key, summary, email_count, has_fixture, generated_at)
+<span class="kw">VALUES</span> (
+    <span class="str">%s</span>,          <span class="cmt">-- voyage_key, fx 'V2024-001'</span>
+    <span class="str">%s</span>,          <span class="cmt">-- summary tekst (2500-4000 tokens)</span>
+    <span class="str">%s</span>,          <span class="cmt">-- email_count (total antal emails i voyagen)</span>
+    <span class="str">%s</span>,          <span class="cmt">-- has_fixture (True/False)</span>
+    <span class="str">%s</span>           <span class="cmt">-- generated_at (now UTC)</span>
+)
+<span class="kw">ON CONFLICT</span> (voyage_key) <span class="kw">DO UPDATE SET</span>
+    summary = EXCLUDED.summary,
+    email_count = EXCLUDED.email_count,
+    has_fixture = EXCLUDED.has_fixture,
+    generated_at = EXCLUDED.generated_at;</pre>
+  </div>
+
+  <div class="block block-flow">
+    <div class="block-header">✅ PIPELINE KOMPLET</div>
+    <pre>Tabeller der er skrevet til i denne kørsel:
+  email_attach_summaries   ← Stage 1: én række pr. email
+  phase_summaries          ← Stage 2 MAP: én række pr. fase pr. voyage
+  voyage_summaries         ← Stage 2 REDUCE: én række pr. voyage
+
+Hele pipelinen er idempotent:
+  → Genkørsel springer over allerede-OK rækker
+  → Fejlede rækker overskrives ved næste kørsel</pre>
+  </div>
+
+  <div class="dataflow">
+    <span class="dataflow-arrow">🏁</span>
+    <span class="dataflow-text">Færdig!</span>
+    <span class="dataflow-value">Voyage summary er nu tilgængelig i <code>voyage_summaries WHERE voyage_key = '{voyage_key}'</code></span>
+  </div>
+</div>
+
+</div><!-- end .main -->
+
+<!-- Nav bar -->
+<div class="nav-bar">
+  <button class="nav-btn" id="btnPrev" onclick="navigate(-1)">← Forrige</button>
+  <span class="nav-counter" id="navCounter">Trin 1 af 14</span>
+  <button class="nav-btn primary" id="btnNext" onclick="navigate(1)">Næste →</button>
+</div>
+
+<script>
+  const STEPS = [
+    { n:1,  stage:1, label:"Pending emails" },
+    { n:2,  stage:1, label:"Attachments" },
+    { n:3,  stage:1, label:"Email prompt" },
+    { n:4,  stage:1, label:"LLM email" },
+    { n:5,  stage:1, label:"Gem summary" },
+    { n:6,  stage:2, label:"Pending voyages" },
+    { n:7,  stage:2, label:"Data fetch" },
+    { n:8,  stage:2, label:"Phase prompt" },
+    { n:9,  stage:2, label:"LLM phase" },
+    { n:10, stage:2, label:"Gem phase" },
+    { n:11, stage:2, label:"Fixture LLM" },
+    { n:12, stage:2, label:"Voyage prompt" },
+    { n:13, stage:2, label:"LLM voyage" },
+    { n:14, stage:2, label:"Gem voyage" },
+  ];
+
+  let current = 1;
+
+  // Build progress track
+  const track = document.getElementById('progressTrack');
+  STEPS.forEach((s, i) => {
+    if (i > 0) {
+      const line = document.createElement('div');
+      line.className = 'progress-line';
+      line.id = `line-${i}`;
+      track.appendChild(line);
+    }
+    const step = document.createElement('div');
+    step.className = `progress-step s${s.stage}`;
+    step.id = `ps-${s.n}`;
+    step.onclick = () => goTo(s.n);
+    step.innerHTML = `<div class="dot">${s.n}</div><div class="label">${s.label}</div>`;
+    track.appendChild(step);
+  });
+
+  function goTo(n) {
+    current = n;
+    render();
+  }
+
+  function navigate(dir) {
+    const next = current + dir;
+    if (next < 1 || next > 14) return;
+    current = next;
+    render();
+  }
+
+  function render() {
+    // Update cards
+    document.querySelectorAll('.step-card').forEach(el => {
+      el.classList.toggle('active', parseInt(el.dataset.step) === current);
+    });
+
+    // Update progress dots
+    STEPS.forEach(s => {
+      const dot = document.getElementById(`ps-${s.n}`);
+      dot.classList.remove('active', 'done');
+      if (s.n === current) dot.classList.add('active');
+      else if (s.n < current) dot.classList.add('done');
+    });
+
+    // Update nav
+    document.getElementById('navCounter').textContent = `Trin ${current} af 14`;
+    document.getElementById('btnPrev').disabled = current === 1;
+    document.getElementById('btnNext').disabled = current === 14;
+    if (current === 14) {
+      document.getElementById('btnNext').textContent = '✓ Færdig';
+      document.getElementById('btnNext').classList.remove('primary');
+    } else {
+      document.getElementById('btnNext').textContent = 'Næste →';
+      document.getElementById('btnNext').classList.add('primary');
+    }
+
+    // Scroll progress step into view
+    const activeDot = document.getElementById(`ps-${current}`);
+    activeDot?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navigate(-1);
+  });
+
+  // Init
+  render();
+</script>
+</body>
+</html>
