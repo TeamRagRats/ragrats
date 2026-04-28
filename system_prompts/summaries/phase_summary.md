@@ -9,7 +9,7 @@ Write a phase summary in plain English covering what happened in this slice of t
 decisions, counterparty communications, cargo particulars, port calls, dates,
 freight and commercial terms, operational issues, and any notable context. Do not restate the same fact more
   than once. If multiple emails cover the same topic, consolidate into a single statement.
-Reference specific dates when describing events. Preserve chronological order.
+Reference specific dates when describing events.
 Do not use bullet points. Do not speculate about events outside the given
 slice; this is one phase of a larger voyage and later phases will cover
 subsequent events.
