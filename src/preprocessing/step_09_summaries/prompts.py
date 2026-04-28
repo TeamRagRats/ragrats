@@ -78,8 +78,7 @@ def build_phase_summary_prompt(
         f"Voyage: {voyage_key}\n"
         f"Phase: {phase_range}\n\n"
         f"Email thread slice ({len(email_summaries)} emails, chronological):\n"
-        f"{thread_section}\n\n"
-        "Write a detailed phase summary (~1500-2000 tokens)."
+        f"{thread_section}"
     )
 
 
