@@ -108,7 +108,6 @@ class LLMClient:
         max_tokens: int = 1024,
         retries: int = 3,
         timeout: int = 500,
-        repetition_penalty: float = 1.0,
     ) -> tuple[str, dict[str, int]]:
         last_exc = None
         for attempt in range(retries):
@@ -121,10 +120,7 @@ class LLMClient:
                     ],
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    extra_body={
-                        "chat_template_kwargs": {"enable_thinking": False},
-                        "repetition_penalty": repetition_penalty,
-                    },
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                     timeout=timeout,
                 )
                 if not response.choices:
