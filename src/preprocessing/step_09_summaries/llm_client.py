@@ -73,7 +73,7 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float = 0.3,
-        max_tokens: int = 10000,
+        max_tokens: int = 2500,
         retries: int = 3,
     ) -> str:
         last_exc = None
