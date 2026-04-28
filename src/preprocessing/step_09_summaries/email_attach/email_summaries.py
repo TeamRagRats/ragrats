@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-# Step 1 of the summaries pipeline. Fetches emails without a summary from the DB,
-# runs them through the LLM in parallel batches, and writes results to email_attach_summaries.
-# Also attaches Docling-extracted attachment text before prompting.
-# Called from run_summaries.py; depends on llm_client, prompts, and shared/logging.
-
 import gc
 import logging
 import time
@@ -15,8 +10,8 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
-from step_09_summaries.llm_client import LLMClient
-from step_09_summaries.prompts import EMAIL_SUMMARY_SYSTEM, build_email_summary_prompt
+from ..llm_client import LLMClient
+from .prompts import EMAIL_SUMMARY_SYSTEM, build_email_summary_prompt
 
 BATCH_SIZE = 20
 

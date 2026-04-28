@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-# Loads system prompt markdown files from system_prompts/ at import time and provides
-# user prompt builder functions for each summary type (email, fixture, phase, voyage).
-# Used by email_summaries.py and voyage_summaries.py.
-
-import json
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).parents[3]
+_REPO_ROOT = Path(__file__).parents[4]
 _SYSTEM_PROMPTS_DIR = _REPO_ROOT / "system_prompts" / "summaries"
 
 
@@ -15,49 +10,9 @@ def _load(name: str) -> str:
     return (_SYSTEM_PROMPTS_DIR / name).read_text(encoding="utf-8").strip()
 
 
-EMAIL_SUMMARY_SYSTEM = _load("email_summary.md")
-FIXTURE_SUMMARY_SYSTEM = _load("fixture_summary.md")
 PHASE_SUMMARY_SYSTEM = _load("phase_summary.md")
 VOYAGE_SUMMARY_SYSTEM = _load("voyage_summary.md")
 
-
-# ---------------------------------------------------------------------------
-# User prompt builders
-# ---------------------------------------------------------------------------
-
-def build_email_summary_prompt(
-    direction: str,
-    date: str,
-    body: str,
-    attachments: list[dict],
-) -> str:
-    attach_block = ""
-    if attachments:
-        lines = []
-        for att in attachments:
-            lines.append(f"--- Attachment: {att['filename']} ---")
-            lines.append((att.get("content") or "").strip())
-        attach_block = "\n\n" + "\n".join(lines)
-
-    return (
-        f"Direction: {direction}\n"
-        f"Date: {date}\n\n"
-        f"Email body:\n{body.strip()}"
-        f"{attach_block}\n\n"
-        "Create a 2–8 sentence summary of this email."
-    )
-
-
-def build_fixture_summary_prompt(fixture_json: str | dict) -> str:
-    if isinstance(fixture_json, dict):
-        fixture_text = json.dumps(fixture_json, ensure_ascii=False, indent=2)
-    else:
-        fixture_text = str(fixture_json)
-
-    return (
-        f"Fixture data:\n{fixture_text}\n\n"
-        "Write a 3–5 sentence summary of this fixture."
-    )
 
 
 def build_phase_summary_prompt(

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-# Entry point for voyage summarisation (step_09 phase 2).
-# Waits for the vLLM server, then map-reduces email summaries into voyage narratives.
+# Entry point for fixture summarisation (step_09 phase 0).
+# Waits for the vLLM server, then summarises each unsummarised fixture row.
 # Retries up to MAX_RETRIES times if the LLM server goes down mid-run.
-# Run: python -m src.preprocessing.run_voyage_summaries [--voyage-key KEY] [--limit N] [--workers N] [--verbose]
+# Run: python -m src.preprocessing.run_fixture_summaries [--voyage-key KEY] [--limit N] [--workers N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -23,14 +23,14 @@ import time
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
 from step_09_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
-import step_09_summaries.voyage.voyage_summaries as step2
+import step_09_summaries.fixture.fixture_summaries as step_fixture
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
-    logger = logging.getLogger("voyage_summaries")
+    logger = logging.getLogger("fixture_summaries")
     logger.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     ch = logging.StreamHandler(sys.stdout)
@@ -46,14 +46,13 @@ def _run_pipeline(args: argparse.Namespace, llm: LLMClient, logger: logging.Logg
         status = "ok"
         try:
             logger.info("=" * 60)
-            logger.info("Voyage Summaries")
+            logger.info("Fixture Summaries")
             logger.info("=" * 60)
-            step2.run(
+            step_fixture.run(
                 conn, run_id,
                 limit=args.limit,
                 llm=llm,
                 logger=logger,
-                workers=args.workers,
                 voyage_key=args.voyage_key,
             )
         except Exception:
@@ -64,13 +63,11 @@ def _run_pipeline(args: argparse.Namespace, llm: LLMClient, logger: logging.Logg
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Voyage Summaries Pipeline")
+    parser = argparse.ArgumentParser(description="Fixture Summaries Pipeline")
     parser.add_argument("--voyage-key", type=str, default=None, metavar="KEY",
-                        help="Kør kun for én specifik voyage (springer get_pending_voyages over)")
+                        help="Kør kun for én specifik voyage (springer get_pending_fixtures over)")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
-                        help="Behandl kun de første N voyages (til test, ignoreret hvis --voyage-key er sat)")
-    parser.add_argument("--workers", type=int, default=4,
-                        help="Antal parallelle workers (default: 4)")
+                        help="Behandl kun de første N fixtures (til test)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -83,7 +80,7 @@ def main() -> None:
         sys.exit(1)
 
     llm = LLMClient(base_url=base_url)
-    logger.info(f"Model: {llm.model} | Workers: {args.workers}")
+    logger.info(f"Model: {llm.model}")
 
     for attempt in range(1, MAX_RETRIES + 1):
         if attempt > 1:

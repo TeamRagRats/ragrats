@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-# Step 2 of the summaries pipeline. Map-reduces email summaries into a voyage narrative:
-# MAP — generates phase summaries for batches of 50 emails in parallel;
-# REDUCE — combines all phase summaries into a single voyage story via LLM.
-# Writes to phase_summaries and voyage_summaries tables.
-# Called from run_summaries.py; depends on llm_client, prompts, and shared/logging.
-
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,12 +9,10 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
-from step_09_summaries.llm_client import LLMClient
-from step_09_summaries.prompts import (
-    FIXTURE_SUMMARY_SYSTEM,
+from ..llm_client import LLMClient
+from .prompts import (
     PHASE_SUMMARY_SYSTEM,
     VOYAGE_SUMMARY_SYSTEM,
-    build_fixture_summary_prompt,
     build_phase_summary_prompt,
     build_voyage_summary_from_phases_prompt,
 )
@@ -55,6 +47,16 @@ def get_pending_voyages(conn: psycopg.Connection, limit: int | None = None) -> l
         return [r[0] for r in cur.fetchall()]
 
 
+def get_fixture_summary(conn: psycopg.Connection, voyage_key: str) -> str | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT summary FROM fixture_summaries WHERE voyage_key = %s AND status = 'ok'",
+            (voyage_key,),
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
 def get_email_summaries(conn: psycopg.Connection, voyage_key: str) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute("""
@@ -69,24 +71,6 @@ def get_email_summaries(conn: psycopg.Connection, voyage_key: str) -> list[dict]
             for r in cur.fetchall()
         ]
 
-
-def get_fixture(conn: psycopg.Connection, voyage_key: str) -> dict | None:
-    with conn.cursor() as cur:
-        cur.execute("SELECT * FROM fixtures WHERE voyage_key = %s", (voyage_key,))
-        row = cur.fetchone()
-        if row is None:
-            return None
-        cols = [d.name for d in cur.description]
-        return dict(zip(cols, row))
-
-
-def _generate_fixture_summary(fixture: dict, llm: LLMClient) -> str:
-    summary, _ = llm.chat_with_usage(
-        FIXTURE_SUMMARY_SYSTEM,
-        build_fixture_summary_prompt(fixture),
-        max_tokens=512,
-    )
-    return summary
 
 
 def get_existing_phases(conn: psycopg.Connection, voyage_key: str) -> dict[int, dict]:
@@ -194,14 +178,7 @@ def run(
                 log.warning(f"  [step2 {i}/{len(pending)}] {voyage_key} → ingen email summaries, springer over")
                 continue
 
-            fixture = get_fixture(conn, voyage_key)
-            fixture_paragraph: str | None = None
-            if fixture:
-                try:
-                    fixture_paragraph = _generate_fixture_summary(fixture, llm)
-                    log.info(f"  [step2 {i}/{len(pending)}] {voyage_key} fixture summary OK")
-                except Exception as exc:
-                    log.warning(f"  [step2 {i}/{len(pending)}] {voyage_key} fixture summary FEJL: {exc}")
+            fixture_paragraph = get_fixture_summary(conn, voyage_key)
 
             batches = [emails[j:j + PHASE_BATCH_SIZE] for j in range(0, len(emails), PHASE_BATCH_SIZE)]
             existing = get_existing_phases(conn, voyage_key)
