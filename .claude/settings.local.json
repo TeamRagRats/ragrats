@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv step_09_llm_extraction step_08_llm_extraction)",
+      "Bash(mv step_08_summaries step_09_summaries)"
+    ]
+  }
+}

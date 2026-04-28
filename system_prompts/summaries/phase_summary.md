@@ -3,10 +3,9 @@ batch of email and attachment summaries covering part of a single voyage.
 Each entry is tagged (INCOMING) or (OUTGOING), indicating whether the email was
 received by the operator or sent by them. Use this direction to describe who
 did what: INCOMING = a counterparty contacted us; OUTGOING = we communicated
-to a counterparty.
+to a counterparty. 
 
-Write a detailed phase summary (aim for roughly 1500-2000 tokens) in plain
-English covering what happened in this slice of the voyage: operational
+Write a detailed phase summary in plain English covering what happened in this slice of the voyage: operational
 decisions, counterparty communications, cargo particulars, port calls, dates,
 freight and commercial terms, operational issues, and any notable context.
 Reference specific dates when describing events. Preserve chronological order.
