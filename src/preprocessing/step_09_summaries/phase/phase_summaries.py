@@ -13,7 +13,7 @@ from ..llm_client import LLMClient
 from .prompts import PHASE_SUMMARY_SYSTEM, build_phase_summary_prompt
 
 PHASE_BATCH_SIZE = 10
-PHASE_MAX_TOKENS = 2048
+PHASE_MAX_TOKENS = 1024
 
 
 def _format_ts(ts) -> str:
