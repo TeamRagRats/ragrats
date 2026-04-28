@@ -17,9 +17,9 @@ if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    _repo_root = _here.parents[1]
+    _repo_root = _here.parents[2]
     sys.path.insert(0, str(_repo_root))
-    sys.path.insert(0, str(_here))
+    sys.path.insert(0, str(_here.parent))
     __package__ = "preprocessing"
 
 import argparse
@@ -43,7 +43,7 @@ from step_08_llm_extraction.constants import DEFAULT_CLASSIFY_THRESHOLD, categor
 from step_08_llm_extraction.extractor import ExtractionResult, process_single_document
 
 DEFAULT_MAX_TOKENS = 16_000
-DEFAULT_TOKEN_LIMITS = (5000, 8196)
+DEFAULT_TOKEN_LIMITS = (5000, 8196, 16000)
 DEFAULT_WORKERS = 4
 DEFAULT_BATCH_SIZE = 10
 DEFAULT_FULL_TIMEOUT = 150  # seconds per SHA; on timeout falls back to classify
