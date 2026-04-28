@@ -18,7 +18,7 @@ DB_USER="${RAGRATS_DB_USER:-teamragrats}"
 DB_NAME="${RAGRATS_DB_NAME:-ragrats}"
 DB_CONTAINER="${RAGRATS_DB_CONTAINER:-ragrats_database}"
 COMPOSE_FILE="${VLLM_COMPOSE_FILE:-docker/vllm/docker-compose.yml}"
-WATCHDOG="src/preprocessing/step_09_llm_extraction/watchdog.sh"
+WATCHDOG="src/preprocessing/step_08_llm_extraction/watchdog.sh"
 MAX_RESTARTS="${LLM_MAX_RESTARTS:-10}"
 
 docker compose -f "$COMPOSE_FILE" up -d

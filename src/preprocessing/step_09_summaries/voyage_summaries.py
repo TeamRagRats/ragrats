@@ -15,8 +15,8 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
-from step_08_summaries.llm_client import LLMClient
-from step_08_summaries.prompts import (
+from step_09_summaries.llm_client import LLMClient
+from step_09_summaries.prompts import (
     FIXTURE_SUMMARY_SYSTEM,
     PHASE_SUMMARY_SYSTEM,
     VOYAGE_SUMMARY_SYSTEM,

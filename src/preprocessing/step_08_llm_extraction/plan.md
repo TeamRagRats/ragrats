@@ -1,19 +1,19 @@
-# Step 9 — LLM Extraction (udkast)
+# Step 8 — LLM Extraction (udkast)
 
 Overførsel af gammel Step 5 (`llm_to_db.py`) til ny Postgres-baseret kodebase
 på DGX Spark (GB10 chip, 128 GB unified memory).
 
 ---
 
-## Placering: `step_09_llm_extraction/`
+## Placering: `step_08_llm_extraction/`
 
-Step 8 er Docling. Det nye step bliver **Step 9 — LLM Extraction**, og bygger
+Step 7 er Docling. Det nye step bliver **Step 8 — LLM Extraction**, og bygger
 oven på `docling.markdown` (PostgreSQL).
 
 ```
 src/preprocessing/
 ├── run_llm_extraction.py              ← entry point (analog til run_docling.py)
-└── step_09_llm_extraction/
+└── step_08_llm_extraction/
     ├── __init__.py
     ├── constants.py                   ← size-tærskler, worker-counts, batch-size
     ├── prompts.py                     ← loader de to system prompts
@@ -255,10 +255,10 @@ process_tier(tasks, workers):
 ## Implementeringsrækkefølge
 
 1. **Migration `0011_llm_structured.sql`** — view + de to tabeller.
-2. **`step_09_llm_extraction/db.py`** — `fetch_pending`, `log_pending`, `log_finished`, `upsert_structured`.
-3. **`step_09_llm_extraction/prompts.py`** — load `document_restructuring.md` + `document_classification.md`.
-4. **`step_09_llm_extraction/constants.py`** — tærskler, worker-counts.
-5. **`step_09_llm_extraction/extractor.py`** — `process_single_document(task, llm)` med pre-flight token-check.
+2. **`step_08_llm_extraction/db.py`** — `fetch_pending`, `log_pending`, `log_finished`, `upsert_structured`.
+3. **`step_08_llm_extraction/prompts.py`** — load `document_restructuring.md` + `document_classification.md`.
+4. **`step_08_llm_extraction/constants.py`** — tærskler, worker-counts.
+5. **`step_08_llm_extraction/extractor.py`** — `process_single_document(task, llm)` med pre-flight token-check.
 6. **`run_llm_extraction.py`** — entry point, kategorisering, tier-loop.
 7. **Bump `--max-model-len` til 131072** i `docker/vllm/docker-compose.yml`.
 8. **Verifikation:** `--dry-run`, derefter `--limit 3 --verbose`.

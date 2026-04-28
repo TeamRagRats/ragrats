@@ -36,10 +36,10 @@ import psycopg
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
 from step_07_docling.resources import cleanup_memory, get_gpu_info, get_ram_info
-from step_08_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
-from step_09_llm_extraction import db as ldb
-from step_09_llm_extraction.constants import DEFAULT_CLASSIFY_THRESHOLD, categorize
-from step_09_llm_extraction.extractor import ExtractionResult, process_single_document
+from step_09_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
+from step_08_llm_extraction import db as ldb
+from step_08_llm_extraction.constants import DEFAULT_CLASSIFY_THRESHOLD, categorize
+from step_08_llm_extraction.extractor import ExtractionResult, process_single_document
 
 DEFAULT_MAX_TOKENS = 16_000
 DEFAULT_TOKEN_LIMITS = (5000, 8196)

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-# Step 9 entry point. Reads pending sha256s from llm_load_queue, categorises by
+# Step 8 entry point. Reads pending sha256s from llm_load_queue, categorises by
 # char_count into small/medium/large/huge, and processes each tier sequentially
-# with the worker counts in step_09_llm_extraction.constants. Workers run the
+# with the worker counts in step_08_llm_extraction.constants. Workers run the
 # LLM call concurrently; the main thread is the only one writing to Postgres.
 #
 # Run (from inside the vLLM-reachable environment):
@@ -27,15 +27,15 @@ from datetime import datetime, timezone
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run, step
-from step_08_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
+from step_09_summaries.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_07_docling.resources import (
     cleanup_memory,
     get_gpu_info,
     get_ram_info,
     log_resource_status,
 )
-from step_09_llm_extraction import db as ldb
-from step_09_llm_extraction.constants import (
+from step_08_llm_extraction import db as ldb
+from step_08_llm_extraction.constants import (
     BATCH_SIZE,
     DEFAULT_CLASSIFY_THRESHOLD,
     FULL_MAX_TOKENS,
@@ -46,7 +46,7 @@ from step_09_llm_extraction.constants import (
     WORKERS_BY_TIER,
     categorize,
 )
-from step_09_llm_extraction.extractor import ExtractionResult, process_single_document
+from step_08_llm_extraction.extractor import ExtractionResult, process_single_document
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
@@ -274,7 +274,7 @@ def _process_tier(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Step 9 — LLM extraction (FULL + CLASSIFY) on Docling markdown."
+        description="Step 8 — LLM extraction (FULL + CLASSIFY) on Docling markdown."
     )
     parser.add_argument("--limit", type=int, default=None, metavar="N")
     parser.add_argument("--voyage", type=str, default=None, help="Filter by voyage_key")
