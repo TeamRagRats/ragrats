@@ -166,6 +166,7 @@ def run(
     llm: LLMClient | None = None,
     logger: logging.Logger | None = None,
     workers: int = DEFAULT_WORKERS,
+    voyage_key: str | None = None,
 ) -> int:
     log = logger or logging.getLogger("summaries")
 
@@ -174,7 +175,10 @@ def run(
         log.info(f"[step2] Model: {llm.model} @ {llm.base_url}")
 
     with step(conn, run_id, "voyage_summaries") as timer:
-        pending = get_pending_voyages(conn, limit=limit)
+        if voyage_key:
+            pending = [voyage_key]
+        else:
+            pending = get_pending_voyages(conn, limit=limit)
         timer.rows_in = len(pending)
 
         if not pending:

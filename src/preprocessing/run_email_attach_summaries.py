@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-# Main entry point for the summaries pipeline (step 8).
-# Waits for the vLLM server, then runs email summarisation (step 1) and voyage summarisation (step 2).
-# Retries the full pipeline up to MAX_RETRIES times if the LLM server goes down mid-run.
-# Run: python run_summaries.py [--step 1|2] [--limit N] [--workers N] [--verbose]
+# Entry point for email + attachment summarisation (step_09 phase 1).
+# Waits for the vLLM server, then summarises each unsummarised email and its attachments.
+# Retries up to MAX_RETRIES times if the LLM server goes down mid-run.
+# Run: python -m src.preprocessing.run_email_attach_summaries [--limit N] [--workers N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -24,14 +24,13 @@ from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
 from step_09_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
 import step_09_summaries.email_summaries as step1
-import step_09_summaries.voyage_summaries as step2
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
-    logger = logging.getLogger("summaries")
+    logger = logging.getLogger("email_attach_summaries")
     logger.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     ch = logging.StreamHandler(sys.stdout)
@@ -46,17 +45,10 @@ def _run_pipeline(args: argparse.Namespace, llm: LLMClient, logger: logging.Logg
         run_id = start_run(conn)
         status = "ok"
         try:
-            if args.step in (None, 1):
-                logger.info("=" * 60)
-                logger.info("STEP 1 — Email + Attachment Summaries")
-                logger.info("=" * 60)
-                step1.run(conn, run_id, limit=args.limit, llm=llm, logger=logger, workers=args.workers)
-
-            if args.step in (None, 2):
-                logger.info("=" * 60)
-                logger.info("STEP 2 — Voyage Summaries")
-                logger.info("=" * 60)
-                step2.run(conn, run_id, limit=args.limit, llm=llm, logger=logger, workers=args.workers)
+            logger.info("=" * 60)
+            logger.info("Email + Attachment Summaries")
+            logger.info("=" * 60)
+            step1.run(conn, run_id, limit=args.limit, llm=llm, logger=logger, workers=args.workers)
         except Exception:
             status = "failed"
             raise
@@ -65,11 +57,9 @@ def _run_pipeline(args: argparse.Namespace, llm: LLMClient, logger: logging.Logg
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Voyage Summaries Pipeline — step 1 (email) + step 2 (voyage)")
+    parser = argparse.ArgumentParser(description="Email + Attachment Summaries Pipeline")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
-                        help="Behandl kun de første N items per step (til test)")
-    parser.add_argument("--step", type=int, choices=[1, 2], default=None,
-                        help="Kør kun step 1 eller 2 (default: begge)")
+                        help="Behandl kun de første N emails (til test)")
     parser.add_argument("--workers", type=int, default=4,
                         help="Antal parallelle workers (default: 4)")
     parser.add_argument("--verbose", action="store_true")
