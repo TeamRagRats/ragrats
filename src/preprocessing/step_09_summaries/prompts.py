@@ -78,7 +78,8 @@ def build_phase_summary_prompt(
         f"Voyage: {voyage_key}\n"
         f"Phase: {phase_range}\n\n"
         f"Email thread slice ({len(email_summaries)} emails, chronological):\n"
-        f"{thread_section}"
+        f"{thread_section}\n\n"
+        "Write the phase summary."
     )
 
 
