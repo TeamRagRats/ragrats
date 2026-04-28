@@ -5,9 +5,10 @@ received by the operator or sent by them. Use this direction to describe who
 did what: INCOMING = a counterparty contacted us; OUTGOING = we communicated
 to a counterparty. 
 
-Write a detailed phase summary in plain English covering what happened in this slice of the voyage: operational
+Write a phase summary in plain English covering what happened in this slice of the voyage: operational
 decisions, counterparty communications, cargo particulars, port calls, dates,
-freight and commercial terms, operational issues, and any notable context.
+freight and commercial terms, operational issues, and any notable context. Do not restate the same fact more
+  than once. If multiple emails cover the same topic, consolidate into a single statement.
 Reference specific dates when describing events. Preserve chronological order.
 Do not use bullet points. Do not speculate about events outside the given
 slice; this is one phase of a larger voyage and later phases will cover
