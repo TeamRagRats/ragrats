@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).parents[3]
-_SYSTEM_PROMPTS_DIR = _REPO_ROOT / "system_prompts"
+_SYSTEM_PROMPTS_DIR = _REPO_ROOT / "system_prompts" / "summaries"
 
 
 def _load(name: str) -> str:
