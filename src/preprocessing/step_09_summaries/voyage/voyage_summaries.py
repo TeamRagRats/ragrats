@@ -16,7 +16,7 @@ from .prompts import (
 )
 
 PHASE_BATCH_SIZE = 10  # must match phase/phase_summaries.py
-VOYAGE_MAX_TOKENS = 5000
+VOYAGE_MAX_TOKENS = 10000
 DEFAULT_WORKERS = 1
 
 
