@@ -15,7 +15,7 @@ from .prompts import (
     build_voyage_summary_from_phases_prompt,
 )
 
-PHASE_BATCH_SIZE = 50  # must match phase/phase_summaries.py
+PHASE_BATCH_SIZE = 10  # must match phase/phase_summaries.py
 VOYAGE_MAX_TOKENS = 16384
 DEFAULT_WORKERS = 1
 

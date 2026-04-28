@@ -107,7 +107,7 @@ class LLMClient:
         temperature: float = 0.3,
         max_tokens: int = 1024,
         retries: int = 3,
-        timeout: int = 300,
+        timeout: int = 500,
     ) -> tuple[str, dict[str, int]]:
         last_exc = None
         for attempt in range(retries):
