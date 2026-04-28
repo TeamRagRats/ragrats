@@ -25,7 +25,7 @@ from step_09_summaries.prompts import (
     build_voyage_summary_from_phases_prompt,
 )
 
-PHASE_BATCH_SIZE = 50
+PHASE_BATCH_SIZE = 10
 PHASE_MAX_TOKENS = 2048
 VOYAGE_MAX_TOKENS = 16384
 DEFAULT_WORKERS = 4
