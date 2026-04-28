@@ -16,7 +16,7 @@ FIXTURE_SUMMARY_SYSTEM = _load("fixture_summary.md")
 
 def build_fixture_summary_prompt(fixture_json: str | dict) -> str:
     if isinstance(fixture_json, dict):
-        fixture_text = json.dumps(fixture_json, ensure_ascii=False, indent=2)
+        fixture_text = json.dumps(fixture_json, ensure_ascii=False, indent=2, default=str)
     else:
         fixture_text = str(fixture_json)
 
