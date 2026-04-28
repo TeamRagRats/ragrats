@@ -12,7 +12,7 @@ from shared.logging.run_logger import step
 from ..llm_client import LLMClient
 from .prompts import PHASE_SUMMARY_SYSTEM, build_phase_summary_prompt
 
-PHASE_BATCH_SIZE = 50
+PHASE_BATCH_SIZE = 10
 PHASE_MAX_TOKENS = 2048
 
 
