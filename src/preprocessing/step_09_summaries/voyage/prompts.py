@@ -34,7 +34,8 @@ def build_voyage_summary_from_phases_prompt(
             f"{date_range} ({p.get('email_count', 0)} emails) ==="
         )
         phase_lines.append(header)
-        phase_lines.append((p.get("summary") or "").strip())
+        body = (p.get("summary") or "").strip()
+        phase_lines.append(body if body else "(no content available for this phase)")
         phase_lines.append("")
     phases_section = "\n".join(phase_lines)
 
@@ -43,6 +44,5 @@ def build_voyage_summary_from_phases_prompt(
         f"{fixture_section}\n"
         f"Phase summaries ({len(phases)} phases, chronological):\n"
         f"{phases_section}\n\n"
-        "Write a comprehensive voyage narrative that integrates all phases "
-        "into a single coherent story."
+        "Write a concise, integrated voyage narrative based strictly on the provided phase summaries."
     )

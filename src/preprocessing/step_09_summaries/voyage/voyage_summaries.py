@@ -127,6 +127,7 @@ def run(
                     VOYAGE_SUMMARY_SYSTEM,
                     build_voyage_summary_from_phases_prompt(vk, fixture_paragraph, ok_phases),
                     max_tokens=VOYAGE_MAX_TOKENS,
+                    temperature=0.1,
                 )
             except Exception as exc:
                 log.error(f"  [voyage {i}/{len(pending)}] {vk} → reduce FEJL: {exc}")
