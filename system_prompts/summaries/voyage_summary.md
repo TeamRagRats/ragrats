@@ -27,7 +27,6 @@ Hard rules:
 - Plain English prose. No bullet points in the main narrative. Reference
   specific dates when describing events.
 
-Length: aim for a detailed but focused narrative — roughly 2500-4000 tokens.
 Prefer a tight, integrated story over an exhaustive enumeration. If you
 find yourself reproducing a phase summary, stop and synthesise instead.
 
