@@ -15,7 +15,7 @@ from .prompts import PHASE_SUMMARY_SYSTEM, build_phase_summary_prompt
 
 TARGET_PHASES = 6
 MIN_BATCH_SIZE = 10
-PHASE_MAX_TOKENS = 1024
+PHASE_MAX_TOKENS = 2048
 
 
 def compute_batch_size(email_count: int) -> int:
