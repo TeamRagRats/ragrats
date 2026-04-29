@@ -109,7 +109,6 @@ def run(
 
             expected = math.ceil(email_count / PHASE_BATCH_SIZE)
             ok_phases = get_ok_phases(conn, vk)
-            ok_phases = ok_phases[:10] #TEST
 
             if len(ok_phases) != expected:
                 log.warning(
@@ -119,6 +118,7 @@ def run(
                 timer.errors += 1
                 continue
 
+            ok_phases = ok_phases[:10]  # TEST
             fixture_paragraph = get_fixture_summary(conn, vk)
 
             t0 = time.monotonic()
