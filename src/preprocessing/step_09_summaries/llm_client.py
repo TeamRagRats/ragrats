@@ -120,7 +120,7 @@ class LLMClient:
                     ],
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}, "repetition_penalty": 1.15},
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                     timeout=timeout,
                 )
                 if not response.choices:
