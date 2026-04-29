@@ -10,7 +10,7 @@ import psycopg
 
 from shared.logging.run_logger import step
 from ..llm_client import LLMClient
-from ..phase.phase_summaries import compute_batch_size
+PHASE_BATCH_SIZE = 10  # must match phase/phase_summaries.py
 from .prompts import (
     VOYAGE_SUMMARY_SYSTEM,
     build_voyage_summary_from_phases_prompt,
@@ -107,7 +107,7 @@ def run(
                 log.warning(f"  [voyage {i}/{len(pending)}] {vk} → ingen emails, springer over")
                 continue
 
-            expected = math.ceil(email_count / compute_batch_size(email_count))
+            expected = math.ceil(email_count / PHASE_BATCH_SIZE)
             ok_phases = get_ok_phases(conn, vk)
 
             if len(ok_phases) != expected:
