@@ -126,6 +126,7 @@ class LLMClient:
                 if not response.choices:
                     raise RuntimeError("LLM response has no choices")
 
+                print(f"DEBUG finish_reason: {response.choices[0].finish_reason}, tokens: {response.usage}")
                 text = (response.choices[0].message.content or "").strip()
                 usage = {
                     "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
