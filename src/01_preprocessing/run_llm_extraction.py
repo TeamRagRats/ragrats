@@ -27,6 +27,11 @@ from datetime import datetime, timezone
 
 from core.db import connect
 from core.logging.run_logger import finish_run, start_run, step
+from core.logging.log_llm_extraction import (
+    log_extraction_pending,
+    log_extraction_finished,
+    reset_extraction_errors,
+)
 from clients.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_07_docling.resources import (
     cleanup_memory,
@@ -137,7 +142,18 @@ def _process_batch(
         mode_pre = "classify" if (
             classify_threshold != -1 and item.char_count >= classify_threshold
         ) else "full"
-        ldb.log_pending(conn, item, size_cat, mode_pre, started, run_id, batch_idx)
+        log_extraction_pending(
+            conn,
+            sha256=item.sha256,
+            file_path=item.file_path,
+            file_type=item.file_type,
+            char_count=item.char_count,
+            size_category=size_cat,
+            mode=mode_pre,
+            started_at=started,
+            run_id=run_id,
+            batch_idx=batch_idx,
+        )
 
     # Per-row DB writes inside as_completed: each finished doc is persisted
     # before the next future is awaited. Otherwise a 6-min batch leaves all
@@ -183,7 +199,7 @@ def _process_batch(
             else:
                 errors += 1
 
-            ldb.log_finished(
+            log_extraction_finished(
                 conn,
                 sha256=res.sha256,
                 finished_at=res.finished_at or datetime.now(timezone.utc),
@@ -317,7 +333,7 @@ def main() -> None:
         t_start = time.monotonic()
         try:
             if args.fresh:
-                deleted = ldb.reset_errors(conn, sha_filter)
+                deleted = reset_extraction_errors(conn, sha_filter)
                 logger.info(f"--fresh: deleted {deleted} error row(s) in llm_logging.")
 
             pending = ldb.fetch_pending(

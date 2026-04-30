@@ -36,6 +36,7 @@ import psycopg
 
 from core.db import connect
 from core.logging.run_logger import finish_run, start_run
+from core.logging.log_llm_extraction import log_extraction_pending, log_extraction_finished
 from step_07_docling.resources import cleanup_memory, get_gpu_info, get_ram_info
 from clients.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_08_llm_extraction import db as ldb
@@ -133,7 +134,18 @@ def _process_batch(
             else "full"
         )
         if not dry_run:
-            ldb.log_pending(conn, item, size_cat, mode_pre, started, run_id, batch_idx)
+            log_extraction_pending(
+                conn,
+                sha256=item.sha256,
+                file_path=item.file_path,
+                file_type=item.file_type,
+                char_count=item.char_count,
+                size_category=size_cat,
+                mode=mode_pre,
+                started_at=started,
+                run_id=run_id,
+                batch_idx=batch_idx,
+            )
 
     if dry_run:
         for item in batch:
@@ -180,7 +192,7 @@ def _process_batch(
             else:
                 errors += 1
 
-            ldb.log_finished(
+            log_extraction_finished(
                 conn,
                 sha256=res.sha256,
                 finished_at=res.finished_at or datetime.now(timezone.utc),
