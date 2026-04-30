@@ -3,7 +3,7 @@ from __future__ import annotations
 # Entry point for thread summarisation (step_09 threads pipeline).
 # Waits for the vLLM server, then generates thread summaries for each unsummarised thread.
 # Retries up to MAX_RETRIES times if the LLM server goes down mid-run.
-# Run: python -m src.preprocessing.run_thread_summaries [--voyage-key KEY] [--limit N] [--workers N] [--verbose]
+# Run: python -m src.preprocessing.run_thread_summaries [--voyage-key KEY] [--thread-id ID] [--limit N] [--workers N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -55,6 +55,7 @@ def _run_pipeline(args: argparse.Namespace, llm: LLMClient, logger: logging.Logg
                 logger=logger,
                 workers=args.workers,
                 voyage_key=args.voyage_key,
+                thread_id=args.thread_id,
             )
         except Exception:
             status = "failed"
@@ -67,6 +68,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Thread Summaries Pipeline")
     parser.add_argument("--voyage-key", type=str, default=None, metavar="KEY",
                         help="Kør kun for én specifik voyage")
+    parser.add_argument("--thread-id", type=str, default=None, metavar="ID",
+                        help="Kør kun for én specifik tråd (UUID)")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
                         help="Behandl kun de første N tråde (til test)")
     parser.add_argument("--workers", type=int, default=4,

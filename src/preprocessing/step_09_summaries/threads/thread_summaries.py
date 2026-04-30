@@ -132,6 +132,7 @@ def run(
     logger: logging.Logger | None = None,
     workers: int = 4,
     voyage_key: str | None = None,
+    thread_id: str | None = None,
 ) -> int:
     log = logger or logging.getLogger("thread_summaries")
 
@@ -140,7 +141,16 @@ def run(
         log.info(f"[thread] Model: {llm.model} @ {llm.base_url}")
 
     with step(conn, run_id, "thread_summaries") as timer:
-        pending = get_pending_threads(conn, limit=limit, voyage_key=voyage_key)
+        if thread_id:
+            with conn.cursor() as cur:
+                cur.execute("SELECT voyage_key FROM emails WHERE thread_id = %s LIMIT 1", (thread_id,))
+                row = cur.fetchone()
+            if not row:
+                log.error(f"[thread] thread_id {thread_id} ikke fundet i emails-tabellen")
+                return 0
+            pending = [{"thread_id": thread_id, "voyage_key": row[0]}]
+        else:
+            pending = get_pending_threads(conn, limit=limit, voyage_key=voyage_key)
         timer.rows_in = len(pending)
 
         if not pending:
@@ -164,6 +174,16 @@ def run(
                 return {"thread_id": tid, "voyage_key": vk, "skipped": True}
 
             subject = next((e["subject"] for e in emails if e.get("subject")), None)
+
+            if len(emails) == 1:
+                log.info(f"  [thread] {tid} → 1 email, kopierer email_attach summary")
+                return {
+                    "thread_id": tid, "voyage_key": vk, "subject": subject,
+                    "email_count": 1, "status": "ok",
+                    "summary": emails[0]["summary"],
+                    "secs": 0.0, "llm_input": None,
+                }
+
             return _run_thread(tid, vk, subject, emails, llm)
 
         with ThreadPoolExecutor(max_workers=workers) as ex:
