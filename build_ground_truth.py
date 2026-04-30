@@ -4,7 +4,6 @@ Ground truth generation for RAG evaluation.
 Queries all emails with question marks from the DB, uses the local vLLM server
 (same one used by the pipeline) to filter noise and extract one factual Q&A pair
 per email. Results are written directly to the ground_truth table in postgres.
-Free — no Anthropic API credits needed.
 
 Run this ON SPARK where both postgres and vLLM are local:
     python build_ground_truth.py
