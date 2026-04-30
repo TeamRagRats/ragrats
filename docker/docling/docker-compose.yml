@@ -23,7 +23,7 @@ services:
     volumes:
       - ../../data/attachment:/input:ro
       - ../../data:/output
-      - ../../src/preprocessing:/app/preprocessing:ro
+      - ../../src/01_preprocessing:/app/preprocessing:ro
       - hf_cache:/root/.cache/huggingface
       - docling_cache:/root/.cache/docling
     shm_size: '16gb'

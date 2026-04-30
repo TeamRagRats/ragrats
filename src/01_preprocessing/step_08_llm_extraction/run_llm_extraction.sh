@@ -18,7 +18,7 @@ DB_USER="${RAGRATS_DB_USER:-teamragrats}"
 DB_NAME="${RAGRATS_DB_NAME:-ragrats}"
 DB_CONTAINER="${RAGRATS_DB_CONTAINER:-ragrats_database}"
 COMPOSE_FILE="${VLLM_COMPOSE_FILE:-docker/vllm/docker-compose.yml}"
-WATCHDOG="src/preprocessing/step_08_llm_extraction/watchdog.sh"
+WATCHDOG="src/01_preprocessing/step_08_llm_extraction/watchdog.sh"
 MAX_RESTARTS="${LLM_MAX_RESTARTS:-10}"
 
 docker compose -f "$COMPOSE_FILE" up -d
@@ -42,7 +42,7 @@ remaining_pending() {
 
 count=0
 while [ "$count" -lt "$MAX_RESTARTS" ]; do
-  python3 src/preprocessing/run_llm_extraction.py "$@" &
+  python3 src/01_preprocessing/run_llm_extraction.py "$@" &
   PY_PID=$!
   bash "$WATCHDOG" "$PY_PID" &
   WD_PID=$!

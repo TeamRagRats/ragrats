@@ -3,10 +3,10 @@ from __future__ import annotations
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
-    _here = _Path(__file__).resolve().parent          # src/generation/
+    _here = _Path(__file__).resolve().parent          # src/03_generation/
     _repo_root = _here.parents[1]                     # repo root
-    _retrieval = _repo_root / "src" / "retrieval"
-    _preprocessing = _repo_root / "src" / "preprocessing"
+    _retrieval = _repo_root / "src" / "02_retrieval"
+    _preprocessing = _repo_root / "src" / "01_preprocessing"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))                    # step_01_*, step_02_* (generation's own)
     sys.path.insert(0, str(_retrieval))              # step_01_voyage_key_precision, step_02_chunk_retrieval
