@@ -45,7 +45,7 @@ from core.logging.run_logger import (
     start_run,
     step,
 )
-from core.logging.ingest import log_ingest
+from core.logging.log_ingest import log_ingest
 from core.logging.ingest_summary import (
 
     VoyageSummary,

@@ -15,7 +15,7 @@ import logging
 import time
 
 from core.db import connect
-from core.logging.retrieval import log_retrieval
+from core.logging.log_retrieval import log_retrieval
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
 from step_01_voyage_key_precision import find_winning_voyage_keys
