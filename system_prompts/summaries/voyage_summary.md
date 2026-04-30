@@ -19,7 +19,7 @@ You are a shipping industry analyst writing an internal voyage report.
   counterparty. Use this direction to describe who did what when it matters.
 
   Hard rules:
-  - 
+  - The summary should be approximately 2500-4000 tokens.
   - Do NOT structure the output phase by phase. Do NOT write headings like
     "Phase 1", "Phase 2", etc.
   - Organise the narrative by the voyage lifecycle:
