@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import gc
 import logging
+import time
+from datetime import datetime, timezone
 
 import psycopg
 import psycopg.sql
 
 from core.logging.run_logger import step
+from core.logging.log_embedding import log_embedding_pending, log_embedding_finished
 from clients.embed_client import EmbedClient
 
 BATCH_SIZE = 32
@@ -79,9 +82,20 @@ def run(
             batch = pending[batch_idx * batch_size:(batch_idx + 1) * batch_size]
             texts = [row["text"] for row in batch]
 
+            started_at = datetime.now(timezone.utc)
+            t0 = time.monotonic()
+            log_embedding_pending(conn, run_id, batch_idx, n_chunks=len(batch), started_at=started_at)
+
             try:
                 vectors = client.embed(texts)
             except Exception as exc:
+                log_embedding_finished(
+                    conn, run_id, batch_idx,
+                    finished_at=datetime.now(timezone.utc),
+                    duration_ms=int((time.monotonic() - t0) * 1000),
+                    status="error", model=client.model,
+                    error_message=f"{type(exc).__name__}: {exc}",
+                )
                 logger.error(f"  [embed batch {batch_idx + 1}/{n_batches}] FAILED: {exc}")
                 errors += len(batch)
                 continue
@@ -91,6 +105,12 @@ def run(
                 for row, vector in zip(batch, vectors)
             ]
             _upsert_batch(conn, results)
+            log_embedding_finished(
+                conn, run_id, batch_idx,
+                finished_at=datetime.now(timezone.utc),
+                duration_ms=int((time.monotonic() - t0) * 1000),
+                status="ok", model=client.model,
+            )
             done += len(results)
             logger.info(f"  [embed batch {batch_idx + 1}/{n_batches}] {len(results)} OK | total {done}/{total}")
 

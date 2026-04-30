@@ -17,11 +17,13 @@ import argparse
 import logging
 import sys
 import time
+from datetime import datetime, timezone
 
 from transformers import AutoTokenizer
 
 from core.db import connect
 from core.logging.run_logger import finish_run, start_run
+from core.logging.log_chunking import log_chunking_pending, log_chunking_finished
 from step_10_chunking.chunker import split_paragraphs, truncate_to_context
 from step_10_chunking.db import get_pending_voyages, get_voyage_summary, get_pending_emails, upsert_chunks
 
@@ -59,13 +61,32 @@ def _run_pipeline(args: argparse.Namespace, tokenizer, logger: logging.Logger) -
                 summary = get_voyage_summary(conn, voyage_key)
                 if not summary:
                     continue
-                paragraphs = split_paragraphs(summary)
-                paragraphs = truncate_to_context(paragraphs, tokenizer)
-                chunks = [
-                    {"chunk_index": i, "text": p, "char_count": len(p)}
-                    for i, p in enumerate(paragraphs)
-                ]
-                n = upsert_chunks(conn, "voyage", voyage_key, voyage_key, chunks)
+                started_at = datetime.now(timezone.utc)
+                t0 = time.monotonic()
+                log_chunking_pending(conn, "voyage", voyage_key, voyage_key, started_at, run_id)
+                try:
+                    paragraphs = split_paragraphs(summary)
+                    paragraphs = truncate_to_context(paragraphs, tokenizer)
+                    chunks = [
+                        {"chunk_index": i, "text": p, "char_count": len(p)}
+                        for i, p in enumerate(paragraphs)
+                    ]
+                    n = upsert_chunks(conn, "voyage", voyage_key, voyage_key, chunks)
+                    total_chars = sum(len(p) for p in paragraphs)
+                    log_chunking_finished(
+                        conn, "voyage", voyage_key,
+                        finished_at=datetime.now(timezone.utc),
+                        duration_ms=int((time.monotonic() - t0) * 1000),
+                        status="ok", n_chunks=n, char_count=total_chars,
+                    )
+                except Exception as exc:
+                    log_chunking_finished(
+                        conn, "voyage", voyage_key,
+                        finished_at=datetime.now(timezone.utc),
+                        duration_ms=int((time.monotonic() - t0) * 1000),
+                        status="error", error_message=f"{type(exc).__name__}: {exc}",
+                    )
+                    raise
                 voyage_done += n
                 logger.debug(f"  [chunk] {voyage_key}: {n} chunks indsat")
 
@@ -81,15 +102,36 @@ def _run_pipeline(args: argparse.Namespace, tokenizer, logger: logging.Logger) -
                 summary = email["summary"]
                 if not summary:
                     continue
-                paragraphs = split_paragraphs(summary)
-                paragraphs = truncate_to_context(paragraphs, tokenizer)
-                chunks = [
-                    {"chunk_index": i, "text": p, "char_count": len(p)}
-                    for i, p in enumerate(paragraphs)
-                ]
-                n = upsert_chunks(conn, "email", str(email["email_id"]), email["voyage_key"], chunks)
+                email_id = str(email["email_id"])
+                voyage_key = email["voyage_key"]
+                started_at = datetime.now(timezone.utc)
+                t0 = time.monotonic()
+                log_chunking_pending(conn, "email", email_id, voyage_key, started_at, run_id)
+                try:
+                    paragraphs = split_paragraphs(summary)
+                    paragraphs = truncate_to_context(paragraphs, tokenizer)
+                    chunks = [
+                        {"chunk_index": i, "text": p, "char_count": len(p)}
+                        for i, p in enumerate(paragraphs)
+                    ]
+                    n = upsert_chunks(conn, "email", email_id, voyage_key, chunks)
+                    total_chars = sum(len(p) for p in paragraphs)
+                    log_chunking_finished(
+                        conn, "email", email_id,
+                        finished_at=datetime.now(timezone.utc),
+                        duration_ms=int((time.monotonic() - t0) * 1000),
+                        status="ok", n_chunks=n, char_count=total_chars,
+                    )
+                except Exception as exc:
+                    log_chunking_finished(
+                        conn, "email", email_id,
+                        finished_at=datetime.now(timezone.utc),
+                        duration_ms=int((time.monotonic() - t0) * 1000),
+                        status="error", error_message=f"{type(exc).__name__}: {exc}",
+                    )
+                    raise
                 email_done += n
-                logger.debug(f"  [chunk] email {email['email_id']}: {n} chunks indsat")
+                logger.debug(f"  [chunk] email {email_id}: {n} chunks indsat")
 
             logger.info(f"[chunk] Emails færdige: {email_done} chunks indsat")
             logger.info(f"[chunk] Total: {voyage_done + email_done} chunks indsat")
