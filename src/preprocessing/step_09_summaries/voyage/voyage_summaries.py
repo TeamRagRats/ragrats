@@ -120,11 +120,12 @@ def run(
 
             fixture_paragraph = get_fixture_summary(conn, vk)
 
+            user_prompt = build_voyage_summary_from_phases_prompt(vk, fixture_paragraph, ok_phases)
             t0 = time.monotonic()
             try:
                 voyage_summary, _ = llm.chat_with_usage(
                     VOYAGE_SUMMARY_SYSTEM,
-                    build_voyage_summary_from_phases_prompt(vk, fixture_paragraph, ok_phases),
+                    user_prompt,
                     max_tokens=VOYAGE_MAX_TOKENS,
                     temperature=0.1,
                 )
@@ -136,13 +137,16 @@ def run(
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO voyage_summaries (voyage_key, summary, email_count, has_fixture, generated_at)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO voyage_summaries
+                        (voyage_key, summary, email_count, has_fixture, generated_at, llm_input)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (voyage_key) DO UPDATE SET
                         summary = EXCLUDED.summary, email_count = EXCLUDED.email_count,
-                        has_fixture = EXCLUDED.has_fixture, generated_at = EXCLUDED.generated_at
+                        has_fixture = EXCLUDED.has_fixture, generated_at = EXCLUDED.generated_at,
+                        llm_input = EXCLUDED.llm_input
                     """,
-                    (vk, voyage_summary, email_count, fixture_paragraph is not None, datetime.now(timezone.utc)),
+                    (vk, voyage_summary, email_count, fixture_paragraph is not None,
+                     datetime.now(timezone.utc), user_prompt),
                 )
             conn.commit()
             generated += 1

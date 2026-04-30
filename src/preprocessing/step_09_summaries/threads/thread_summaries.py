@@ -82,16 +82,17 @@ def _run_thread(thread_id: UUID, voyage_key: str, subject: str | None, emails: l
         "subject": subject,
         "email_count": len(emails),
     }
+    user_prompt = build_thread_summary_prompt(str(thread_id), voyage_key, subject, emails)
     t0 = time.monotonic()
     try:
         summary, _ = llm.chat_with_usage(
             THREAD_SUMMARY_SYSTEM,
-            build_thread_summary_prompt(str(thread_id), voyage_key, subject, emails),
+            user_prompt,
             max_tokens=THREAD_MAX_TOKENS,
         )
-        return {**base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0}
+        return {**base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0, "llm_input": user_prompt}
     except Exception as exc:
-        return {**base, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
+        return {**base, "status": "error", "error": f"{type(exc).__name__}: {exc}", "llm_input": user_prompt}
 
 
 def _upsert_thread(conn: psycopg.Connection, r: dict) -> None:
@@ -104,21 +105,21 @@ def _upsert_thread(conn: psycopg.Connection, r: dict) -> None:
             cur.execute(
                 """
                 INSERT INTO thread_summaries
-                    (thread_id, voyage_key, subject, email_count, summary, status, log, generated_at)
-                VALUES (%s, %s, %s, %s, %s, 'ok', %s, %s)
+                    (thread_id, voyage_key, subject, email_count, summary, status, log, generated_at, llm_input)
+                VALUES (%s, %s, %s, %s, %s, 'ok', %s, %s, %s)
                 """,
                 (r["thread_id"], r["voyage_key"], r["subject"], r["email_count"],
-                 r["summary"], f"OK {r['secs']:.1f}s", datetime.now(timezone.utc)),
+                 r["summary"], f"OK {r['secs']:.1f}s", datetime.now(timezone.utc), r.get("llm_input")),
             )
         else:
             cur.execute(
                 """
                 INSERT INTO thread_summaries
-                    (thread_id, voyage_key, subject, email_count, summary, status, log, generated_at)
-                VALUES (%s, %s, %s, %s, '', 'error', %s, %s)
+                    (thread_id, voyage_key, subject, email_count, summary, status, log, generated_at, llm_input)
+                VALUES (%s, %s, %s, %s, '', 'error', %s, %s, %s)
                 """,
                 (r["thread_id"], r["voyage_key"], r["subject"], r["email_count"],
-                 r["error"], datetime.now(timezone.utc)),
+                 r["error"], datetime.now(timezone.utc), r.get("llm_input")),
             )
     conn.commit()
 

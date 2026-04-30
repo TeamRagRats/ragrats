@@ -86,16 +86,17 @@ def _run_phase(voyage_key: str, phase_index: int, batch: list[dict], llm: LLMCli
         "date_start": batch[0].get("sent_at"), "date_end": batch[-1].get("sent_at"),
         "email_count": len(batch),
     }
+    user_prompt = build_phase_summary_prompt(voyage_key, phase_range, batch)
     t0 = time.monotonic()
     try:
         summary, _ = llm.chat_with_usage(
             PHASE_SUMMARY_SYSTEM,
-            build_phase_summary_prompt(voyage_key, phase_range, batch),
+            user_prompt,
             max_tokens=PHASE_MAX_TOKENS,
         )
-        return {**base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0}
+        return {**base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0, "llm_input": user_prompt}
     except Exception as exc:
-        return {**base, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
+        return {**base, "status": "error", "error": f"{type(exc).__name__}: {exc}", "llm_input": user_prompt}
 
 
 def _upsert_phase(conn: psycopg.Connection, r: dict) -> None:
@@ -109,24 +110,24 @@ def _upsert_phase(conn: psycopg.Connection, r: dict) -> None:
                 """
                 INSERT INTO phase_summaries
                     (voyage_key, phase_index, phase_range, date_start, date_end,
-                     email_count, summary, status, log, generated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'ok', %s, %s)
+                     email_count, summary, status, log, generated_at, llm_input)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'ok', %s, %s, %s)
                 """,
                 (r["voyage_key"], r["phase_index"], r["phase_range"],
                  r["date_start"], r["date_end"], r["email_count"], r["summary"],
-                 f"OK {r['secs']:.1f}s", datetime.now(timezone.utc)),
+                 f"OK {r['secs']:.1f}s", datetime.now(timezone.utc), r.get("llm_input")),
             )
         else:
             cur.execute(
                 """
                 INSERT INTO phase_summaries
                     (voyage_key, phase_index, phase_range, date_start, date_end,
-                     email_count, summary, status, log, generated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, '', 'error', %s, %s)
+                     email_count, summary, status, log, generated_at, llm_input)
+                VALUES (%s, %s, %s, %s, %s, %s, '', 'error', %s, %s, %s)
                 """,
                 (r["voyage_key"], r["phase_index"], r["phase_range"],
                  r["date_start"], r["date_end"], r["email_count"],
-                 r["error"], datetime.now(timezone.utc)),
+                 r["error"], datetime.now(timezone.utc), r.get("llm_input")),
             )
     conn.commit()
 

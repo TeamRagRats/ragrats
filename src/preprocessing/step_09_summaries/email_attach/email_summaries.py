@@ -97,6 +97,7 @@ def _process_email(email: dict, llm: LLMClient) -> dict:
             "sent_at": email["sent_at"], "summary": summary,
             "secs": time.monotonic() - t0,
             "attach_count": len(email.get("attachments", [])),
+            "llm_input": user_prompt,
         }
     except Exception as exc:
         return {
@@ -104,6 +105,7 @@ def _process_email(email: dict, llm: LLMClient) -> dict:
             "email_id": email["email_id"], "voyage_key": email["voyage_key"],
             "sent_at": email["sent_at"],
             "error": f"{type(exc).__name__}: {exc}",
+            "llm_input": user_prompt,
         }
 
 
@@ -165,29 +167,31 @@ def run(
                         cur.execute(
                             """
                             INSERT INTO email_attach_summaries
-                                (email_id, voyage_key, sent_at, summary, status, log, generated_at)
-                            VALUES (%s, %s, %s, %s, 'ok', %s, %s)
+                                (email_id, voyage_key, sent_at, summary, status, log, generated_at, llm_input)
+                            VALUES (%s, %s, %s, %s, 'ok', %s, %s, %s)
                             ON CONFLICT (email_id) DO UPDATE SET
                                 summary = EXCLUDED.summary, status = 'ok',
-                                log = EXCLUDED.log, generated_at = EXCLUDED.generated_at
+                                log = EXCLUDED.log, generated_at = EXCLUDED.generated_at,
+                                llm_input = EXCLUDED.llm_input
                             """,
                             (r["email_id"], r["voyage_key"], r["sent_at"], r["summary"],
                              f"OK {r['secs']:.1f}s attach={r['attach_count']}",
-                             datetime.now(timezone.utc)),
+                             datetime.now(timezone.utc), r["llm_input"]),
                         )
                         ok_count += 1
                     else:
                         cur.execute(
                             """
                             INSERT INTO email_attach_summaries
-                                (email_id, voyage_key, sent_at, summary, status, log, generated_at)
-                            VALUES (%s, %s, %s, '', 'error', %s, %s)
+                                (email_id, voyage_key, sent_at, summary, status, log, generated_at, llm_input)
+                            VALUES (%s, %s, %s, '', 'error', %s, %s, %s)
                             ON CONFLICT (email_id) DO UPDATE SET
                                 status = 'error', log = EXCLUDED.log,
-                                generated_at = EXCLUDED.generated_at
+                                generated_at = EXCLUDED.generated_at,
+                                llm_input = EXCLUDED.llm_input
                             """,
                             (r["email_id"], r["voyage_key"], r["sent_at"],
-                             r["error"], datetime.now(timezone.utc)),
+                             r["error"], datetime.now(timezone.utc), r["llm_input"]),
                         )
                         err_count += 1
             conn.commit()

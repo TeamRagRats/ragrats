@@ -71,24 +71,26 @@ def run(
                 log.warning(f"  [fixture {i}/{len(pending)}] {vk} → ingen fixture fundet, springer over")
                 continue
 
+            user_prompt = build_fixture_summary_prompt(fixture)
             t0 = time.monotonic()
             try:
                 summary, _ = llm.chat_with_usage(
                     FIXTURE_SUMMARY_SYSTEM,
-                    build_fixture_summary_prompt(fixture),
+                    user_prompt,
                     max_tokens=512,
                 )
                 secs = time.monotonic() - t0
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        INSERT INTO fixture_summaries (voyage_key, summary, status, log, generated_at)
-                        VALUES (%s, %s, 'ok', %s, %s)
+                        INSERT INTO fixture_summaries (voyage_key, summary, status, log, generated_at, llm_input)
+                        VALUES (%s, %s, 'ok', %s, %s, %s)
                         ON CONFLICT (voyage_key) DO UPDATE SET
                             summary = EXCLUDED.summary, status = 'ok',
-                            log = EXCLUDED.log, generated_at = EXCLUDED.generated_at
+                            log = EXCLUDED.log, generated_at = EXCLUDED.generated_at,
+                            llm_input = EXCLUDED.llm_input
                         """,
-                        (vk, summary, f"OK {secs:.1f}s", datetime.now(timezone.utc)),
+                        (vk, summary, f"OK {secs:.1f}s", datetime.now(timezone.utc), user_prompt),
                     )
                 conn.commit()
                 generated += 1
@@ -97,13 +99,14 @@ def run(
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        INSERT INTO fixture_summaries (voyage_key, summary, status, log, generated_at)
-                        VALUES (%s, '', 'error', %s, %s)
+                        INSERT INTO fixture_summaries (voyage_key, summary, status, log, generated_at, llm_input)
+                        VALUES (%s, '', 'error', %s, %s, %s)
                         ON CONFLICT (voyage_key) DO UPDATE SET
                             status = 'error', log = EXCLUDED.log,
-                            generated_at = EXCLUDED.generated_at
+                            generated_at = EXCLUDED.generated_at,
+                            llm_input = EXCLUDED.llm_input
                         """,
-                        (vk, f"{type(exc).__name__}: {exc}", datetime.now(timezone.utc)),
+                        (vk, f"{type(exc).__name__}: {exc}", datetime.now(timezone.utc), user_prompt),
                     )
                 conn.commit()
                 timer.errors += 1

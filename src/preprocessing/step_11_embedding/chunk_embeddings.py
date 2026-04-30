@@ -32,7 +32,7 @@ def get_pending(conn: psycopg.Connection, limit: int | None = None) -> list[dict
 def _upsert_batch(conn: psycopg.Connection, results: list[dict]) -> None:
     sql = """
         UPDATE chunks
-        SET embedding = %s,
+        SET embedding = %s::halfvec,
             model     = %s
         WHERE chunk_id = %s
     """

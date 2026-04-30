@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     voyage_key  TEXT NOT NULL,   -- altid sat, så man kan filtrere retrieval til én voyage
     chunk_index INTEGER NOT NULL, -- rækkefølgen af chunks inden for samme source (email = altid 0)
     text        TEXT NOT NULL,   -- selve afsnittets tekst
-    embedding   vector(2560),    -- Qwen3-Embedding-4B vektor, NULL indtil run_embeddings kører
+    embedding   halfvec(2560),   -- Qwen3-Embedding-4B vektor, NULL indtil run_embeddings kører
     char_count  INTEGER,         -- antal tegn i teksten, til observability
     UNIQUE (source_type, source_id, chunk_index) -- forhindrer dubletter ved genindkørsel
 );
@@ -24,5 +24,5 @@ CREATE INDEX IF NOT EXISTS chunks_voyage_idx  ON chunks (voyage_key);
 -- ef_construction = 64: antal kandidater overvejet ved INSERT. Højere = bedre grafkvalitet, langsommere indsætning.
 -- Begge er standardværdier og passer til vores datastørrelse.
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
-    ON chunks USING hnsw (embedding vector_cosine_ops)
+    ON chunks USING hnsw (embedding halfvec_cosine_ops)
     WITH (m = 16, ef_construction = 64);
