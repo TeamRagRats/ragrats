@@ -17,6 +17,7 @@ import argparse
 import json
 import logging
 import time
+from pathlib import Path
 
 from shared.db import connect
 from step_11_embedding.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
@@ -27,12 +28,10 @@ from step_02_chunk_retrieval import retrieve_chunks
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
 
+_REPO_ROOT = Path(__file__).parents[2]
 _DEFAULT_SYSTEM_PROMPT = (
-    "You are a maritime logistics assistant. "
-    "Answer the question using only the provided context. "
-    "Be concise and precise. "
-    "If the context does not contain enough information, say so explicitly."
-)
+    _REPO_ROOT / "system_prompts" / "generation" / "generation.md"
+).read_text(encoding="utf-8").strip()
 
 _SOURCE_TYPE_MAP = {
     "thread": "thread",
