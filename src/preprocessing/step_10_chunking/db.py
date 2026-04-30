@@ -3,9 +3,6 @@ from __future__ import annotations
 # DB helpers for the chunking step.
 # Reads pending summaries and upserts finished chunks into the chunks table.
 
-from uuid import UUID
-
-import numpy as np
 import psycopg
 from psycopg.rows import dict_row
 
@@ -57,16 +54,15 @@ def upsert_chunks(
     voyage_key: str,
     chunks: list[dict],
 ) -> int:
-    """Insert chunks, skipping any (source_type, source_id, chunk_index) that already exist."""
+    """Insert chunks without embedding, skipping any (source_type, source_id, chunk_index) that already exist."""
     inserted = 0
     with conn.cursor() as cur:
         for chunk in chunks:
-            embedding: np.ndarray = chunk["embedding"]
             cur.execute(
                 """
                 INSERT INTO chunks
-                    (source_type, source_id, voyage_key, chunk_index, text, embedding, char_count)
-                VALUES (%s, %s, %s, %s, %s, %s::vector, %s)
+                    (source_type, source_id, voyage_key, chunk_index, text, char_count)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (source_type, source_id, chunk_index) DO NOTHING
                 """,
                 (
@@ -75,7 +71,6 @@ def upsert_chunks(
                     voyage_key,
                     chunk["chunk_index"],
                     chunk["text"],
-                    embedding.tolist(),
                     chunk["char_count"],
                 ),
             )

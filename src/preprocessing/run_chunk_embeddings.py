@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-# Entry point for phase embedding (step_10 embed stage).
-# Waits for the embed server, then generates embeddings for each phase summary.
+# Entry point for chunk embedding (step_11 embed stage).
+# Waits for the embed server, then generates embeddings for each chunk with NULL embedding.
 # Retries up to MAX_RETRIES times if the embed server goes down mid-run.
-# Run: python -m src.preprocessing.run_phase_embeddings [--limit N] [--batch-size N] [--verbose]
+# Run: python -m src.preprocessing.run_chunk_embeddings [--limit N] [--batch-size N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -22,15 +22,15 @@ import time
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_10_chunking.embed.embed_client import EmbedClient, wait_for_server, DEFAULT_BASE_URL
-import step_10_chunking.embed.phase_embeddings as step_embed
+from step_11_embedding.embed_client import EmbedClient, wait_for_server, DEFAULT_BASE_URL
+import step_11_embedding.chunk_embeddings as step_embed
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
-    logger = logging.getLogger("phase_embeddings")
+    logger = logging.getLogger("chunk_embeddings")
     logger.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     ch = logging.StreamHandler(sys.stdout)
@@ -46,9 +46,9 @@ def _run_pipeline(args: argparse.Namespace, client: EmbedClient, logger: logging
         status = "ok"
         try:
             logger.info("=" * 60)
-            logger.info("Phase Embeddings")
+            logger.info("Chunk Embeddings")
             logger.info("=" * 60)
-            step_embed.run(conn, run_id, client=client, limit=args.limit, logger=logger, batch_size=args.batch_size)
+            step_embed.run(conn, run_id, limit=args.limit, client=client, logger=logger, batch_size=args.batch_size)
         except Exception:
             status = "failed"
             raise
@@ -57,11 +57,11 @@ def _run_pipeline(args: argparse.Namespace, client: EmbedClient, logger: logging
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Phase Embeddings Pipeline")
+    parser = argparse.ArgumentParser(description="Chunk Embeddings Pipeline")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
-                        help="Behandl kun de første N faser (til test)")
+                        help="Behandl kun de første N chunks (til test)")
     parser.add_argument("--batch-size", type=int, default=32,
-                        help="Antal faser per embedding-kald (default: 32)")
+                        help="Antal chunks per embedding-kald (default: 32)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 

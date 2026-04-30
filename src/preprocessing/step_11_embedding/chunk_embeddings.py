@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import gc
 import logging
-from datetime import datetime, timezone
 
 import psycopg
 import psycopg.sql
@@ -15,16 +14,10 @@ BATCH_SIZE = 32
 
 def get_pending(conn: psycopg.Connection, limit: int | None = None) -> list[dict]:
     sql = """
-        SELECT s.voyage_key, s.phase_index, s.summary
-        FROM phase_summaries s
-        WHERE s.status = 'ok'
-          AND s.summary IS NOT NULL
-          AND s.summary != ''
-          AND NOT EXISTS (
-              SELECT 1 FROM phase_embeddings e
-              WHERE e.voyage_key = s.voyage_key AND e.phase_index = s.phase_index
-          )
-        ORDER BY s.voyage_key, s.phase_index
+        SELECT chunk_id, text
+        FROM chunks
+        WHERE embedding IS NULL
+        ORDER BY chunk_id
     """
     with conn.cursor() as cur:
         if limit is not None:
@@ -32,23 +25,20 @@ def get_pending(conn: psycopg.Connection, limit: int | None = None) -> list[dict
         else:
             cur.execute(psycopg.sql.SQL(sql))
         rows = cur.fetchall()
-    cols = ["voyage_key", "phase_index", "summary"]
+    cols = ["chunk_id", "text"]
     return [dict(zip(cols, row)) for row in rows]
 
 
 def _upsert_batch(conn: psycopg.Connection, results: list[dict]) -> None:
     sql = """
-        INSERT INTO phase_embeddings (voyage_key, phase_index, embedding, model, generated_at)
-        VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT (voyage_key, phase_index) DO UPDATE SET
-            embedding    = EXCLUDED.embedding,
-            model        = EXCLUDED.model,
-            generated_at = EXCLUDED.generated_at
+        UPDATE chunks
+        SET embedding = %s,
+            model     = %s
+        WHERE chunk_id = %s
     """
-    now = datetime.now(timezone.utc)
     with conn.cursor() as cur:
         cur.executemany(sql, [
-            (r["voyage_key"], r["phase_index"], r["embedding"], r["model"], now)
+            (r["embedding"], r["model"], r["chunk_id"])
             for r in results
         ])
     conn.commit()
@@ -74,20 +64,20 @@ def run(
     batch_size: int = BATCH_SIZE,
 ) -> int:
     if logger is None:
-        logger = logging.getLogger("phase_embeddings")
+        logger = logging.getLogger("chunk_embeddings")
 
-    with step(conn, run_id, "phase_embeddings"):
+    with step(conn, run_id, "chunk_embeddings"):
         pending = get_pending(conn, limit)
         total = len(pending)
         n_batches = (total + batch_size - 1) // batch_size
-        logger.info(f"[embed] {total} fase(r) | batch={batch_size} | {n_batches} batches")
+        logger.info(f"[embed] {total} chunk(s) | batch={batch_size} | {n_batches} batches")
 
         done = 0
         errors = 0
 
         for batch_idx in range(n_batches):
             batch = pending[batch_idx * batch_size:(batch_idx + 1) * batch_size]
-            texts = [row["summary"] for row in batch]
+            texts = [row["text"] for row in batch]
 
             try:
                 vectors = client.embed(texts)
@@ -97,8 +87,7 @@ def run(
                 continue
 
             results = [
-                {"voyage_key": row["voyage_key"], "phase_index": row["phase_index"],
-                 "embedding": vector, "model": client.model}
+                {"chunk_id": row["chunk_id"], "embedding": vector, "model": client.model}
                 for row, vector in zip(batch, vectors)
             ]
             _upsert_batch(conn, results)

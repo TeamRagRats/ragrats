@@ -13,20 +13,6 @@ def split_paragraphs(text: str) -> list[str]:
     return [p.strip() for p in text.split("\n\n") if len(p.strip()) >= MIN_CHUNK_CHARS]
 
 
-def annotate_spans(
-    paragraphs: list[str],
-    tokenizer,
-) -> list[tuple[int, int]]:
-    """Return (token_start, token_end) for each paragraph within the concatenated sequence."""
-    spans: list[tuple[int, int]] = []
-    cursor = 0
-    for para in paragraphs:
-        ids = tokenizer.encode(para, add_special_tokens=False)
-        spans.append((cursor, cursor + len(ids)))
-        cursor += len(ids)
-    return spans
-
-
 def truncate_to_context(
     paragraphs: list[str],
     tokenizer,
