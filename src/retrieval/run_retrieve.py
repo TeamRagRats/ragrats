@@ -143,7 +143,7 @@ def main() -> None:
         _log_to_db(
             conn,
             query=args.query,
-            source_types=source_types,
+            source_types=source_types if source_types is not None else ["all"],
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
             winning_keys=winning_keys,
