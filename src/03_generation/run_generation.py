@@ -6,11 +6,9 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _here = _Path(__file__).resolve().parent          # src/03_generation/
     _repo_root = _here.parents[1]                     # repo root
     _retrieval = _repo_root / "src" / "02_retrieval"
-    _preprocessing = _repo_root / "src" / "01_preprocessing"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))                    # step_01_*, step_02_* (generation's own)
     sys.path.insert(0, str(_retrieval))              # step_01_voyage_key_precision, step_02_chunk_retrieval
-    sys.path.insert(0, str(_preprocessing))           # shared.db, step_09_summaries, step_11_embedding
     __package__ = "src.generation"
 
 import argparse
@@ -19,7 +17,9 @@ import logging
 import time
 from pathlib import Path
 
-from shared.db import connect
+from core.db import connect
+from core.logging.retrieval import log_retrieval
+from core.logging.generation import log_generation
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
@@ -56,89 +56,6 @@ def _resolve_source_types(raw: list[str] | None) -> list[str] | None:
         if mapped not in resolved:
             resolved.append(mapped)
     return resolved or None
-
-
-def _log_retrieval_to_db(
-    conn,
-    *,
-    query: str,
-    source_types: list[str] | None,
-    top_k_1: int,
-    top_k_2: int,
-    winning_keys: list[str],
-    key_vote_counts: dict[str, int],
-    step1_ms: int,
-    step2_ms: int,
-    total_ms: int,
-    chunks_returned: int,
-    chunks: list,
-) -> str:
-    chunks_json = json.dumps([
-        {
-            "chunk_id": c.chunk_id,
-            "voyage_key": c.voyage_key,
-            "source_type": c.source_type,
-            "source_id": c.source_id,
-            "chunk_index": c.chunk_index,
-            "similarity": round(c.similarity, 4),
-            "text": c.text,
-        }
-        for c in chunks
-    ])
-    row = conn.execute(
-        """
-        INSERT INTO retrieval_logging
-            (query, source_types, top_k_1, top_k_2, winning_keys, key_vote_counts,
-             step1_ms, step2_ms, total_ms, chunks_returned, chunks)
-        VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb)
-        RETURNING run_id
-        """,
-        (
-            query,
-            source_types,
-            top_k_1,
-            top_k_2,
-            winning_keys,
-            json.dumps(key_vote_counts),
-            step1_ms,
-            step2_ms,
-            total_ms,
-            chunks_returned,
-            chunks_json,
-        ),
-    ).fetchone()
-    conn.commit()
-    return str(row[0])
-
-
-def _log_generation_to_db(
-    conn,
-    *,
-    retrieval_run_id: str,
-    query: str,
-    answer: str,
-    system_prompt: str,
-    model: str,
-    temperature: float,
-    max_tokens: int,
-    prompt_tokens: int,
-    completion_tokens: int,
-    generation_ms: int,
-    total_ms: int,
-) -> None:
-    conn.execute(
-        """
-        INSERT INTO generation_logging
-            (retrieval_run_id, query, answer, system_prompt, model, temperature,
-             max_tokens, prompt_tokens, completion_tokens, generation_ms, total_ms)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            retrieval_run_id, query, answer, system_prompt, model, temperature,
-            max_tokens, prompt_tokens, completion_tokens, generation_ms, total_ms,
-        ),
-    )
-    conn.commit()
 
 
 def main() -> None:
@@ -199,7 +116,7 @@ def main() -> None:
 
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
 
-        retrieval_run_id = _log_retrieval_to_db(
+        retrieval_run_id = log_retrieval(
             conn,
             query=args.query,
             source_types=source_types if source_types is not None else ["all"],
@@ -236,7 +153,7 @@ def main() -> None:
 
         total_ms = int((time.monotonic() - t_total) * 1000)
 
-        _log_generation_to_db(
+        log_generation(
             conn,
             retrieval_run_id=retrieval_run_id,
             query=args.query,

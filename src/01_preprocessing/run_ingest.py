@@ -26,8 +26,8 @@ from uuid import UUID
 import psycopg
 from tqdm import tqdm
 
-from shared.config import Config, load_config
-from shared.db import connect
+from core.config import Config, load_config
+from core.db import connect
 from step_01_discover.pair_eml_json import validate_pairs
 from step_01_discover.walk_mailbox import MailboxItem, walk_mailbox
 from step_02_parse.merge_metadata import EmailRecord, merge_metadata
@@ -40,13 +40,13 @@ from step_01_discover.read_fixtures_xlsx import read_fixtures_xlsx
 from step_06_load.upsert_attachments import upsert_attachments
 from step_06_load.upsert_emails import upsert_email
 from step_06_load.upsert_fixtures import upsert_fixtures
-from shared.logging.run_logger import (
+from core.logging.ingest_lifecycle import (
     finish_run,
     record_ingest_logging,
     start_run,
     step,
 )
-from shared.logging.summary import (
+from core.logging.ingest_summary import (
     VoyageSummary,
     format_final_table,
     format_per_voyage_line,

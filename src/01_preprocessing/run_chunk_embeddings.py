@@ -20,8 +20,8 @@ import os
 import sys
 import time
 
-from shared.db import connect
-from shared.logging.run_logger import finish_run, start_run
+from core.db import connect
+from core.logging.ingest_lifecycle import finish_run, start_run
 from clients.embed_client import EmbedClient, wait_for_server, DEFAULT_BASE_URL
 import step_11_embedding.chunk_embeddings as step_embed
 

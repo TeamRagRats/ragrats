@@ -20,8 +20,8 @@ import os
 import sys
 import time
 
-from shared.db import connect
-from shared.logging.run_logger import finish_run, start_run
+from core.db import connect
+from core.logging.ingest_lifecycle import finish_run, start_run
 from clients.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
 import step_09_summaries.threads.thread_summaries as step_thread
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # VoyageSummary dataclass and formatting/loading helpers for per-voyage import stats.
-# Reads from the ingest_logging table (written by run_logger.record_ingest_logging).
+# Reads from the ingest_logging table (written by core.logging.ingest_lifecycle.record_ingest_logging).
 # Used in run_ingest.py to print the final summary table.
 
 from dataclasses import dataclass
@@ -78,7 +78,7 @@ def load_latest_summaries(conn: psycopg.Connection) -> list[VoyageSummary]:
 
 
 if __name__ == "__main__":
-    from shared.db import connect
+    from core.db import connect
 
     with connect() as conn:
         summaries = load_latest_summaries(conn)

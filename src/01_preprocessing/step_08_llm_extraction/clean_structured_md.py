@@ -21,7 +21,7 @@ import re
 
 import psycopg
 
-from shared.db import connect
+from core.db import connect
 
 # Matches a Key Information list line whose value is null-ish.
 # Label may be bold (**Field**) or plain (Field).

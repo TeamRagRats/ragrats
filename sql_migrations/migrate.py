@@ -14,7 +14,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from shared.db import connect
+from core.db import connect
 
 _DIR = Path(__file__).parent
 

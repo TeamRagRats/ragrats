@@ -6,7 +6,7 @@ import logging
 import psycopg
 import psycopg.sql
 
-from shared.logging.run_logger import step
+from core.logging.ingest_lifecycle import step
 from clients.embed_client import EmbedClient
 
 BATCH_SIZE = 32

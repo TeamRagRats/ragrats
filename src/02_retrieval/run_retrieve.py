@@ -5,10 +5,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent          # src/02_retrieval/
     _repo_root = _here.parents[1]                     # repo root
-    _preprocessing = _repo_root / "src" / "01_preprocessing"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))                    # step_01_*, step_02_*
-    sys.path.insert(0, str(_preprocessing))           # shared.db, step_11_embedding
     __package__ = "src.retrieval"
 
 import argparse
@@ -16,7 +14,8 @@ import json
 import logging
 import time
 
-from shared.db import connect
+from core.db import connect
+from core.logging.retrieval import log_retrieval
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
 from step_01_voyage_key_precision import find_winning_voyage_keys
@@ -45,57 +44,6 @@ def _resolve_source_types(raw: list[str] | None) -> list[str] | None:
         if mapped not in resolved:
             resolved.append(mapped)
     return resolved or None
-
-
-def _log_to_db(
-    conn,
-    *,
-    query: str,
-    source_types: list[str] | None,
-    top_k_1: int,
-    top_k_2: int,
-    winning_keys: list[str],
-    key_vote_counts: dict[str, int],
-    step1_ms: int,
-    step2_ms: int,
-    total_ms: int,
-    chunks_returned: int,
-    chunks: list,
-) -> None:
-    chunks_json = json.dumps([
-        {
-            "chunk_id": c.chunk_id,
-            "voyage_key": c.voyage_key,
-            "source_type": c.source_type,
-            "source_id": c.source_id,
-            "chunk_index": c.chunk_index,
-            "similarity": round(c.similarity, 4),
-            "text": c.text,
-        }
-        for c in chunks
-    ])
-    conn.execute(
-        """
-        INSERT INTO retrieval_logging
-            (query, source_types, top_k_1, top_k_2, winning_keys, key_vote_counts,
-             step1_ms, step2_ms, total_ms, chunks_returned, chunks)
-        VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb)
-        """,
-        (
-            query,
-            source_types,
-            top_k_1,
-            top_k_2,
-            winning_keys,
-            json.dumps(key_vote_counts),
-            step1_ms,
-            step2_ms,
-            total_ms,
-            chunks_returned,
-            chunks_json,
-        ),
-    )
-    conn.commit()
 
 
 def main() -> None:
@@ -154,7 +102,7 @@ def main() -> None:
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
         logger.info(f"[total] {total_ms}ms")
 
-        _log_to_db(
+        log_retrieval(
             conn,
             query=args.query,
             source_types=source_types if source_types is not None else ["all"],

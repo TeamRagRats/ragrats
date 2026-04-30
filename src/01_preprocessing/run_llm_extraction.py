@@ -25,8 +25,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from shared.db import connect
-from shared.logging.run_logger import finish_run, start_run, step
+from core.db import connect
+from core.logging.ingest_lifecycle import finish_run, start_run, step
 from clients.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_07_docling.resources import (
     cleanup_memory,

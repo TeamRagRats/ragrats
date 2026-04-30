@@ -9,7 +9,7 @@ from uuid import UUID
 
 import psycopg
 
-from shared.logging.run_logger import step
+from core.logging.ingest_lifecycle import step
 from clients.llm_client import LLMClient
 from .prompts import EMAIL_SUMMARY_SYSTEM, build_email_summary_prompt
 

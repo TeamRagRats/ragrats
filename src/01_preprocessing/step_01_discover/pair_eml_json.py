@@ -32,7 +32,7 @@ def validate_pairs(items: Iterable[MailboxItem]) -> tuple[list[MailboxItem], lis
 
 
 if __name__ == "__main__":
-    from shared.config import load_config
+    from core.config import load_config
     from step_01_discover.walk_mailbox import walk_mailbox
 
     cfg = load_config()
