@@ -9,7 +9,7 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
-from ..llm_client import LLMClient
+from clients.llm_client import LLMClient
 from .prompts import THREAD_SUMMARY_SYSTEM, build_thread_summary_prompt
 
 THREAD_MAX_TOKENS = 1024

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from step_09_summaries.llm_client import LLMClient
+from clients.llm_client import LLMClient
 from step_08_llm_extraction.constants import (
     CHARS_PER_TOKEN,
     CLASSIFY_INPUT_TRUNCATE_CHARS,

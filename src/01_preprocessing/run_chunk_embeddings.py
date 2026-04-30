@@ -22,7 +22,7 @@ import time
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_11_embedding.embed_client import EmbedClient, wait_for_server, DEFAULT_BASE_URL
+from clients.embed_client import EmbedClient, wait_for_server, DEFAULT_BASE_URL
 import step_11_embedding.chunk_embeddings as step_embed
 
 MAX_RETRIES = 10

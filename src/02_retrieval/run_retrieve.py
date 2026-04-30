@@ -17,7 +17,7 @@ import logging
 import time
 
 from shared.db import connect
-from step_11_embedding.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
 from step_01_voyage_key_precision import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks

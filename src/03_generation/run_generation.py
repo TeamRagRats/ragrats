@@ -20,8 +20,8 @@ import time
 from pathlib import Path
 
 from shared.db import connect
-from step_11_embedding.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
-from step_09_summaries.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
+from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
+from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
 from step_01_voyage_key_precision import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks

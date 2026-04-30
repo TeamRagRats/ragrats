@@ -22,7 +22,7 @@ import time
 
 from shared.db import connect
 from shared.logging.run_logger import finish_run, start_run
-from step_09_summaries.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
+from clients.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
 import step_09_summaries.email_attach.email_summaries as step1
 
 MAX_RETRIES = 10

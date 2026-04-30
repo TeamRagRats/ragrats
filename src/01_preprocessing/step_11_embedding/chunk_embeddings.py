@@ -7,7 +7,7 @@ import psycopg
 import psycopg.sql
 
 from shared.logging.run_logger import step
-from .embed_client import EmbedClient
+from clients.embed_client import EmbedClient
 
 BATCH_SIZE = 32
 

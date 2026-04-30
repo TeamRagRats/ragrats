@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from step_09_summaries.llm_client import LLMClient
+from clients.llm_client import LLMClient
 
 
 def generate_answer(

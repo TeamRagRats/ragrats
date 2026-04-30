@@ -9,7 +9,7 @@ from uuid import UUID
 import psycopg
 
 from shared.logging.run_logger import step
-from ..llm_client import LLMClient
+from clients.llm_client import LLMClient
 from .prompts import (
     VOYAGE_SUMMARY_SYSTEM,
     build_voyage_summary_from_phases_prompt,
