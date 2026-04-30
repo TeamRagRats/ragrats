@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # VoyageSummary dataclass and formatting/loading helpers for per-voyage import stats.
-# Reads from the file_counters table (written by run_logger.record_file_counters).
+# Reads from the ingest_logging table (written by run_logger.record_ingest_logging).
 # Used in run_ingest.py to print the final summary table.
 
 from dataclasses import dataclass
@@ -70,7 +70,7 @@ def load_latest_summaries(conn: psycopg.Connection) -> list[VoyageSummary]:
     with conn.cursor() as cur:
         cur.execute(
             "SELECT voyage_key, n_emails, n_threads, n_attachments, n_bytes, "
-            "n_errors, wall_time_ms FROM file_counters "
+            "n_errors, wall_time_ms FROM ingest_logging "
             "WHERE run_id = (SELECT run_id FROM import_runs ORDER BY started_at DESC LIMIT 1) "
             "ORDER BY voyage_key"
         )

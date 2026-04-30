@@ -40,7 +40,7 @@ psql "postgresql://teamragrats:ragrats@localhost:5433/ragrats" \
   -f ../../src/preprocessing/schema.sql
 ```
 
-Tables created: `emails`, `attachments`, `import_runs`, `step_timings`, `file_counters`.
+Tables created: `emails`, `attachments`, `import_runs`, `step_timings`, `ingest_logging`.
 The schema is idempotent — re-running `psql ... -f schema.sql` is safe.
 
 ## Daily use

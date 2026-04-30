@@ -84,7 +84,7 @@ def step(conn: psycopg.Connection, run_id: UUID, name: str) -> Iterator[StepTime
         yield timer
 
 
-def record_file_counters(
+def record_ingest_logging(
     conn: psycopg.Connection,
     run_id: UUID,
     voyage_key: str,
@@ -97,7 +97,7 @@ def record_file_counters(
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO file_counters (run_id, voyage_key, n_emails, n_threads, "
+            "INSERT INTO ingest_logging (run_id, voyage_key, n_emails, n_threads, "
             "n_attachments, n_bytes, n_errors, wall_time_ms) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             (
