@@ -1,0 +1,1 @@
+ALTER TABLE retrieval_logging ADD COLUMN IF NOT EXISTS chunks JSONB;

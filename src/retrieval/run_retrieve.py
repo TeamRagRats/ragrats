@@ -60,13 +60,26 @@ def _log_to_db(
     step2_ms: int,
     total_ms: int,
     chunks_returned: int,
+    chunks: list,
 ) -> None:
+    chunks_json = json.dumps([
+        {
+            "chunk_id": c.chunk_id,
+            "voyage_key": c.voyage_key,
+            "source_type": c.source_type,
+            "source_id": c.source_id,
+            "chunk_index": c.chunk_index,
+            "similarity": round(c.similarity, 4),
+            "text": c.text,
+        }
+        for c in chunks
+    ])
     conn.execute(
         """
         INSERT INTO retrieval_logging
             (query, source_types, top_k_1, top_k_2, winning_keys, key_vote_counts,
-             step1_ms, step2_ms, total_ms, chunks_returned)
-        VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+             step1_ms, step2_ms, total_ms, chunks_returned, chunks)
+        VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb)
         """,
         (
             query,
@@ -79,6 +92,7 @@ def _log_to_db(
             step2_ms,
             total_ms,
             chunks_returned,
+            chunks_json,
         ),
     )
     conn.commit()
@@ -152,6 +166,7 @@ def main() -> None:
             step2_ms=step2_ms,
             total_ms=total_ms,
             chunks_returned=len(chunks),
+            chunks=chunks,
         )
 
     for chunk in chunks:
