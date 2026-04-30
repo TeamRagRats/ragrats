@@ -33,7 +33,7 @@ services:
       --runner pooling
       --dtype auto
       --max-model-len 8192
-      --gpu-memory-utilization 0.25
+      --gpu-memory-utilization 0.10
       --trust-remote-code
       --port 8000
 

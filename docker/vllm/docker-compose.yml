@@ -32,7 +32,7 @@ services:
       vllm serve nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
       --dtype auto
       --max-model-len 170000
-      --gpu-memory-utilization 0.80
+      --gpu-memory-utilization 0.70
       --enable-prefix-caching
       --trust-remote-code
       --port 8000
