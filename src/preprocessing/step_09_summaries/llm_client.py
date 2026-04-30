@@ -119,7 +119,7 @@ class LLMClient:
                         {"role": "user",   "content": user_prompt},
                     ],
                     temperature=temperature,
-                    max_tokens=max_tokens,
+                    max_to kens=max_tokens,
                     extra_body={"chat_template_kwargs": {"enable_thinking": False}, "repetition_penalty": 1.15},
                     timeout=timeout,
                 )

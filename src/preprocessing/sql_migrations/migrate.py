@@ -9,6 +9,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     from pathlib import Path as _Path
     sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 
+import re
+
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,7 +42,8 @@ def main() -> None:
                     continue
 
             print(f"[apply] {f.name}")
-            statements = [s.strip() for s in f.read_text().split(";") if s.strip()]
+            sql = re.sub(r"--[^\n]*", "", f.read_text())
+            statements = [s.strip() for s in sql.split(";") if s.strip()]
             with conn.cursor() as cur:
                 for stmt in statements:
                     cur.execute(stmt)
