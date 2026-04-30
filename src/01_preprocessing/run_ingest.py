@@ -40,13 +40,14 @@ from step_01_discover.read_fixtures_xlsx import read_fixtures_xlsx
 from step_06_load.upsert_attachments import upsert_attachments
 from step_06_load.upsert_emails import upsert_email
 from step_06_load.upsert_fixtures import upsert_fixtures
-from core.logging.ingest_lifecycle import (
+from core.logging.run_logger import (
     finish_run,
-    record_ingest_logging,
     start_run,
     step,
 )
+from core.logging.ingest import log_ingest
 from core.logging.ingest_summary import (
+
     VoyageSummary,
     format_final_table,
     format_per_voyage_line,
@@ -135,7 +136,7 @@ def _import_voyage(
     )
     print(format_per_voyage_line(summary))
     if not dry_run and conn is not None and run_id is not None:
-        record_ingest_logging(
+        log_ingest(
             conn,
             run_id,
             voyage_key,

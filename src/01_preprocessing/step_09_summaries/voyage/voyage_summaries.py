@@ -8,7 +8,7 @@ from uuid import UUID
 
 import psycopg
 
-from core.logging.ingest_lifecycle import step
+from core.logging.run_logger import step
 from clients.llm_client import LLMClient
 from .prompts import (
     VOYAGE_SUMMARY_SYSTEM,

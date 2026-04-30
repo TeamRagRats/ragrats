@@ -29,7 +29,7 @@ import time
 from datetime import datetime, timezone
 
 from core.db import connect
-from core.logging.ingest_lifecycle import finish_run, start_run
+from core.logging.run_logger import finish_run, start_run
 from step_07_docling import db as ddb
 from step_07_docling.constants import (
     BATCH_SIZE,
