@@ -43,7 +43,7 @@ curl http://localhost:8002/v1/models
 ### 2. Sørg for at migrationen er kørt
 
 ```bash
-python3 src/preprocessing/sql_migrations/migrate.py
+python3 src/sql_migrations/migrate.py
 ```
 
 Migration `0011_llm_structured.sql` opretter `llm_load_queue` (VIEW), `llm_structured` og `llm_logging`.

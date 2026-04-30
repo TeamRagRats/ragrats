@@ -2,12 +2,12 @@ from __future__ import annotations
 
 # Applies pending .sql migration files in filename order, tracking applied files in
 # schema_migrations table. Safe to re-run: already-applied files are skipped.
-# Run standalone: python sql_migrations/migrate.py
+# Run standalone: python src/sql_migrations/migrate.py
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
-    sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "preprocessing"))
 
 import re
 
