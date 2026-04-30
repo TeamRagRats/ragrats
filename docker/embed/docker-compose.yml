@@ -1,0 +1,43 @@
+services:
+  embed:
+    image: nvcr.io/nvidia/vllm:26.02-py3
+    container_name: ragrats_embed
+    ipc: host
+    ports:
+      - "127.0.0.1:8003:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Force HuggingFace + vLLM caches into the mounted locations so model
+      # weights and compiled kernels survive container restarts.
+      - HF_HOME=/root/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/root/.cache/huggingface/hub
+      - TRANSFORMERS_CACHE=/root/.cache/huggingface/transformers
+      - VLLM_CACHE_ROOT=/root/.cache/vllm
+      - TORCHINDUCTOR_CACHE_DIR=/root/.cache/torchinductor
+      - TRITON_CACHE_DIR=/root/.cache/triton
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - vllm_cache:/root/.cache/vllm
+      - torchinductor_cache:/root/.cache/torchinductor
+      - triton_cache:/root/.cache/triton
+    command: >
+      vllm serve Qwen/Qwen3-Embedding-4B
+      --runner pooling
+      --dtype auto
+      --max-model-len 8192
+      --gpu-memory-utilization 0.50
+      --trust-remote-code
+      --port 8000
+
+volumes:
+  vllm_cache:
+  torchinductor_cache:
+  triton_cache:
