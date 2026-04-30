@@ -333,7 +333,7 @@ def main() -> None:
         t_start = time.monotonic()
         try:
             if args.fresh:
-                deleted = reset_extraction_errors(conn, sha_filter)
+                deleted = ldb.reset_errors(conn, sha_filter)
                 logger.info(f"--fresh: deleted {deleted} error row(s) in llm_logging.")
 
             pending = ldb.fetch_pending(
