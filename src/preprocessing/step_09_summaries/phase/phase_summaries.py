@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -13,13 +12,8 @@ from shared.logging.run_logger import step
 from ..llm_client import LLMClient
 from .prompts import PHASE_SUMMARY_SYSTEM, build_phase_summary_prompt
 
-TARGET_PHASES = 6
-MIN_BATCH_SIZE = 10
+PHASE_BATCH_SIZE = 10
 PHASE_MAX_TOKENS = 2048
-
-
-def compute_batch_size(email_count: int) -> int:
-    return max(MIN_BATCH_SIZE, math.ceil(email_count / TARGET_PHASES))
 
 
 def _format_ts(ts) -> str:
@@ -78,8 +72,8 @@ def get_existing_phases(conn: psycopg.Connection, voyage_key: str) -> dict[int, 
         }
 
 
-def _run_phase(voyage_key: str, phase_index: int, batch: list[dict], llm: LLMClient, batch_size: int) -> dict:
-    first = phase_index * batch_size + 1
+def _run_phase(voyage_key: str, phase_index: int, batch: list[dict], llm: LLMClient) -> dict:
+    first = phase_index * PHASE_BATCH_SIZE + 1
     phase_range = f"emails {first}-{first + len(batch) - 1}"
     base = {
         "voyage_key": voyage_key, "phase_index": phase_index, "phase_range": phase_range,
@@ -167,12 +161,11 @@ def run(
                 log.warning(f"  [phase {i}/{len(pending)}] {vk} → ingen emails, springer over")
                 continue
 
-            batch_size = compute_batch_size(len(emails))
-            batches = [emails[j:j + batch_size] for j in range(0, len(emails), batch_size)]
+            batches = [emails[j:j + PHASE_BATCH_SIZE] for j in range(0, len(emails), PHASE_BATCH_SIZE)]
             existing = get_existing_phases(conn, vk)
             missing = [(idx, b) for idx, b in enumerate(batches) if existing.get(idx, {}).get("status") != "ok"]
 
-            log.info(f"  [phase {i}/{len(pending)}] {vk} | {len(emails)} emails → {len(batches)} faser (batch={batch_size}, {len(missing)} missing)")
+            log.info(f"  [phase {i}/{len(pending)}] {vk} | {len(emails)} emails → {len(batches)} faser (batch={PHASE_BATCH_SIZE}, {len(missing)} missing)")
 
             if not missing:
                 log.info(f"  [phase {i}/{len(pending)}] {vk} → alle faser allerede OK")
@@ -180,7 +173,7 @@ def run(
                 continue
 
             with ThreadPoolExecutor(max_workers=workers) as ex:
-                for future in as_completed({ex.submit(_run_phase, vk, idx, b, llm, batch_size): idx for idx, b in missing}):
+                for future in as_completed({ex.submit(_run_phase, vk, idx, b, llm): idx for idx, b in missing}):
                     r = future.result()
                     _upsert_phase(conn, r)
                     if r["status"] == "ok":
