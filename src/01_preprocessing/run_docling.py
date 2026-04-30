@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 
 from core.db import connect
 from core.logging.run_logger import finish_run, start_run
+from core.logging.log_docling import log_docling_pending, log_docling_finished
 from step_07_docling import db as ddb
 from step_07_docling.constants import (
     BATCH_SIZE,
@@ -121,7 +122,7 @@ def _process_batch(
         logger.info(f"  [{i}/{len(batch)}] {task.container_path.name} ({size_kb} KB)")
 
         started = datetime.now(timezone.utc)
-        ddb.log_file_pending(
+        log_docling_pending(
             conn,
             sha256=task.sha256,
             file_path=task.file_path,
@@ -150,7 +151,7 @@ def _process_batch(
 
         gpu = get_gpu_info()
         ram = get_ram_info()
-        ddb.log_file_finished(
+        log_docling_finished(
             conn,
             sha256=result.sha256,
             finished_at=result.finished_at or datetime.now(timezone.utc),
