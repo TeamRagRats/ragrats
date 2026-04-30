@@ -118,7 +118,7 @@ def run(
                 timer.errors += 1
                 continue
 
-            ok_phases = ok_phases[:20]  # TEST
+            ok_phases = ok_phases[:15]  # TEST
             fixture_paragraph = get_fixture_summary(conn, vk)
 
             t0 = time.monotonic()
