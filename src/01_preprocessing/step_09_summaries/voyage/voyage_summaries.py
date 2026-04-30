@@ -9,6 +9,7 @@ from uuid import UUID
 import psycopg
 
 from core.logging.run_logger import step
+from core.logging.log_summaries import log_summary_pending, log_summary_finished
 from clients.llm_client import LLMClient
 from .prompts import (
     VOYAGE_SUMMARY_SYSTEM,
@@ -121,19 +122,35 @@ def run(
             fixture_paragraph = get_fixture_summary(conn, vk)
 
             user_prompt = build_voyage_summary_from_phases_prompt(vk, fixture_paragraph, ok_phases)
+            started_at = datetime.now(timezone.utc)
+            log_summary_pending(
+                conn,
+                summary_type="voyage",
+                entity_key=vk,
+                voyage_key=vk,
+                started_at=started_at,
+                run_id=run_id,
+                batch_idx=0,
+            )
             t0 = time.monotonic()
             try:
-                voyage_summary, _ = llm.chat_with_usage(
+                voyage_summary, usage = llm.chat_with_usage(
                     VOYAGE_SUMMARY_SYSTEM,
                     user_prompt,
                     max_tokens=VOYAGE_MAX_TOKENS,
                     temperature=0.1,
                 )
             except Exception as exc:
+                log_summary_finished(
+                    conn, summary_type="voyage", entity_key=vk,
+                    finished_at=datetime.now(timezone.utc), duration_ms=int((time.monotonic() - t0) * 1000),
+                    status="error", error_message=f"{type(exc).__name__}: {exc}",
+                )
                 log.error(f"  [voyage {i}/{len(pending)}] {vk} → reduce FEJL: {exc}")
                 timer.errors += 1
                 continue
 
+            secs = time.monotonic() - t0
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -149,8 +166,13 @@ def run(
                      datetime.now(timezone.utc), user_prompt),
                 )
             conn.commit()
+            log_summary_finished(
+                conn, summary_type="voyage", entity_key=vk,
+                finished_at=datetime.now(timezone.utc), duration_ms=int(secs * 1000), status="ok",
+                input_tokens=usage["prompt_tokens"], output_tokens=usage["completion_tokens"],
+            )
             generated += 1
-            log.info(f"  [voyage {i}/{len(pending)}] {vk} OK ({time.monotonic() - t0:.1f}s)")
+            log.info(f"  [voyage {i}/{len(pending)}] {vk} OK ({secs:.1f}s)")
 
         timer.rows_out = generated
 

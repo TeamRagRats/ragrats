@@ -8,6 +8,7 @@ from uuid import UUID
 import psycopg
 
 from core.logging.run_logger import step
+from core.logging.log_summaries import log_summary_pending, log_summary_finished
 from clients.llm_client import LLMClient
 from .prompts import FIXTURE_SUMMARY_SYSTEM, build_fixture_summary_prompt
 
@@ -72,9 +73,19 @@ def run(
                 continue
 
             user_prompt = build_fixture_summary_prompt(fixture)
+            started_at = datetime.now(timezone.utc)
+            log_summary_pending(
+                conn,
+                summary_type="fixture",
+                entity_key=vk,
+                voyage_key=vk,
+                started_at=started_at,
+                run_id=run_id,
+                batch_idx=0,
+            )
             t0 = time.monotonic()
             try:
-                summary, _ = llm.chat_with_usage(
+                summary, usage = llm.chat_with_usage(
                     FIXTURE_SUMMARY_SYSTEM,
                     user_prompt,
                     max_tokens=512,
@@ -93,6 +104,11 @@ def run(
                         (vk, summary, f"OK {secs:.1f}s", datetime.now(timezone.utc), user_prompt),
                     )
                 conn.commit()
+                log_summary_finished(
+                    conn, summary_type="fixture", entity_key=vk,
+                    finished_at=datetime.now(timezone.utc), duration_ms=int(secs * 1000), status="ok",
+                    input_tokens=usage["prompt_tokens"], output_tokens=usage["completion_tokens"],
+                )
                 generated += 1
                 log.info(f"  [fixture {i}/{len(pending)}] {vk} OK ({secs:.1f}s)")
             except Exception as exc:
@@ -109,6 +125,11 @@ def run(
                         (vk, f"{type(exc).__name__}: {exc}", datetime.now(timezone.utc), user_prompt),
                     )
                 conn.commit()
+                log_summary_finished(
+                    conn, summary_type="fixture", entity_key=vk,
+                    finished_at=datetime.now(timezone.utc), duration_ms=int((time.monotonic() - t0) * 1000),
+                    status="error", error_message=f"{type(exc).__name__}: {exc}",
+                )
                 timer.errors += 1
                 log.error(f"  [fixture {i}/{len(pending)}] {vk} → FEJL: {exc}")
 

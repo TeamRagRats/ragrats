@@ -9,6 +9,7 @@ from uuid import UUID
 import psycopg
 
 from core.logging.run_logger import step
+from core.logging.log_summaries import log_summary_pending, log_summary_finished
 from clients.llm_client import LLMClient
 from .prompts import PHASE_SUMMARY_SYSTEM, build_phase_summary_prompt
 
@@ -83,14 +84,21 @@ def _run_phase(voyage_key: str, phase_index: int, batch: list[dict], llm: LLMCli
     user_prompt = build_phase_summary_prompt(voyage_key, phase_range, batch)
     t0 = time.monotonic()
     try:
-        summary, _ = llm.chat_with_usage(
+        summary, usage = llm.chat_with_usage(
             PHASE_SUMMARY_SYSTEM,
             user_prompt,
             max_tokens=PHASE_MAX_TOKENS,
         )
-        return {**base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0, "llm_input": user_prompt}
+        return {
+            **base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0,
+            "llm_input": user_prompt,
+            "input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"],
+        }
     except Exception as exc:
-        return {**base, "status": "error", "error": f"{type(exc).__name__}: {exc}", "llm_input": user_prompt}
+        return {
+            **base, "status": "error", "error": f"{type(exc).__name__}: {exc}",
+            "llm_input": user_prompt, "input_tokens": None, "output_tokens": None,
+        }
 
 
 def _upsert_phase(conn: psycopg.Connection, r: dict) -> None:
@@ -172,14 +180,38 @@ def run(
                 generated += len(batches)
                 continue
 
+            phase_started = datetime.now(timezone.utc)
+            for idx, _ in missing:
+                log_summary_pending(
+                    conn,
+                    summary_type="phase",
+                    entity_key=f"{vk}:{idx}",
+                    voyage_key=vk,
+                    started_at=phase_started,
+                    run_id=run_id,
+                    batch_idx=idx,
+                )
+
             with ThreadPoolExecutor(max_workers=workers) as ex:
                 for future in as_completed({ex.submit(_run_phase, vk, idx, b, llm): idx for idx, b in missing}):
                     r = future.result()
                     _upsert_phase(conn, r)
+                    finished_at = datetime.now(timezone.utc)
+                    duration_ms = int(r.get("secs", 0) * 1000)
                     if r["status"] == "ok":
+                        log_summary_finished(
+                            conn, summary_type="phase", entity_key=f"{vk}:{r['phase_index']}",
+                            finished_at=finished_at, duration_ms=duration_ms, status="ok",
+                            input_tokens=r.get("input_tokens"), output_tokens=r.get("output_tokens"),
+                        )
                         log.info(f"    [map] {vk} fase {r['phase_index']+1}/{len(batches)} OK ({r['secs']:.1f}s)")
                         generated += 1
                     else:
+                        log_summary_finished(
+                            conn, summary_type="phase", entity_key=f"{vk}:{r['phase_index']}",
+                            finished_at=finished_at, duration_ms=duration_ms, status="error",
+                            error_message=r.get("error"),
+                        )
                         log.error(f"    [map] {vk} fase {r['phase_index']+1}/{len(batches)} FEJL: {r['error']}")
                         timer.errors += 1
 

@@ -9,6 +9,7 @@ from uuid import UUID
 import psycopg
 
 from core.logging.run_logger import step
+from core.logging.log_summaries import log_summary_pending, log_summary_finished
 from clients.llm_client import LLMClient
 from .prompts import THREAD_SUMMARY_SYSTEM, build_thread_summary_prompt
 
@@ -85,14 +86,21 @@ def _run_thread(thread_id: UUID, voyage_key: str, subject: str | None, emails: l
     user_prompt = build_thread_summary_prompt(str(thread_id), voyage_key, subject, emails)
     t0 = time.monotonic()
     try:
-        summary, _ = llm.chat_with_usage(
+        summary, usage = llm.chat_with_usage(
             THREAD_SUMMARY_SYSTEM,
             user_prompt,
             max_tokens=THREAD_MAX_TOKENS,
         )
-        return {**base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0, "llm_input": user_prompt}
+        return {
+            **base, "status": "ok", "summary": summary, "secs": time.monotonic() - t0,
+            "llm_input": user_prompt,
+            "input_tokens": usage["prompt_tokens"], "output_tokens": usage["completion_tokens"],
+        }
     except Exception as exc:
-        return {**base, "status": "error", "error": f"{type(exc).__name__}: {exc}", "llm_input": user_prompt}
+        return {
+            **base, "status": "error", "error": f"{type(exc).__name__}: {exc}",
+            "llm_input": user_prompt, "input_tokens": None, "output_tokens": None,
+        }
 
 
 def _upsert_thread(conn: psycopg.Connection, r: dict) -> None:
@@ -160,6 +168,18 @@ def run(
         log.info(f"[thread] {len(pending)} tråd(e) | {workers} workers")
         generated = 0
 
+        started_at = datetime.now(timezone.utc)
+        for item in pending:
+            log_summary_pending(
+                conn,
+                summary_type="thread",
+                entity_key=str(item["thread_id"]),
+                voyage_key=item["voyage_key"],
+                started_at=started_at,
+                run_id=run_id,
+                batch_idx=0,
+            )
+
         def _process(item: dict) -> dict:
             tid = item["thread_id"]
             vk = item["voyage_key"]
@@ -191,12 +211,28 @@ def run(
             for i, future in enumerate(as_completed(futures), 1):
                 r = future.result()
                 if r.get("skipped"):
+                    log_summary_finished(
+                        conn, summary_type="thread", entity_key=str(r["thread_id"]),
+                        finished_at=datetime.now(timezone.utc), duration_ms=0, status="skipped",
+                    )
                     continue
                 _upsert_thread(conn, r)
+                finished_at = datetime.now(timezone.utc)
+                duration_ms = int(r.get("secs", 0) * 1000)
                 if r["status"] == "ok":
+                    log_summary_finished(
+                        conn, summary_type="thread", entity_key=str(r["thread_id"]),
+                        finished_at=finished_at, duration_ms=duration_ms, status="ok",
+                        input_tokens=r.get("input_tokens"), output_tokens=r.get("output_tokens"),
+                    )
                     log.info(f"  [thread {i}/{len(pending)}] {r['thread_id']} OK ({r['secs']:.1f}s, {r['email_count']} emails)")
                     generated += 1
                 else:
+                    log_summary_finished(
+                        conn, summary_type="thread", entity_key=str(r["thread_id"]),
+                        finished_at=finished_at, duration_ms=duration_ms, status="error",
+                        error_message=r.get("error"),
+                    )
                     log.error(f"  [thread {i}/{len(pending)}] {r['thread_id']} FEJL: {r['error']}")
                     timer.errors += 1
 
