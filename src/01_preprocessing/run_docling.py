@@ -29,8 +29,8 @@ import time
 from datetime import datetime, timezone
 
 from core.db import connect
-from core.logging.run_logger import finish_run, start_run
-from core.logging.log_docling import log_docling_pending, log_docling_finished
+from log.log_run import finish_run, start_run
+from log.log_docling import log_docling_pending, log_docling_finished
 from step_07_docling import db as ddb
 from step_07_docling.constants import (
     BATCH_SIZE,

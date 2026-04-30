@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 from transformers import AutoTokenizer
 
 from core.db import connect
-from core.logging.run_logger import finish_run, start_run
-from core.logging.log_chunking import log_chunking_pending, log_chunking_finished
+from log.log_run import finish_run, start_run
+from log.log_chunking import log_chunking_pending, log_chunking_finished
 from step_10_chunking.chunker import split_paragraphs, truncate_to_context
 from step_10_chunking.db import get_pending_voyages, get_voyage_summary, get_pending_emails, upsert_chunks
 

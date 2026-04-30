@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(mv step_09_llm_extraction step_08_llm_extraction)",
-      "Bash(mv step_08_summaries step_09_summaries)"
+      "Bash(mv step_08_summaries step_09_summaries)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, '.'\\); from core.logging import run_logger, log_ingest, log_retrieval, log_generation, log_docling, log_llm_extraction; print\\('All logging imports OK'\\)\")",
+      "Bash(python)"
     ]
   }
 }

@@ -35,8 +35,8 @@ from typing import Optional
 import psycopg
 
 from core.db import connect
-from core.logging.run_logger import finish_run, start_run
-from core.logging.log_llm_extraction import log_extraction_pending, log_extraction_finished
+from log.log_run import finish_run, start_run
+from log.log_llm_extraction import log_extraction_pending, log_extraction_finished
 from step_07_docling.resources import cleanup_memory, get_gpu_info, get_ram_info
 from clients.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_08_llm_extraction import db as ldb

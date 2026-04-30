@@ -40,13 +40,13 @@ from step_01_discover.read_fixtures_xlsx import read_fixtures_xlsx
 from step_06_load.upsert_attachments import upsert_attachments
 from step_06_load.upsert_emails import upsert_email
 from step_06_load.upsert_fixtures import upsert_fixtures
-from core.logging.run_logger import (
+from log.log_run import (
     finish_run,
     start_run,
     step,
 )
-from core.logging.log_ingest import log_ingest
-from core.logging.ingest_summary import (
+from log.log_ingest import log_ingest
+from log.ingest_summary import (
 
     VoyageSummary,
     format_final_table,

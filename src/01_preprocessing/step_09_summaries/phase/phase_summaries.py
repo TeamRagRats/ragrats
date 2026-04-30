@@ -8,8 +8,8 @@ from uuid import UUID
 
 import psycopg
 
-from core.logging.run_logger import step
-from core.logging.log_summaries import log_summary_pending, log_summary_finished
+from log.log_run import step
+from log.log_summaries import log_summary_pending, log_summary_finished
 from clients.llm_client import LLMClient
 from .prompts import PHASE_SUMMARY_SYSTEM, build_phase_summary_prompt
 

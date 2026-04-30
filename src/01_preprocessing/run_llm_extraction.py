@@ -26,8 +26,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from core.db import connect
-from core.logging.run_logger import finish_run, start_run, step
-from core.logging.log_llm_extraction import (
+from log.log_run import finish_run, start_run, step
+from log.log_llm_extraction import (
     log_extraction_pending,
     log_extraction_finished,
     reset_extraction_errors,

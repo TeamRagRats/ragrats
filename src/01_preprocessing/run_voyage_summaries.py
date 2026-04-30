@@ -21,7 +21,7 @@ import sys
 import time
 
 from core.db import connect
-from core.logging.run_logger import finish_run, start_run
+from log.log_run import finish_run, start_run
 from clients.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
 import step_09_summaries.voyage.voyage_summaries as step2
 

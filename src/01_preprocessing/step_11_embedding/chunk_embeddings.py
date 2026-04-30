@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 import psycopg
 import psycopg.sql
 
-from core.logging.run_logger import step
-from core.logging.log_embedding import log_embedding_pending, log_embedding_finished
+from log.log_run import step
+from log.log_embedding import log_embedding_pending, log_embedding_finished
 from clients.embed_client import EmbedClient
 
 BATCH_SIZE = 32

@@ -18,8 +18,8 @@ import time
 from pathlib import Path
 
 from core.db import connect
-from core.logging.log_retrieval import log_retrieval
-from core.logging.log_generation import log_generation
+from log.log_retrieval import log_retrieval
+from log.log_generation import log_generation
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
