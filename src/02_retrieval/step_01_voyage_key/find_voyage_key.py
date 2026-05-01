@@ -38,7 +38,7 @@ def find_winning_voyage_keys(
         GROUP BY voyage_key
         ORDER BY cnt DESC, voyage_key
     """
-    conn.execute("SET LOCAL hnsw.ef_search = %s", [top_k])
+    conn.execute(f"SET LOCAL hnsw.ef_search = {int(top_k)}")
     rows = conn.execute(sql, params).fetchall()
     if not rows:
         return [], {}
