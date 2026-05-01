@@ -2,7 +2,7 @@
 Voyage key retrieval recall test.
 
 For every ground_truth row, embeds the question, runs find_winning_voyage_keys,
-and logs the result to voyage_key_retrieval_testing and test_logging.
+and logs the result to test_voyage_key_logging and test_logging.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py

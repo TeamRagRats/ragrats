@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS docling_logging (
     gpu_mem_pct     NUMERIC(5,2),
     ram_pct         NUMERIC(5,2),
     batch_idx       INTEGER,
-    run_id          UUID REFERENCES import_runs(run_id) ON DELETE SET NULL
+    run_id          UUID REFERENCES runs_logging(run_id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS docling_logging_status_idx ON docling_logging(status);
 CREATE INDEX IF NOT EXISTS docling_logging_run_idx    ON docling_logging(run_id);

@@ -1,6 +1,6 @@
 CREATE TABLE embedding_logging (
     id            SERIAL PRIMARY KEY,
-    run_id        UUID        REFERENCES import_runs(run_id) ON DELETE SET NULL,
+    run_id        UUID        REFERENCES runs_logging(run_id) ON DELETE SET NULL,
     batch_idx     INT         NOT NULL,
     n_chunks      INT,
     started_at    TIMESTAMPTZ NOT NULL,

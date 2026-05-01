@@ -40,7 +40,7 @@ psql "postgresql://teamragrats:ragrats@localhost:5433/ragrats" \
   -f ../../src/preprocessing/schema.sql
 ```
 
-Tables created: `emails`, `attachments`, `import_runs`, `step_timings`, `ingest_logging`.
+Tables created: `emails`, `attachments`, `runs_logging`, `step_logging`, `ingest_logging`.
 The schema is idempotent — re-running `psql ... -f schema.sql` is safe.
 
 ## Daily use
@@ -111,7 +111,7 @@ WHERE voyage_key = 'AFRICAN_JUNIPER_1'
 GROUP BY 1 ORDER BY 2 DESC LIMIT 10;
 
 SELECT step_name, duration_ms, rows_in, rows_out, errors
-FROM step_timings ORDER BY started_at;
+FROM step_logging ORDER BY started_at;
 
 SELECT count(*), pg_size_pretty(sum(size_bytes)) FROM attachments;
 ```

@@ -71,7 +71,7 @@ def load_latest_summaries(conn: psycopg.Connection) -> list[VoyageSummary]:
         cur.execute(
             "SELECT voyage_key, n_emails, n_threads, n_attachments, n_bytes, "
             "n_errors, wall_time_ms FROM ingest_logging "
-            "WHERE run_id = (SELECT run_id FROM import_runs ORDER BY started_at DESC LIMIT 1) "
+            "WHERE run_id = (SELECT run_id FROM runs_logging ORDER BY started_at DESC LIMIT 1) "
             "ORDER BY voyage_key"
         )
         return [VoyageSummary(*row) for row in cur.fetchall()]

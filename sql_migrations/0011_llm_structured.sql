@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS llm_logging (
     gpu_mem_pct     NUMERIC(5,2),
     ram_pct         NUMERIC(5,2),
     batch_idx       INTEGER,
-    run_id          UUID REFERENCES import_runs(run_id) ON DELETE SET NULL
+    run_id          UUID REFERENCES runs_logging(run_id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS llm_logging_status_idx ON llm_logging(status);
 CREATE INDEX IF NOT EXISTS llm_logging_run_idx    ON llm_logging(run_id);

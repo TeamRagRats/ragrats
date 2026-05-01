@@ -37,16 +37,16 @@ CREATE TABLE IF NOT EXISTS attachments (
 CREATE INDEX IF NOT EXISTS attachments_email_idx   ON attachments(email_id);
 CREATE INDEX IF NOT EXISTS attachments_sha256_idx  ON attachments(sha256);
 
-CREATE TABLE IF NOT EXISTS import_runs (
+CREATE TABLE IF NOT EXISTS runs_logging (
     run_id          UUID PRIMARY KEY,
     started_at      TIMESTAMPTZ NOT NULL,
     finished_at     TIMESTAMPTZ,
     status          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS step_timings (
+CREATE TABLE IF NOT EXISTS step_logging (
     id              BIGSERIAL PRIMARY KEY,
-    run_id          UUID REFERENCES import_runs(run_id) ON DELETE CASCADE,
+    run_id          UUID REFERENCES runs_logging(run_id) ON DELETE CASCADE,
     step_name       TEXT NOT NULL,
     started_at      TIMESTAMPTZ NOT NULL,
     finished_at     TIMESTAMPTZ,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS step_timings (
 
 CREATE TABLE IF NOT EXISTS file_counters (
     id              BIGSERIAL PRIMARY KEY,
-    run_id          UUID REFERENCES import_runs(run_id) ON DELETE CASCADE,
+    run_id          UUID REFERENCES runs_logging(run_id) ON DELETE CASCADE,
     voyage_key      TEXT NOT NULL,
     n_emails        BIGINT DEFAULT 0,
     n_threads       BIGINT DEFAULT 0,

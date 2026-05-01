@@ -5,7 +5,7 @@ CREATE TABLE summaries_logging (
     summary_type  TEXT        NOT NULL,
     entity_key    TEXT        NOT NULL,
     voyage_key    TEXT,
-    run_id        UUID        REFERENCES import_runs(run_id) ON DELETE SET NULL,
+    run_id        UUID        REFERENCES runs_logging(run_id) ON DELETE SET NULL,
     batch_idx     INT         NOT NULL DEFAULT 0,
     started_at    TIMESTAMPTZ NOT NULL,
     finished_at   TIMESTAMPTZ,

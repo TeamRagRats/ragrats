@@ -3,7 +3,7 @@ CREATE TABLE chunking_logging (
     source_type   TEXT        NOT NULL,
     source_id     TEXT        NOT NULL,
     voyage_key    TEXT,
-    run_id        UUID        REFERENCES import_runs(run_id) ON DELETE SET NULL,
+    run_id        UUID        REFERENCES runs_logging(run_id) ON DELETE SET NULL,
     started_at    TIMESTAMPTZ NOT NULL,
     finished_at   TIMESTAMPTZ,
     duration_ms   INT,

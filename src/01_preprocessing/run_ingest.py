@@ -154,7 +154,7 @@ def run_summary_only() -> int:
     with connect() as conn:
         summaries = load_latest_summaries(conn)
     if not summaries:
-        print("no import_runs yet")
+        print("no runs_logging yet")
         return 0
     print(format_final_table(summaries))
     return 0

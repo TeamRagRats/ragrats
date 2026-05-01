@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# DB-backed run and step lifecycle tracking. Writes rows to import_runs and step_timings tables.
+# DB-backed run and step lifecycle tracking. Writes rows to runs_logging and step_logging tables.
 # start_run/finish_run bracket a full pipeline run; the step() context manager times individual steps.
 # Used by run_ingest.py, run_summaries.py, and step_09_summaries (email_summaries, voyage_summaries).
 
@@ -16,7 +16,7 @@ def start_run(conn: psycopg.Connection) -> UUID:
     run_id = uuid4()
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO import_runs (run_id, started_at, status) VALUES (%s, %s, 'running')",
+            "INSERT INTO runs_logging (run_id, started_at, status) VALUES (%s, %s, 'running')",
             (str(run_id), datetime.now(timezone.utc)),
         )
     conn.commit()
@@ -26,7 +26,7 @@ def start_run(conn: psycopg.Connection) -> UUID:
 def finish_run(conn: psycopg.Connection, run_id: UUID, status: str) -> None:
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE import_runs SET finished_at = %s, status = %s WHERE run_id = %s",
+            "UPDATE runs_logging SET finished_at = %s, status = %s WHERE run_id = %s",
             (datetime.now(timezone.utc), status, str(run_id)),
         )
     conn.commit()
@@ -48,7 +48,7 @@ class StepTimer:
         self._started = datetime.now(timezone.utc)
         with self.conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO step_timings (run_id, step_name, started_at) "
+                "INSERT INTO step_logging (run_id, step_name, started_at) "
                 "VALUES (%s, %s, %s) RETURNING id",
                 (str(self.run_id), self.step_name, self._started),
             )
@@ -62,7 +62,7 @@ class StepTimer:
         duration_ms = int((finished - started).total_seconds() * 1000)
         with self.conn.cursor() as cur:
             cur.execute(
-                "UPDATE step_timings SET finished_at=%s, duration_ms=%s, "
+                "UPDATE step_logging SET finished_at=%s, duration_ms=%s, "
                 "rows_in=%s, rows_out=%s, errors=%s, notes=%s WHERE id=%s",
                 (
                     finished,
