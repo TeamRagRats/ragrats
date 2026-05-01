@@ -38,6 +38,14 @@ def log_retrieval(
 
     chunks_json = _serialise(chunks)
     chunks_expanded_json = _serialise(chunks_expanded) if chunks_expanded else None
+
+    seen_types: dict[str, None] = {}
+    seen_ids: dict[str, None] = {}
+    for c in chunks:
+        seen_types[c.source_type] = None
+        seen_ids[c.source_id] = None
+    retrieved_source_types = list(seen_types)
+    retrieved_source_ids = list(seen_ids)
     
     with conn.cursor() as cur:
         cur.execute(
@@ -45,8 +53,9 @@ def log_retrieval(
             INSERT INTO retrieval_logging
                 (query, source_types, top_k_1, top_k_2, winning_keys, key_vote_counts,
                  step1_ms, step2_ms, total_ms, chunks_returned, chunks,
-                 chunks_expanded_returned, chunks_expanded)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb)
+                 chunks_expanded_returned, chunks_expanded,
+                 retrieved_source_types, retrieved_source_ids)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s)
             RETURNING run_id
             """,
             (
@@ -63,6 +72,8 @@ def log_retrieval(
                 chunks_json,
                 chunks_expanded_returned,
                 chunks_expanded_json,
+                retrieved_source_types,
+                retrieved_source_ids,
             ),
         )
         run_id = cur.fetchone()[0]
