@@ -181,8 +181,8 @@ def main(limit: int | None = None, workers: int = 4) -> None:
                 write_cur.execute("""
                     INSERT INTO ground_truth
                         (question_id, question, ground_truth_answer, difficulty,
-                         source_email_id, thread_id, voyage_key, voyage_path, email_time)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         source_email_id, thread_id, voyage_key, eml_path)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (question_id) DO NOTHING
                 """, (
                     f"qt_{q_counter:04d}",
@@ -193,7 +193,6 @@ def main(limit: int | None = None, workers: int = 4) -> None:
                     result["thread_id"],
                     result["voyage_key"],
                     result["eml_path"],
-                    result["sent_at"],
                 ))
                 write_conn.commit()
                 q_counter += 1
