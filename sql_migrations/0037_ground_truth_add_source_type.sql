@@ -8,7 +8,7 @@ CREATE TABLE ground_truth (
     ground_truth_answer TEXT         NOT NULL,
     difficulty          TEXT         NOT NULL DEFAULT 'medium'
                                      CHECK (difficulty IN ('easy', 'medium', 'hard')),
-    source_type         TEXT         NOT NULL CHECK (source_type IN ('email', 'voyage')),
+    source_type         TEXT         NOT NULL,
     source_id           TEXT,
     source_chunk_id     UUID         NOT NULL REFERENCES chunks(chunk_id),
     voyage_key          TEXT         NOT NULL,

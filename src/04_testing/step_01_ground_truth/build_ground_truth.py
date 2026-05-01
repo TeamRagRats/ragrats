@@ -198,17 +198,19 @@ def main(target: int = 500, workers: int = 4) -> None:
     done = 0
     inserted = 0
 
+    print(f"Submitting {total} tasks to {workers} workers...")
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
             pool.submit(classify_chunk, client, model, *row): row
             for row in chunks
         }
+        print(f"All tasks submitted. Waiting for results...")
         write_conn = psycopg.connect(DATABASE_URL)
         write_cur = write_conn.cursor()
 
         for future in as_completed(futures):
             done += 1
-            if done % 100 == 0:
+            if done % 10 == 0 or done == 1:
                 print(f"  {done}/{total} processed, {inserted} Q&As inserted")
 
             if inserted >= target:
