@@ -1,8 +1,8 @@
 """
 Voyage key retrieval recall test.
 
-For every approved ground_truth row, embeds the question, runs find_winning_voyage_keys,
-and logs the result to voyage_key_retrieval_testing.
+For every ground_truth row, embeds the question, runs find_winning_voyage_keys,
+and logs the result to voyage_key_retrieval_testing and test_logging.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
@@ -23,14 +23,13 @@ if __name__ == "__main__" and __package__ in (None, ""):
     __package__ = "src.testing.retrieval.voyage_key"
 
 import argparse
-import json
 import uuid
-
-import psycopg
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from step_01_voyage_key import find_winning_voyage_keys
+from log.log_voyage_key_testing import log_voyage_key_testing
+from log.log_testing import log_testing
 
 
 def _compute_rank(expected_key: str, vote_counts: dict[str, int]) -> int | None:
@@ -75,21 +74,17 @@ def main() -> None:
             if hit:
                 hits += 1
 
-            conn.execute("""
-                INSERT INTO voyage_key_retrieval_testing
-                    (run_id, question_id, top_k, expected_key, returned_keys, hit, winner_rank, vote_counts)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                run_id,
-                question_id,
-                args.top_k,
-                expected_key,
-                winning_keys,
-                hit,
-                rank,
-                json.dumps(vote_counts),
-            ))
-            conn.commit()
+            log_voyage_key_testing(
+                conn,
+                run_id=run_id,
+                question_id=question_id,
+                top_k=args.top_k,
+                expected_key=expected_key,
+                returned_keys=winning_keys,
+                hit=hit,
+                winner_rank=rank,
+                vote_counts=vote_counts,
+            )
 
             if i % 50 == 0:
                 print(f"  {i}/{len(rows)} — recall so far: {hits}/{i} ({hits/i:.1%})")
@@ -98,11 +93,15 @@ def main() -> None:
     recall = hits / total if total else 0.0
 
     with connect() as conn:
-        conn.execute("""
-            INSERT INTO test_logging (run_id, test_type, top_k, total, hits, recall)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (run_id, "voyage_key_retrieval", args.top_k, total, hits, recall))
-        conn.commit()
+        log_testing(
+            conn,
+            run_id=run_id,
+            test_type="voyage_key_retrieval",
+            top_k=args.top_k,
+            total=total,
+            hits=hits,
+            recall=recall,
+        )
 
     print(f"\nDone. run_id={run_id}")
     print(f"Recall@{args.top_k}: {hits}/{total} ({recall:.1%})")
