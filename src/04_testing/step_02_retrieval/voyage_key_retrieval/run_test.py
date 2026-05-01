@@ -52,12 +52,11 @@ def main() -> None:
         rows = conn.execute("""
             SELECT question_id, question, voyage_key
             FROM ground_truth
-            WHERE status = 'approved'
             ORDER BY question_id
         """).fetchall()
 
     if not rows:
-        print("No approved ground_truth rows found.")
+        print("No ground_truth rows found.")
         return
 
     print(f"Questions: {len(rows)} | top_k: {args.top_k} | embed: {args.embed_url}")
