@@ -33,9 +33,9 @@ from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_testing
 
 
-def _compute_source_rank(expected_source_id: str, chunks: list) -> int | None:
+def _compute_chunk_rank(expected_chunk_id: str, chunks: list) -> int | None:
     for i, chunk in enumerate(chunks, 1):
-        if chunk.source_id == expected_source_id:
+        if chunk.chunk_id == expected_chunk_id:
             return i
     return None
 
@@ -50,9 +50,9 @@ def main() -> None:
 
     with connect() as conn:
         rows = conn.execute("""
-            SELECT question_id, question, voyage_key, source_email_id::text
+            SELECT question_id, question, voyage_key, source_chunk_id::text
             FROM ground_truth
-            WHERE source_email_id IS NOT NULL
+            WHERE source_chunk_id IS NOT NULL
             ORDER BY question_id
         """).fetchall()
 
@@ -69,13 +69,13 @@ def main() -> None:
     reciprocal_rank_sum = 0.0
 
     with connect() as conn:
-        for i, (question_id, question, voyage_key, expected_source_id) in enumerate(rows, 1):
+        for i, (question_id, question, voyage_key, expected_chunk_id) in enumerate(rows, 1):
             embedding = client.embed([question])[0]
             chunks = retrieve_chunks(conn, embedding, voyage_keys=[voyage_key], top_k=args.top_k)
 
-            returned_source_ids = [c.source_id for c in chunks]
-            hit = expected_source_id in returned_source_ids
-            rank = _compute_source_rank(expected_source_id, chunks)
+            returned_chunk_ids = [c.chunk_id for c in chunks]
+            hit = expected_chunk_id in returned_chunk_ids
+            rank = _compute_chunk_rank(expected_chunk_id, chunks)
 
             if hit:
                 hits += 1
@@ -87,8 +87,8 @@ def main() -> None:
                 run_id=run_id,
                 question_id=question_id,
                 top_k=args.top_k,
-                expected_source_id=expected_source_id,
-                returned_source_ids=returned_source_ids,
+                expected_source_id=expected_chunk_id,
+                returned_source_ids=returned_chunk_ids,
                 hit=hit,
                 source_rank=rank,
             )
