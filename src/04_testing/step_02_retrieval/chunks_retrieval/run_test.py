@@ -50,8 +50,9 @@ def main() -> None:
 
     with connect() as conn:
         rows = conn.execute("""
-            SELECT question_id, question, voyage_key, source_email_id
+            SELECT question_id, question, voyage_key, source_email_id::text
             FROM ground_truth
+            WHERE source_email_id IS NOT NULL
             ORDER BY question_id
         """).fetchall()
 
