@@ -24,7 +24,7 @@ def retrieve_chunks(
     source_types: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """
-    Returns the top_k most similar chunks from temporary_chunks, filtered to the given
+    Returns the top_k most similar chunks from chunks, filtered to the given
     voyage_keys and optionally restricted to specific source_types.
     """
     if source_types is not None:
@@ -38,7 +38,7 @@ def retrieve_chunks(
         WITH candidates AS (
             SELECT chunk_id::text, source_type, source_id, voyage_key, chunk_index, text,
                    embedding <=> %s::halfvec AS distance
-            FROM temporary_chunks
+            FROM chunks
             WHERE voyage_key = ANY(%s)
               {source_filter}
         )

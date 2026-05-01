@@ -8,7 +8,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _retrieval = _repo_root / "src" / "02_retrieval"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))                    # step_01_*, step_02_* (generation's own)
-    sys.path.insert(0, str(_retrieval))              # step_01_voyage_key_precision, step_02_chunk_retrieval
+    sys.path.insert(0, str(_retrieval))              # step_01_voyage_key, step_02_chunk_retrieval
     __package__ = "src.generation"
 
 import argparse
@@ -23,7 +23,7 @@ from log.log_generation import log_generation
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
-from step_01_voyage_key_precision import find_winning_voyage_keys
+from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer

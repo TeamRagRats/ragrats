@@ -18,7 +18,7 @@ from core.db import connect
 from log.log_retrieval import log_retrieval
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
-from step_01_voyage_key_precision import find_winning_voyage_keys
+from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 
 _SOURCE_TYPE_MAP = {
@@ -54,7 +54,7 @@ def main() -> None:
     )
     logger = logging.getLogger("retrieve")
 
-    p = argparse.ArgumentParser(description="Two-step retrieval from temporary_chunks")
+    p = argparse.ArgumentParser(description="Two-step retrieval from chunks")
     p.add_argument("--query", required=True, help="Natural language query")
     p.add_argument("--top-k-1", type=int, default=500, dest="top_k_1",
                    help="Candidates for voyage_key selection (default: 500)")
@@ -83,7 +83,7 @@ def main() -> None:
         step1_ms = int((time.monotonic() - t1) * 1000)
 
         if not winning_keys:
-            logger.error("No chunks found — is temporary_chunks populated?")
+            logger.error("No chunks found — is the chunks table populated?")
             return
 
         top_vote = vote_counts[winning_keys[0]]
