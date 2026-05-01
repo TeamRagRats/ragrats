@@ -219,17 +219,18 @@ def main(target: int = 500, workers: int = 4) -> None:
                 write_cur.execute("""
                     INSERT INTO ground_truth
                         (question_id, question, ground_truth_answer, difficulty,
-                         voyage_key, source_chunk_id, source_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                         source_type, source_id, source_chunk_id, voyage_key)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (question_id) DO NOTHING
                 """, (
                     f"qt_{q_counter:04d}",
                     result["question"],
                     result["answer"],
                     result["difficulty"],
-                    result["voyage_key"],
-                    result["chunk_id"],
+                    result["source_type"],
                     result["source_id"],
+                    result["chunk_id"],
+                    result["voyage_key"],
                 ))
                 write_conn.commit()
                 q_counter += 1
