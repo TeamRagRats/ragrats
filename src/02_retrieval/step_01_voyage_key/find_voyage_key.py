@@ -10,7 +10,7 @@ def find_winning_voyage_keys(
     source_types: list[str] | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     """
-    Searches temporary_chunks for the top_k most similar chunks to query_embedding,
+    Searches chunks for the top_k most similar chunks to query_embedding,
     counts voyage_key appearances, and returns all keys tied for the highest count.
 
     Returns:
@@ -28,7 +28,7 @@ def find_winning_voyage_keys(
     sql = f"""
         WITH ranked AS (
             SELECT voyage_key
-            FROM temporary_chunks
+            FROM chunks
             {where_clause}
             ORDER BY embedding <=> %s::halfvec
             LIMIT %s
@@ -38,6 +38,7 @@ def find_winning_voyage_keys(
         GROUP BY voyage_key
         ORDER BY cnt DESC, voyage_key
     """
+    conn.execute(f"SET LOCAL hnsw.ef_search = {int(top_k)}")
     rows = conn.execute(sql, params).fetchall()
     if not rows:
         return [], {}

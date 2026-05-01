@@ -22,5 +22,5 @@ def build_fixture_summary_prompt(fixture_json: str | dict) -> str:
 
     return (
         f"Fixture data:\n{fixture_text}\n\n"
-        "Write a 3–5 sentence summary of this fixture."
+        "Write the summary of this fixture."
     )

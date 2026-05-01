@@ -8,7 +8,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _retrieval = _repo_root / "src" / "02_retrieval"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))                    # step_01_*, step_02_* (generation's own)
-    sys.path.insert(0, str(_retrieval))              # step_01_voyage_key_precision, step_02_chunk_retrieval
+    sys.path.insert(0, str(_retrieval))              # step_01_voyage_key, step_02_chunk_retrieval
     __package__ = "src.generation"
 
 import argparse
@@ -23,8 +23,8 @@ from log.log_generation import log_generation
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
-from step_01_voyage_key_precision import find_winning_voyage_keys
-from step_02_chunk_retrieval import retrieve_chunks
+from step_01_voyage_key import find_winning_voyage_keys
+from step_02_chunk_retrieval import retrieve_chunks, expand_chunks
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
 
@@ -82,6 +82,8 @@ def main() -> None:
                    help="LLM sampling temperature (default: 0.3)")
     p.add_argument("--max-tokens", type=int, default=2500, dest="max_tokens",
                    help="LLM max output tokens (default: 2500)")
+    p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
+                   help="Neighbor chunks to fetch on each side of an anchor (default: 2)")
     args = p.parse_args()
 
     source_types = _resolve_source_types(args.source_types)
@@ -100,7 +102,7 @@ def main() -> None:
         step1_ms = int((time.monotonic() - t1) * 1000)
 
         if not winning_keys:
-            logger.error("No chunks found — is temporary_chunks populated?")
+            logger.error("No chunks found — is the chunks table populated?")
             return
 
         top_vote = vote_counts[winning_keys[0]]
@@ -116,6 +118,9 @@ def main() -> None:
 
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
 
+        expanded = expand_chunks(conn, chunks, window=args.expand_window)
+        logger.info(f"[expand] {len(chunks)} chunks → {len(expanded)} after ±{args.expand_window} expansion")
+
         retrieval_run_id = log_retrieval(
             conn,
             query=args.query,
@@ -129,6 +134,8 @@ def main() -> None:
             total_ms=int((time.monotonic() - t_total) * 1000),
             chunks_returned=len(chunks),
             chunks=chunks,
+            chunks_expanded_returned=len(expanded),
+            chunks_expanded=expanded,
         )
 
         context = build_context([
@@ -141,7 +148,7 @@ def main() -> None:
                 "similarity": c.similarity,
                 "text": c.text,
             }
-            for c in chunks
+            for c in expanded
         ])
 
         llm = LLMClient(base_url=args.llm_url)

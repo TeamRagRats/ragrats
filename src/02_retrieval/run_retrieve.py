@@ -18,8 +18,8 @@ from core.db import connect
 from log.log_retrieval import log_retrieval
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
-from step_01_voyage_key_precision import find_winning_voyage_keys
-from step_02_chunk_retrieval import retrieve_chunks
+from step_01_voyage_key import find_winning_voyage_keys
+from step_02_chunk_retrieval import retrieve_chunks, expand_chunks
 
 _SOURCE_TYPE_MAP = {
     "thread": "thread",
@@ -54,7 +54,7 @@ def main() -> None:
     )
     logger = logging.getLogger("retrieve")
 
-    p = argparse.ArgumentParser(description="Two-step retrieval from temporary_chunks")
+    p = argparse.ArgumentParser(description="Two-step retrieval from chunks")
     p.add_argument("--query", required=True, help="Natural language query")
     p.add_argument("--top-k-1", type=int, default=500, dest="top_k_1",
                    help="Candidates for voyage_key selection (default: 500)")
@@ -64,6 +64,8 @@ def main() -> None:
                    help="Filter by source type: all, thread, email-attach, fixture, phase (repeatable)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
+    p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
+                   help="Neighbor chunks to fetch on each side of an anchor (default: 2)")
     args = p.parse_args()
 
     source_types = _resolve_source_types(args.source_types)
@@ -83,7 +85,7 @@ def main() -> None:
         step1_ms = int((time.monotonic() - t1) * 1000)
 
         if not winning_keys:
-            logger.error("No chunks found — is temporary_chunks populated?")
+            logger.error("No chunks found — is the chunks table populated?")
             return
 
         top_vote = vote_counts[winning_keys[0]]
@@ -97,9 +99,13 @@ def main() -> None:
             conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, source_types=source_types
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
-        total_ms = int((time.monotonic() - t_total) * 1000)
 
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
+
+        expanded = expand_chunks(conn, chunks, window=args.expand_window)
+        logger.info(f"[expand] {len(chunks)} chunks → {len(expanded)} after ±{args.expand_window} expansion")
+
+        total_ms = int((time.monotonic() - t_total) * 1000)
         logger.info(f"[total] {total_ms}ms")
 
         log_retrieval(
@@ -115,9 +121,11 @@ def main() -> None:
             total_ms=total_ms,
             chunks_returned=len(chunks),
             chunks=chunks,
+            chunks_expanded_returned=len(expanded),
+            chunks_expanded=expanded,
         )
 
-    for chunk in chunks:
+    for chunk in expanded:
         print(json.dumps(
             {
                 "chunk_id": chunk.chunk_id,
