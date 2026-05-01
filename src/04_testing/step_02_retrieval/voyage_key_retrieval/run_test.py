@@ -95,8 +95,17 @@ def main() -> None:
                 print(f"  {i}/{len(rows)} — recall so far: {hits}/{i} ({hits/i:.1%})")
 
     total = len(rows)
+    recall = hits / total if total else 0.0
+
+    with connect() as conn:
+        conn.execute("""
+            INSERT INTO test_logging (run_id, test_type, top_k, total, hits, recall)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (run_id, "voyage_key_retrieval", args.top_k, total, hits, recall))
+        conn.commit()
+
     print(f"\nDone. run_id={run_id}")
-    print(f"Recall@{args.top_k}: {hits}/{total} ({hits/total:.1%})")
+    print(f"Recall@{args.top_k}: {hits}/{total} ({recall:.1%})")
 
 
 if __name__ == "__main__":
