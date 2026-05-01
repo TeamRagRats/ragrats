@@ -97,6 +97,7 @@ def classify_chunk(
     model: str,
     chunk_id: str,
     source_type: str,
+    source_id: str,
     voyage_key: str,
     text: str,
 ) -> dict | None:
@@ -135,6 +136,7 @@ def classify_chunk(
                 return {
                     "chunk_id": chunk_id,
                     "source_type": source_type,
+                    "source_id": source_id,
                     "voyage_key": voyage_key,
                     "question": result.get("question", ""),
                     "answer": result.get("answer", ""),
@@ -160,14 +162,14 @@ def sample_chunks(conn: psycopg.Connection, target: int) -> list[tuple]:
     rows = conn.execute("""
         WITH ranked AS (
             SELECT
-                chunk_id, source_type, voyage_key, text,
+                chunk_id, source_type, source_id, voyage_key, text,
                 ROW_NUMBER() OVER (
                     PARTITION BY voyage_key, source_type
                     ORDER BY random()
                 ) AS rn
             FROM chunks
         )
-        SELECT chunk_id, source_type, voyage_key, text
+        SELECT chunk_id, source_type, source_id, voyage_key, text
         FROM ranked
         WHERE rn <= 10
         ORDER BY random()
@@ -217,8 +219,8 @@ def main(target: int = 500, workers: int = 4) -> None:
                 write_cur.execute("""
                     INSERT INTO ground_truth
                         (question_id, question, ground_truth_answer, difficulty,
-                         voyage_key, source_chunk_id)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                         voyage_key, source_chunk_id, source_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (question_id) DO NOTHING
                 """, (
                     f"qt_{q_counter:04d}",
@@ -227,6 +229,7 @@ def main(target: int = 500, workers: int = 4) -> None:
                     result["difficulty"],
                     result["voyage_key"],
                     result["chunk_id"],
+                    result["source_id"],
                 ))
                 write_conn.commit()
                 q_counter += 1
