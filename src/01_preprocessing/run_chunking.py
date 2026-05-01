@@ -24,8 +24,8 @@ from transformers import AutoTokenizer
 from core.db import connect
 from log.log_run import finish_run, start_run
 from log.log_chunking import log_chunking_pending, log_chunking_finished
-from step_10_chunking.chunker import split_paragraphs, truncate_to_context
-from step_10_chunking.db import get_pending_voyages, get_voyage_summary, get_pending_emails, upsert_chunks
+from step_05_chunking.chunker import split_paragraphs, truncate_to_context
+from step_05_chunking.db import get_pending_voyages, get_voyage_summary, get_pending_emails, upsert_chunks
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30

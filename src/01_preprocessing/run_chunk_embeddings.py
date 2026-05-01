@@ -23,7 +23,7 @@ import time
 from core.db import connect
 from log.log_run import finish_run, start_run
 from clients.embed_client import EmbedClient, wait_for_server, DEFAULT_BASE_URL
-import step_11_embedding.chunk_embeddings as step_embed
+import step_06_embedding.chunk_embeddings as step_embed
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30

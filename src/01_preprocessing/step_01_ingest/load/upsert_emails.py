@@ -9,7 +9,7 @@ from typing import Iterable
 
 import psycopg
 
-from step_02_parse.merge_metadata import EmailRecord
+from step_01_ingest.parse.merge_metadata import EmailRecord
 
 _SQL = """
 INSERT INTO emails (

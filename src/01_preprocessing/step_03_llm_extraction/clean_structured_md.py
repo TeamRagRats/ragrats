@@ -5,7 +5,7 @@ from __future__ import annotations
 # Only processes mode='full' rows; classify rows have no Key Information section.
 #
 # Run from src/preprocessing/:
-#   python step_08_llm_extraction/clean_structured_md.py [--dry-run] [--voyage KEY] [--sha256 HASH]
+#   python step_03_llm_extraction/clean_structured_md.py [--dry-run] [--voyage KEY] [--sha256 HASH]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys

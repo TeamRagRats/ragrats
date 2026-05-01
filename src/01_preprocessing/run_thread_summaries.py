@@ -23,7 +23,7 @@ import time
 from core.db import connect
 from log.log_run import finish_run, start_run
 from clients.llm_client import LLMClient, wait_for_server, DEFAULT_BASE_URL
-import step_09_summaries.threads.thread_summaries as step_thread
+import step_04_summaries.threads.thread_summaries as step_thread
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30

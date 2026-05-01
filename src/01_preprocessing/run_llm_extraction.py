@@ -2,7 +2,7 @@ from __future__ import annotations
 
 # Step 8 entry point. Reads pending sha256s from llm_load_queue, categorises by
 # char_count into small/medium/large/huge, and processes each tier sequentially
-# with the worker counts in step_08_llm_extraction.constants. Workers run the
+# with the worker counts in step_03_llm_extraction.constants. Workers run the
 # LLM call concurrently; the main thread is the only one writing to Postgres.
 #
 # Run (from inside the vLLM-reachable environment):
@@ -33,14 +33,14 @@ from log.log_llm_extraction import (
     reset_extraction_errors,
 )
 from clients.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
-from step_07_docling.resources import (
+from step_02_docling.resources import (
     cleanup_memory,
     get_gpu_info,
     get_ram_info,
     log_resource_status,
 )
-from step_08_llm_extraction import db as ldb
-from step_08_llm_extraction.constants import (
+from step_03_llm_extraction import db as ldb
+from step_03_llm_extraction.constants import (
     BATCH_SIZE,
     DEFAULT_CLASSIFY_THRESHOLD,
     FULL_MAX_TOKENS,
@@ -51,7 +51,7 @@ from step_08_llm_extraction.constants import (
     WORKERS_BY_TIER,
     categorize,
 )
-from step_08_llm_extraction.extractor import ExtractionResult, process_single_document
+from step_03_llm_extraction.extractor import ExtractionResult, process_single_document
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:

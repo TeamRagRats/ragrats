@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Step 9 entry point. Runs orchestrator + watchdog as siblings; restarts the
+# Step 3 entry point. Runs orchestrator + watchdog as siblings; restarts the
 # orchestrator (up to MAX_RESTARTS times) until the queue is drained. Holds a
 # flock so two terminals cannot both run compose-up against vllm and recreate
 # the running container (root cause of the 137-kill at 2026-04-26 01:10).
@@ -18,7 +18,7 @@ DB_USER="${RAGRATS_DB_USER:-teamragrats}"
 DB_NAME="${RAGRATS_DB_NAME:-ragrats}"
 DB_CONTAINER="${RAGRATS_DB_CONTAINER:-ragrats_database}"
 COMPOSE_FILE="${VLLM_COMPOSE_FILE:-docker/vllm/docker-compose.yml}"
-WATCHDOG="src/01_preprocessing/step_08_llm_extraction/watchdog.sh"
+WATCHDOG="src/01_preprocessing/step_03_llm_extraction/watchdog.sh"
 MAX_RESTARTS="${LLM_MAX_RESTARTS:-10}"
 
 docker compose -f "$COMPOSE_FILE" up -d

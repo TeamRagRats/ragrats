@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
-from step_02_parse.parse_eml import AttachmentPart
-from step_05_attachments.classify_attachment import is_docling_ready
-from step_05_attachments.hash_attachment import sha256_hex
+from step_01_ingest.parse.parse_eml import AttachmentPart
+from step_01_ingest.attachments.classify_attachment import is_docling_ready
+from step_01_ingest.attachments.hash_attachment import sha256_hex
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 

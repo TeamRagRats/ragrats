@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from clients.llm_client import LLMClient
-from step_08_llm_extraction.constants import (
+from step_03_llm_extraction.constants import (
     CHARS_PER_TOKEN,
     CLASSIFY_INPUT_TRUNCATE_CHARS,
     CLASSIFY_MAX_TOKENS,
@@ -24,8 +24,8 @@ from step_08_llm_extraction.constants import (
 
 # Strips HTML comments (Docling emits <!-- image --> for figures) and whitespace.
 _PLACEHOLDER_RE = re.compile(r"<!--[^>]*-->|\s+")
-from step_08_llm_extraction.db import QueueItem
-from step_08_llm_extraction.prompts import (
+from step_03_llm_extraction.db import QueueItem
+from step_03_llm_extraction.prompts import (
     CLASSIFY_SYSTEM_PROMPT,
     FULL_SYSTEM_PROMPT,
 )

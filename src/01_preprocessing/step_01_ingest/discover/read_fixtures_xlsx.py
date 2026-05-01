@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from step_01_discover.derive_fixture_key import derive_fixture_key
+from step_01_ingest.discover.derive_fixture_key import derive_fixture_key
 
 
 def _clean(v: object) -> object:

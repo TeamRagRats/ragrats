@@ -28,18 +28,18 @@ from tqdm import tqdm
 
 from core.config import Config, load_config
 from core.db import connect
-from step_01_discover.pair_eml_json import validate_pairs
-from step_01_discover.walk_mailbox import MailboxItem, walk_mailbox
-from step_02_parse.merge_metadata import EmailRecord, merge_metadata
-from step_02_parse.parse_eml import parse_eml
-from step_02_parse.parse_json import parse_json
-from step_03_clean.clean_body import clean_body
-from step_04_thread.assign_thread_ids import assign_thread_ids
-from step_05_attachments.extract_attachments import extract_attachments
-from step_01_discover.read_fixtures_xlsx import read_fixtures_xlsx
-from step_06_load.upsert_attachments import upsert_attachments
-from step_06_load.upsert_emails import upsert_email
-from step_06_load.upsert_fixtures import upsert_fixtures
+from step_01_ingest.discover.pair_eml_json import validate_pairs
+from step_01_ingest.discover.walk_mailbox import MailboxItem, walk_mailbox
+from step_01_ingest.parse.merge_metadata import EmailRecord, merge_metadata
+from step_01_ingest.parse.parse_eml import parse_eml
+from step_01_ingest.parse.parse_json import parse_json
+from step_01_ingest.clean.clean_body import clean_body
+from step_01_ingest.thread.assign_thread_ids import assign_thread_ids
+from step_01_ingest.attachments.extract_attachments import extract_attachments
+from step_01_ingest.discover.read_fixtures_xlsx import read_fixtures_xlsx
+from step_01_ingest.load.upsert_attachments import upsert_attachments
+from step_01_ingest.load.upsert_emails import upsert_email
+from step_01_ingest.load.upsert_fixtures import upsert_fixtures
 from log.log_run import (
     finish_run,
     start_run,

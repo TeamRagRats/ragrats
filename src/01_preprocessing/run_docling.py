@@ -31,18 +31,18 @@ from datetime import datetime, timezone
 from core.db import connect
 from log.log_run import finish_run, start_run
 from log.log_docling import log_docling_pending, log_docling_finished
-from step_07_docling import db as ddb
-from step_07_docling.constants import (
+from step_02_docling import db as ddb
+from step_02_docling.constants import (
     BATCH_SIZE,
     GPU_MEM_CRITICAL_PCT,
     GPU_MEM_WARN_PCT,
     RAM_CRITICAL_PCT,
     RAM_WARN_PCT,
 )
-from step_07_docling.docling_runner import build_docling_converter, process_single_file
-from step_07_docling.legacy import convert_legacy_files
-from step_07_docling.job_queue import QueueItem, fetch_queue, queue_stats
-from step_07_docling.resources import (
+from step_02_docling.docling_runner import build_docling_converter, process_single_file
+from step_02_docling.legacy import convert_legacy_files
+from step_02_docling.job_queue import QueueItem, fetch_queue, queue_stats
+from step_02_docling.resources import (
     check_cuda_available,
     cleanup_memory,
     get_gpu_info,

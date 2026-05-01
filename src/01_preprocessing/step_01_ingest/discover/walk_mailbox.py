@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
-from step_01_discover.derive_voyage_key import derive_voyage_key
+from step_01_ingest.discover.derive_voyage_key import derive_voyage_key
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from step_01_discover.walk_mailbox import MailboxItem
+from step_01_ingest.discover.walk_mailbox import MailboxItem
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ def validate_pairs(items: Iterable[MailboxItem]) -> tuple[list[MailboxItem], lis
 
 if __name__ == "__main__":
     from core.config import load_config
-    from step_01_discover.walk_mailbox import walk_mailbox
+    from step_01_ingest.discover.walk_mailbox import walk_mailbox
 
     cfg = load_config()
     ok, errs = validate_pairs(walk_mailbox(cfg.data_root))
