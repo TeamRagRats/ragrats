@@ -1,5 +1,9 @@
 DROP TABLE IF EXISTS test_logging;
 
+TRUNCATE test_generation_accuracy_logging;
+TRUNCATE test_chunk_retrieval_logging;
+TRUNCATE test_voyage_key_logging;
+
 CREATE TABLE IF NOT EXISTS test_retrieval_run_logging (
     run_id      UUID            PRIMARY KEY,
     test_type   TEXT            NOT NULL,
