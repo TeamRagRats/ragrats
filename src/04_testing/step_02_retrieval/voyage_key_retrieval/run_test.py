@@ -29,7 +29,7 @@ from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from step_01_voyage_key import find_winning_voyage_keys
 from log.log_voyage_key_testing import log_voyage_key_testing
-from log.log_testing import log_testing
+from log.log_testing import log_retrieval_run
 
 
 def _compute_rank(expected_key: str, vote_counts: dict[str, int]) -> int | None:
@@ -93,7 +93,7 @@ def main() -> None:
     recall = hits / total if total else 0.0
 
     with connect() as conn:
-        log_testing(
+        log_retrieval_run(
             conn,
             run_id=run_id,
             test_type="voyage_key_retrieval",

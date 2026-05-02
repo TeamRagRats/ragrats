@@ -19,7 +19,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    _repo_root = _here.parents[3]
+    _repo_root = _here.parents[2]
     _generation = _repo_root / "src" / "03_generation"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_generation))
@@ -37,7 +37,7 @@ from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
 from log.log_generation_accuracy_testing import log_generation_accuracy_testing
-from log.log_testing import log_testing
+from log.log_testing import log_generation_run
 
 _REPO_ROOT = Path(__file__).parents[4]
 _SYSTEM_PROMPT = (
@@ -183,14 +183,13 @@ def main() -> None:
     high_quality = sum(1 for s in judge_scores if s >= 4)
 
     with connect() as conn:
-        log_testing(
+        log_generation_run(
             conn,
             run_id=run_id,
-            test_type="generation_accuracy",
-            top_k=None,
             total=total,
-            hits=high_quality,
-            recall=avg_cosine,
+            judge_hits=high_quality,
+            avg_cosine=avg_cosine,
+            avg_judge_score=avg_judge,
         )
 
     print(f"\nDone. run_id={run_id}")

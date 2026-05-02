@@ -30,7 +30,7 @@ from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
-from log.log_testing import log_testing
+from log.log_testing import log_retrieval_run
 
 
 def _compute_chunk_rank(expected_chunk_id: str, chunks: list) -> int | None:
@@ -101,7 +101,7 @@ def main() -> None:
     mrr = reciprocal_rank_sum / total if total else 0.0
 
     with connect() as conn:
-        log_testing(
+        log_retrieval_run(
             conn,
             run_id=run_id,
             test_type="chunk_retrieval",
