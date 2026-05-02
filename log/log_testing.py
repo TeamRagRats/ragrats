@@ -8,7 +8,7 @@ def log_testing(
     *,
     run_id: str,
     test_type: str,
-    top_k: int,
+    top_k: int | None,
     total: int,
     hits: int,
     recall: float,
