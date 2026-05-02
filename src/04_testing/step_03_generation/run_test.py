@@ -39,7 +39,7 @@ from step_02_llm_generation import generate_answer
 from log.log_generation_accuracy_testing import log_generation_accuracy_testing
 from log.log_testing import log_generation_run
 
-_REPO_ROOT = Path(__file__).parents[4]
+_REPO_ROOT = Path(__file__).parents[3]
 _SYSTEM_PROMPT = (
     _REPO_ROOT / "system_prompts" / "generation" / "generation.md"
 ).read_text(encoding="utf-8").strip()
