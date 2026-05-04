@@ -27,7 +27,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   }
 
   return (
-    <div className="border border-gray-800 bg-black px-6 py-4 flex items-center gap-4 rounded-lg w-1/4 min-w-64">
+    <div className="border border-gray-800 bg-black px-6 py-4 flex items-center gap-4 rounded-lg w-full max-w-xl">
       <div
         className="flex-1 flex items-center cursor-text relative"
         onClick={() => inputRef.current?.focus()}
