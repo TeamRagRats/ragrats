@@ -253,8 +253,8 @@ def main(target: int = 500, workers: int = 4) -> None:
                 write_cur.execute("""
                     INSERT INTO ground_truth
                         (question_id, question, ground_truth_answer, difficulty,
-                         source_type, source_id, source_chunk_id, voyage_key)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                         source_type, source_id, source_chunk_id, voyage_key, question_type)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'extractive')
                     ON CONFLICT (question_id) DO NOTHING
                 """, (
                     f"qt_{q_counter:04d}",
