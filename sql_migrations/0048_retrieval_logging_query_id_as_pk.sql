@@ -1,28 +1,29 @@
--- Deduplicate: rows that share a query_id (from the DISTINCT backfill in 0043)
--- get fresh query rows so every retrieval row has a unique query_id.
-DO $$
-DECLARE
-    r RECORD;
-    new_qid UUID;
-BEGIN
-    FOR r IN
-        WITH first_per_query AS (
-            SELECT DISTINCT ON (query_id) run_id
-            FROM retrieval_logging
-            ORDER BY query_id, created_at
-        )
-        SELECT rl.run_id, q.query_text, q.source, q.username
-        FROM retrieval_logging rl
-        JOIN queries q ON q.query_id = rl.query_id
-        WHERE rl.run_id NOT IN (SELECT run_id FROM first_per_query)
-    LOOP
-        INSERT INTO queries (query_text, source, username)
-        VALUES (r.query_text, r.source, r.username)
-        RETURNING query_id INTO new_qid;
+ALTER TABLE retrieval_logging ADD COLUMN _new_qid UUID;
 
-        UPDATE retrieval_logging SET query_id = new_qid WHERE run_id = r.run_id;
-    END LOOP;
-END $$;
+UPDATE retrieval_logging rl
+SET _new_qid = rl.query_id
+FROM (
+    SELECT DISTINCT ON (query_id) run_id
+    FROM retrieval_logging
+    ORDER BY query_id, created_at
+) first_row
+WHERE rl.run_id = first_row.run_id;
+
+UPDATE retrieval_logging
+SET _new_qid = gen_random_uuid()
+WHERE _new_qid IS NULL;
+
+INSERT INTO queries (query_id, query_text, source, username)
+SELECT rl._new_qid, q.query_text, q.source, q.username
+FROM retrieval_logging rl
+JOIN queries q ON q.query_id = rl.query_id
+WHERE rl._new_qid != rl.query_id;
+
+UPDATE retrieval_logging
+SET query_id = _new_qid
+WHERE query_id != _new_qid;
+
+ALTER TABLE retrieval_logging DROP COLUMN _new_qid;
 
 ALTER TABLE generation_logging DROP CONSTRAINT IF EXISTS generation_logging_retrieval_run_id_fkey;
 
@@ -69,4 +70,5 @@ FROM retrieval_logging rl
 JOIN queries q ON rl.query_id = q.query_id;
 
 DROP TABLE retrieval_logging;
+
 ALTER TABLE retrieval_logging_new RENAME TO retrieval_logging;
