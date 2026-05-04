@@ -7,7 +7,7 @@ def log_generation(
     conn: psycopg.Connection,
     *,
     retrieval_run_id: str | UUID | None,
-    query: str,
+    query_id: str,
     answer: str,
     system_prompt: str,
     model: str,
@@ -23,13 +23,13 @@ def log_generation(
         cur.execute(
             """
             INSERT INTO generation_logging
-                (retrieval_run_id, query, answer, system_prompt, model, temperature,
+                (retrieval_run_id, query_id, answer, system_prompt, model, temperature,
                  max_tokens, prompt_tokens, completion_tokens, generation_ms, total_ms)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 str(retrieval_run_id) if retrieval_run_id else None,
-                query,
+                query_id,
                 answer,
                 system_prompt,
                 model,

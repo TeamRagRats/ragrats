@@ -7,7 +7,7 @@ import psycopg
 def log_retrieval(
     conn: psycopg.Connection,
     *,
-    query: str,
+    query_id: str,
     source_types: list[str] | None,
     top_k_1: int,
     top_k_2: int,
@@ -51,15 +51,15 @@ def log_retrieval(
         cur.execute(
             """
             INSERT INTO retrieval_logging
-                (query, source_types, top_k_1, top_k_2, winning_keys, key_vote_counts,
+                (query_id, source_types, top_k_1, top_k_2, winning_keys, key_vote_counts,
                  step1_ms, step2_ms, total_ms, chunks_returned, chunks,
                  chunks_expanded_returned, chunks_expanded,
                  retrieved_source_types, retrieved_source_ids)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s)
+            VALUES (%s::uuid, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s)
             RETURNING run_id
             """,
             (
-                query,
+                query_id,
                 source_types,
                 top_k_1,
                 top_k_2,

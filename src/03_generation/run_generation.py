@@ -20,6 +20,7 @@ from pathlib import Path
 from core.db import connect
 from log.log_retrieval import log_retrieval
 from log.log_generation import log_generation
+from log.log_query import get_developer_user_id, log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
@@ -121,9 +122,12 @@ def main() -> None:
         expanded = expand_chunks(conn, chunks, window=args.expand_window)
         logger.info(f"[expand] {len(chunks)} chunks → {len(expanded)} after ±{args.expand_window} expansion")
 
+        user_id = get_developer_user_id(conn)
+        query_id = log_query(conn, args.query, source="terminal", user_id=user_id)
+
         retrieval_run_id = log_retrieval(
             conn,
-            query=args.query,
+            query_id=query_id,
             source_types=source_types if source_types is not None else ["all"],
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
@@ -163,7 +167,7 @@ def main() -> None:
         log_generation(
             conn,
             retrieval_run_id=retrieval_run_id,
-            query=args.query,
+            query_id=query_id,
             answer=answer,
             system_prompt=_DEFAULT_SYSTEM_PROMPT,
             model=llm.model,

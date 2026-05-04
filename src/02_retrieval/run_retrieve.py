@@ -16,6 +16,7 @@ import time
 
 from core.db import connect
 from log.log_retrieval import log_retrieval
+from log.log_query import get_developer_user_id, log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
 from step_01_voyage_key import find_winning_voyage_keys
@@ -108,9 +109,12 @@ def main() -> None:
         total_ms = int((time.monotonic() - t_total) * 1000)
         logger.info(f"[total] {total_ms}ms")
 
+        user_id = get_developer_user_id(conn)
+        query_id = log_query(conn, args.query, source="terminal", user_id=user_id)
+
         log_retrieval(
             conn,
-            query=args.query,
+            query_id=query_id,
             source_types=source_types if source_types is not None else ["all"],
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
