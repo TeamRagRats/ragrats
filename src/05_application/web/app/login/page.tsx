@@ -43,7 +43,7 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             required
             autoComplete="username"
-            className="w-full border border-gray-600 rounded px-4 py-3 text-white bg-black placeholder-gray-500 focus:outline-none focus:border-gray-400 text-sm"
+            className="w-full border border-gray-600 rounded px-4 py-3 text-white bg-black placeholder-blue-400 focus:outline-none focus:border-gray-400 text-sm"
           />
           <input
             type="password"
@@ -52,7 +52,7 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full border border-gray-600 rounded px-4 py-3 text-white bg-black placeholder-gray-500 focus:outline-none focus:border-gray-400 text-sm"
+            className="w-full border border-gray-600 rounded px-4 py-3 text-white bg-black placeholder-blue-400 focus:outline-none focus:border-gray-400 text-sm"
           />
           {error && (
             <p className="text-red-400 text-sm text-center">{error}</p>
