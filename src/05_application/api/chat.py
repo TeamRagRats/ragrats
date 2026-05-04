@@ -38,12 +38,10 @@ class MessageRequest(BaseModel):
 class MessageResponse(BaseModel):
     answer: str
     query_id: str
-    generation_id: str
 
 
 class ReviewRequest(BaseModel):
     query_id: str
-    generation_id: str | None
     is_correct: bool
     feedback: str | None
 
@@ -76,7 +74,7 @@ def send_message(
     if session_row[0] != username:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    answer, query_id, generation_id = run_query(
+    answer, query_id = run_query(
         body.message,
         username=username,
         source="application",
@@ -87,7 +85,7 @@ def send_message(
         temperature=_TEMPERATURE,
         max_tokens=_MAX_TOKENS,
     )
-    return {"answer": answer, "query_id": query_id, "generation_id": generation_id}
+    return {"answer": answer, "query_id": query_id}
 
 
 @router.post("/review", status_code=201)
@@ -96,11 +94,10 @@ def submit_review(
     conn: psycopg.Connection = Depends(get_db),
     username: str = Depends(verify_token),
 ):
-    generation_id = body.generation_id or None
     conn.execute(
-        "INSERT INTO reviews (query_id, generation_id, username, is_correct, feedback) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s, %s)",
-        (body.query_id, generation_id, username, body.is_correct, body.feedback),
+        "INSERT INTO reviews (query_id, username, is_correct, feedback) "
+        "VALUES (%s::uuid, %s, %s, %s)",
+        (body.query_id, username, body.is_correct, body.feedback),
     )
     conn.commit()
     return {"ok": True}

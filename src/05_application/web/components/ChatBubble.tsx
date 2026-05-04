@@ -6,10 +6,9 @@ interface ChatBubbleProps {
   role: "user" | "assistant";
   content: string;
   queryId?: string;
-  generationId?: string;
 }
 
-export default function ChatBubble({ role, content, queryId, generationId }: ChatBubbleProps) {
+export default function ChatBubble({ role, content, queryId }: ChatBubbleProps) {
   if (role === "user") {
     return (
       <div className="flex justify-end">
@@ -26,7 +25,7 @@ export default function ChatBubble({ role, content, queryId, generationId }: Cha
         <p className="max-w-[75%] text-white text-sm whitespace-pre-wrap break-words">
           {content}
         </p>
-        {queryId && <ReviewWidget queryId={queryId} generationId={generationId ?? null} />}
+        {queryId && <ReviewWidget queryId={queryId} />}
       </div>
     </div>
   );

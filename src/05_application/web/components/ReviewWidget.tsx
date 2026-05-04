@@ -7,17 +7,16 @@ type State = "idle" | "explaining" | "submitted";
 
 interface ReviewWidgetProps {
   queryId: string;
-  generationId: string | null;
 }
 
-export default function ReviewWidget({ queryId, generationId }: ReviewWidgetProps) {
+export default function ReviewWidget({ queryId }: ReviewWidgetProps) {
   const [state, setState] = useState<State>("idle");
   const [feedback, setFeedback] = useState("");
 
   async function handleYes() {
     setState("submitted");
     try {
-      await submitReview(queryId, generationId, true, null);
+      await submitReview(queryId, true, null);
     } catch {
       // fire-and-forget — don't surface review errors to user
     }
@@ -30,7 +29,7 @@ export default function ReviewWidget({ queryId, generationId }: ReviewWidgetProp
   async function handleSubmit() {
     setState("submitted");
     try {
-      await submitReview(queryId, generationId, false, feedback || null);
+      await submitReview(queryId, false, feedback || null);
     } catch {
       // fire-and-forget
     }

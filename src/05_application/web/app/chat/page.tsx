@@ -12,7 +12,6 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   queryId?: string;
-  generationId?: string;
 }
 
 export default function ChatPage() {
@@ -58,10 +57,10 @@ export default function ChatPage() {
       setLoading(true);
 
       try {
-        const { answer, queryId, generationId } = await sendMessage(text, sessionId);
+        const { answer, queryId } = await sendMessage(text, sessionId);
         setMessages((prev) => [
           ...prev,
-          { id: crypto.randomUUID(), role: "assistant", content: answer, queryId, generationId },
+          { id: crypto.randomUUID(), role: "assistant", content: answer, queryId },
         ]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : "Unknown error";
@@ -114,7 +113,6 @@ export default function ChatPage() {
               role={msg.role}
               content={msg.content}
               queryId={msg.queryId}
-              generationId={msg.generationId}
             />
           ))}
           {loading && <LoadingBubble />}
