@@ -146,7 +146,10 @@ def generate_question(
                 raw = raw.rsplit("```", 1)[0]
             result = json.loads(raw)
             if result.get("has_qa"):
-                question = result.get("question", "")
+                question = result.get("question", "").strip()
+                answer = result.get("answer", "").strip()
+                if not question or not answer:
+                    return None
                 if not _is_specific_question(question):
                     return None
                 return {
@@ -154,7 +157,7 @@ def generate_question(
                     "source_id": source_id,
                     "voyage_key": voyage_key,
                     "question": question,
-                    "answer": result.get("answer", ""),
+                    "answer": answer,
                     "difficulty": result.get("difficulty", "medium"),
                 }
             return None
