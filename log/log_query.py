@@ -19,5 +19,13 @@ def log_query(
             (query_text, source, username, session_id),
         )
         row = cur.fetchone()
+        if session_id is not None:
+            cur.execute(
+                """
+                UPDATE query_sessions SET source = %s
+                WHERE session_id = %s::uuid AND source IS NULL
+                """,
+                (source, session_id),
+            )
         conn.commit()
         return str(row[0])
