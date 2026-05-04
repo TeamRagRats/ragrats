@@ -14,9 +14,7 @@ export default function LoadingBubble() {
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[75%] rounded-lg bg-black px-4 py-3 text-white text-sm min-w-[3rem]">
-        {".".repeat(dotCount)}
-      </div>
+      <p className="text-gray-500 text-sm">{".".repeat(dotCount)}</p>
     </div>
   );
 }

@@ -9,51 +9,50 @@ interface MessageInputProps {
 
 export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   const [value, setValue] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function handleSend() {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleSend();
     }
   }
 
-  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setValue(e.target.value);
-    // Auto-resize
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
-  }
-
-  const canSend = value.trim().length > 0 && !disabled;
-
   return (
-    <div className="flex items-end gap-2 border-t border-black bg-white px-4 py-3">
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        placeholder="Ask something… (Enter to send, Shift+Enter for newline)"
-        rows={1}
-        disabled={disabled}
-        className="flex-1 resize-none overflow-hidden border border-black rounded px-3 py-2 text-black bg-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50 max-h-40"
-      />
+    <div className="border-t border-gray-800 bg-black px-6 py-4 flex items-center gap-4">
+      <div
+        className="flex-1 flex items-center cursor-text relative"
+        onClick={() => inputRef.current?.focus()}
+      >
+        <span className="text-white text-sm select-none">Question:&nbsp;</span>
+        <span className="text-white text-sm whitespace-pre">{value}</span>
+        <span className={`text-white text-sm${focused ? " animate-blink" : " opacity-0"}`}>|</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          disabled={disabled}
+          className="absolute opacity-0 w-0 h-0 pointer-events-none"
+          aria-label="Question input"
+        />
+      </div>
+
       <button
         onClick={handleSend}
-        disabled={!canSend}
-        className="bg-black text-white text-sm font-semibold px-4 py-2 rounded hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+        disabled={!value.trim() || disabled}
+        className="bg-gray-700 text-white text-sm px-4 py-2 rounded hover:bg-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Send
       </button>

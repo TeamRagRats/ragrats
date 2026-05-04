@@ -30,9 +30,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="w-full max-w-sm">
-        <h1 className="text-4xl font-bold text-black text-center mb-8 tracking-tight">
+        <h1 className="text-4xl font-bold text-white text-center mb-8 tracking-tight">
           RagRats
         </h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -43,7 +43,7 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             required
             autoComplete="username"
-            className="w-full border border-black rounded px-4 py-3 text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black text-sm"
+            className="w-full border border-gray-600 rounded px-4 py-3 text-white bg-black placeholder-gray-500 focus:outline-none focus:border-gray-400 text-sm"
           />
           <input
             type="password"
@@ -52,15 +52,15 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full border border-black rounded px-4 py-3 text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black text-sm"
+            className="w-full border border-gray-600 rounded px-4 py-3 text-white bg-black placeholder-gray-500 focus:outline-none focus:border-gray-400 text-sm"
           />
           {error && (
-            <p className="text-red-600 text-sm text-center">{error}</p>
+            <p className="text-red-400 text-sm text-center">{error}</p>
           )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white font-semibold py-3 rounded hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="w-full bg-gray-700 text-white font-semibold py-3 rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>

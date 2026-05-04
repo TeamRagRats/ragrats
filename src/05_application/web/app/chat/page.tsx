@@ -81,32 +81,29 @@ export default function ChatPage() {
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <p className="text-black text-sm">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <p className="text-white text-sm">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      <header className="flex items-center justify-between border-b border-black px-6 py-4 flex-shrink-0">
-        <h1 className="text-xl font-bold text-black tracking-tight">RagRats</h1>
+    <div className="flex flex-col h-screen bg-black">
+      <header className="flex items-center justify-end px-6 py-4 flex-shrink-0">
         <button
           onClick={handleLogout}
-          className="text-sm border border-black text-black px-3 py-1.5 rounded hover:bg-black hover:text-white transition-colors"
+          className="border border-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
         >
-          Log out
+          Logout
         </button>
       </header>
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-4"
+        className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6"
       >
         {messages.length === 0 && !loading && (
-          <p className="text-center text-gray-400 text-sm mt-16">
-            Ask anything about the project…
-          </p>
+          <p className="text-center text-gray-600 text-sm mt-16">_</p>
         )}
         {messages.map((msg) => (
           <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
