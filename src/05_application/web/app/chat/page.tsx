@@ -100,18 +100,20 @@ export default function ChatPage() {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6"
+        className="flex-1 overflow-y-auto px-6 py-4 pb-24 flex flex-col gap-6 items-center"
       >
-        {messages.length === 0 && !loading && (
-          <p className="text-center text-gray-600 text-sm mt-16">_</p>
-        )}
-        {messages.map((msg) => (
-          <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
-        ))}
-        {loading && <LoadingBubble />}
+        <div className="w-1/4 min-w-64 flex flex-col gap-6">
+          {messages.length === 0 && !loading && (
+            <p className="text-gray-600 text-sm mt-16">_</p>
+          )}
+          {messages.map((msg) => (
+            <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
+          ))}
+          {loading && <LoadingBubble />}
+        </div>
       </div>
 
-      <div className="flex-shrink-0">
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
         <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
       </div>
     </div>
