@@ -35,7 +35,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl flex items-start gap-3 px-4 py-3 border border-gray-800 rounded-lg bg-black focus-within:border-green-800 transition-colors">
+    <div className="w-full max-w-3xl flex items-start gap-3 px-4 py-3 bg-black">
       <span className="shrink-0 text-gray-500 text-sm pt-1 select-none">Question:</span>
 
       <textarea
