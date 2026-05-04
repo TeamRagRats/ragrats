@@ -18,10 +18,8 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from passlib.context import CryptContext
+import bcrypt
 from core.db import connect
-
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def main() -> None:
@@ -30,7 +28,7 @@ def main() -> None:
     p.add_argument("--password", default="developer", help="Plain-text password to hash and store")
     args = p.parse_args()
 
-    hashed = _pwd_context.hash(args.password)
+    hashed = bcrypt.hashpw(args.password.encode(), bcrypt.gensalt()).decode()
 
     with connect() as conn:
         result = conn.execute(

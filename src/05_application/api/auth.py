@@ -6,15 +6,13 @@ from datetime import datetime, timedelta, timezone
 
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from passlib.context import CryptContext
+import bcrypt
 from jose import jwt
 from pydantic import BaseModel
 
 from deps import JWT_ALGORITHM, JWT_EXPIRE_HOURS, _JWT_SECRET, get_db, verify_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 COOKIE_NAME = "ragrats_token"
 
@@ -47,7 +45,7 @@ def login(body: LoginRequest, response: Response, conn: psycopg.Connection = Dep
         )
 
     password_hash: str = row[0]
-    if not _pwd_context.verify(body.password, password_hash):
+    if not bcrypt.checkpw(body.password.encode(), password_hash.encode()):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",

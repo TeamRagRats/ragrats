@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt
 psycopg[binary]
 python-dotenv
