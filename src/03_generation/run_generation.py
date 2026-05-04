@@ -12,7 +12,6 @@ if __name__ == "__main__" and __package__ in (None, ""):
     __package__ = "src.generation"
 
 import argparse
-import json
 import logging
 import time
 from pathlib import Path
@@ -59,6 +58,105 @@ def _resolve_source_types(raw: list[str] | None) -> list[str] | None:
     return resolved or None
 
 
+def run_query(
+    query: str,
+    username: str,
+    source: str = "terminal",
+    session_id: str | None = None,
+    top_k_1: int = 500,
+    top_k_2: int = 20,
+    expand_window: int = 2,
+    temperature: float = 0.3,
+    max_tokens: int = 2500,
+    source_types: list[str] | None = None,
+    system_prompt: str | None = None,
+) -> str:
+    """Run the full RAG pipeline and return the answer. Logs query, retrieval, and generation."""
+    if system_prompt is None:
+        system_prompt = _DEFAULT_SYSTEM_PROMPT
+
+    embed_client = EmbedClient()
+    embedding = embed_client.embed([query])[0]
+
+    t_total = time.monotonic()
+
+    with connect() as conn:
+        t1 = time.monotonic()
+        winning_keys, vote_counts = find_winning_voyage_keys(
+            conn, embedding, top_k=top_k_1, source_types=source_types
+        )
+        step1_ms = int((time.monotonic() - t1) * 1000)
+
+        if not winning_keys:
+            return ""
+
+        t2 = time.monotonic()
+        chunks = retrieve_chunks(
+            conn, embedding, voyage_keys=winning_keys, top_k=top_k_2, source_types=source_types
+        )
+        step2_ms = int((time.monotonic() - t2) * 1000)
+
+        expanded = expand_chunks(conn, chunks, window=expand_window)
+
+        query_id = log_query(conn, query, source=source, username=username, session_id=session_id)
+
+        log_retrieval(
+            conn,
+            query_id=query_id,
+            query_text=query,
+            source_types=source_types if source_types is not None else ["all"],
+            top_k_1=top_k_1,
+            top_k_2=top_k_2,
+            winning_keys=winning_keys,
+            key_vote_counts=vote_counts,
+            step1_ms=step1_ms,
+            step2_ms=step2_ms,
+            total_ms=int((time.monotonic() - t_total) * 1000),
+            chunks_returned=len(chunks),
+            chunks=chunks,
+            chunks_expanded_returned=len(expanded),
+            chunks_expanded=expanded,
+        )
+
+        context = build_context([
+            {
+                "chunk_id": c.chunk_id,
+                "voyage_key": c.voyage_key,
+                "source_type": c.source_type,
+                "source_id": c.source_id,
+                "chunk_index": c.chunk_index,
+                "similarity": c.similarity,
+                "text": c.text,
+            }
+            for c in expanded
+        ])
+
+        llm = LLMClient()
+        t_gen = time.monotonic()
+        answer, usage = generate_answer(
+            llm, query, context, system_prompt, temperature, max_tokens
+        )
+        generation_ms = int((time.monotonic() - t_gen) * 1000)
+        total_ms = int((time.monotonic() - t_total) * 1000)
+
+        log_generation(
+            conn,
+            query_id=query_id,
+            query_text=query,
+            answer=answer,
+            system_prompt=system_prompt,
+            model=llm.model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            prompt_tokens=usage["prompt_tokens"],
+            completion_tokens=usage["completion_tokens"],
+            generation_ms=generation_ms,
+            total_ms=total_ms,
+        )
+
+    return answer
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -89,100 +187,26 @@ def main() -> None:
 
     source_types = _resolve_source_types(args.source_types)
 
-    logger.info(f"Embedding query: {args.query!r}")
-    client = EmbedClient(base_url=args.embed_url)
-    embedding = client.embed([args.query])[0]
+    logger.info(f"Running query: {args.query!r}")
 
-    t_total = time.monotonic()
+    answer = run_query(
+        query=args.query,
+        username="developer",
+        source="terminal",
+        top_k_1=args.top_k_1,
+        top_k_2=args.top_k_2,
+        expand_window=args.expand_window,
+        temperature=args.temperature,
+        max_tokens=args.max_tokens,
+        source_types=source_types,
+    )
 
-    with connect() as conn:
-        t1 = time.monotonic()
-        winning_keys, vote_counts = find_winning_voyage_keys(
-            conn, embedding, top_k=args.top_k_1, source_types=source_types
-        )
-        step1_ms = int((time.monotonic() - t1) * 1000)
-
-        if not winning_keys:
-            logger.error("No chunks found — is the chunks table populated?")
-            return
-
-        top_vote = vote_counts[winning_keys[0]]
-        logger.info(
-            f"[step1] Winner(s): {winning_keys} — {top_vote}/{args.top_k_1} votes — {step1_ms}ms"
-        )
-
-        t2 = time.monotonic()
-        chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, source_types=source_types
-        )
-        step2_ms = int((time.monotonic() - t2) * 1000)
-
-        logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
-
-        expanded = expand_chunks(conn, chunks, window=args.expand_window)
-        logger.info(f"[expand] {len(chunks)} chunks → {len(expanded)} after ±{args.expand_window} expansion")
-
-        query_id = log_query(conn, args.query, source="terminal", username="developer")
-
-        log_retrieval(
-            conn,
-            query_id=query_id,
-            query_text=args.query,
-            source_types=source_types if source_types is not None else ["all"],
-            top_k_1=args.top_k_1,
-            top_k_2=args.top_k_2,
-            winning_keys=winning_keys,
-            key_vote_counts=vote_counts,
-            step1_ms=step1_ms,
-            step2_ms=step2_ms,
-            total_ms=int((time.monotonic() - t_total) * 1000),
-            chunks_returned=len(chunks),
-            chunks=chunks,
-            chunks_expanded_returned=len(expanded),
-            chunks_expanded=expanded,
-        )
-
-        context = build_context([
-            {
-                "chunk_id": c.chunk_id,
-                "voyage_key": c.voyage_key,
-                "source_type": c.source_type,
-                "source_id": c.source_id,
-                "chunk_index": c.chunk_index,
-                "similarity": c.similarity,
-                "text": c.text,
-            }
-            for c in expanded
-        ])
-
-        llm = LLMClient(base_url=args.llm_url)
-        t_gen = time.monotonic()
-        answer, usage = generate_answer(
-            llm, args.query, context, _DEFAULT_SYSTEM_PROMPT, args.temperature, args.max_tokens
-        )
-        generation_ms = int((time.monotonic() - t_gen) * 1000)
-
-        total_ms = int((time.monotonic() - t_total) * 1000)
-
-        log_generation(
-            conn,
-            query_id=query_id,
-            query_text=args.query,
-            answer=answer,
-            system_prompt=_DEFAULT_SYSTEM_PROMPT,
-            model=llm.model,
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
-            prompt_tokens=usage["prompt_tokens"],
-            completion_tokens=usage["completion_tokens"],
-            generation_ms=generation_ms,
-            total_ms=total_ms,
-        )
+    if not answer:
+        logger.error("No chunks found — is the chunks table populated?")
+        return
 
     print(answer)
-
-    logger.info(f"[generation] {generation_ms}ms")
-    logger.info(f"[total] {total_ms}ms")
+    logger.info("Done")
 
 
 if __name__ == "__main__":

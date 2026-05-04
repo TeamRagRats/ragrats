@@ -43,63 +43,13 @@ export async function createSession(): Promise<string> {
   return data.session_id;
 }
 
-export async function streamMessage(
-  message: string,
-  sessionId: string,
-  onToken: (token: string) => void,
-  onDone: () => void
-): Promise<void> {
-  const res = await fetch(`${BASE}/chat/stream`, {
+export async function sendMessage(message: string, sessionId: string): Promise<string> {
+  const res = await fetch(`${BASE}/chat/message`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sessionId }),
   });
-
-  if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      if (body?.detail) detail = body.detail;
-    } catch {
-      // ignore
-    }
-    throw new Error(detail);
-  }
-
-  if (!res.body) {
-    throw new Error("No response body for stream");
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE is delimited by \n\n
-    const parts = buffer.split("\n\n");
-    // The last element may be a partial chunk — keep it in the buffer
-    buffer = parts.pop() ?? "";
-
-    for (const part of parts) {
-      const line = part.trim();
-      if (!line.startsWith("data:")) continue;
-      const data = line.slice("data:".length).trimStart();
-      if (data === "[DONE]") {
-        onDone();
-        return;
-      }
-      // Unescape newlines that were escaped before sending
-      const token = data.replace(/\\n/g, "\n");
-      onToken(token);
-    }
-  }
-
-  // Stream ended without [DONE] — still call onDone
-  onDone();
+  const data = (await handleResponse(res)) as { answer: string };
+  return data.answer;
 }

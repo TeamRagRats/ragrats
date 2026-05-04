@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ChatBubble from "@/components/ChatBubble";
 import LoadingBubble from "@/components/LoadingBubble";
 import MessageInput from "@/components/MessageInput";
-import { createSession, logout, streamMessage } from "@/lib/api";
+import { createSession, logout, sendMessage } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -17,22 +17,19 @@ export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [streaming, setStreaming] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom whenever messages change
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streaming]);
+  }, [messages, loading]);
 
-  // Check auth and create a session on mount
   useEffect(() => {
     async function init() {
       try {
-        // A lightweight auth check — if the cookie is gone the session creation will 401
         const res = await fetch("/api/health", { credentials: "include" });
         if (res.status === 401) {
           router.replace("/login");
@@ -42,7 +39,6 @@ export default function ChatPage() {
         setSessionId(sid);
         setAuthChecked(true);
       } catch {
-        // createSession returning 401 also lands here
         router.replace("/login");
       }
     }
@@ -51,53 +47,31 @@ export default function ChatPage() {
 
   const handleSend = useCallback(
     async (text: string) => {
-      if (!sessionId || streaming) return;
-
-      const userMsgId = crypto.randomUUID();
-      const assistantMsgId = crypto.randomUUID();
+      if (!sessionId || loading) return;
 
       setMessages((prev) => [
         ...prev,
-        { id: userMsgId, role: "user", content: text },
+        { id: crypto.randomUUID(), role: "user", content: text },
       ]);
-      setStreaming(true);
-
-      // Add a placeholder assistant message that we'll fill token by token
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantMsgId, role: "assistant", content: "" },
-      ]);
+      setLoading(true);
 
       try {
-        await streamMessage(
-          text,
-          sessionId,
-          (token) => {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantMsgId
-                  ? { ...m, content: m.content + token }
-                  : m
-              )
-            );
-          },
-          () => {
-            setStreaming(false);
-          }
-        );
+        const answer = await sendMessage(text, sessionId);
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), role: "assistant", content: answer },
+        ]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : "Unknown error";
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? { ...m, content: `Error: ${errMsg}` }
-              : m
-          )
-        );
-        setStreaming(false);
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), role: "assistant", content: `Error: ${errMsg}` },
+        ]);
+      } finally {
+        setLoading(false);
       }
     },
-    [sessionId, streaming]
+    [sessionId, loading]
   );
 
   async function handleLogout() {
@@ -115,7 +89,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      {/* Header */}
       <header className="flex items-center justify-between border-b border-black px-6 py-4 flex-shrink-0">
         <h1 className="text-xl font-bold text-black tracking-tight">RagRats</h1>
         <button
@@ -126,28 +99,23 @@ export default function ChatPage() {
         </button>
       </header>
 
-      {/* Message list */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-4"
       >
-        {messages.length === 0 && (
+        {messages.length === 0 && !loading && (
           <p className="text-center text-gray-400 text-sm mt-16">
             Ask anything about the project…
           </p>
         )}
-        {messages.map((msg) =>
-          msg.role === "assistant" && msg.content === "" && streaming ? (
-            <LoadingBubble key={msg.id} />
-          ) : (
-            <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
-          )
-        )}
+        {messages.map((msg) => (
+          <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
+        ))}
+        {loading && <LoadingBubble />}
       </div>
 
-      {/* Input */}
       <div className="flex-shrink-0">
-        <MessageInput onSend={handleSend} disabled={streaming || !sessionId} />
+        <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
       </div>
     </div>
   );
