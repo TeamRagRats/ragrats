@@ -113,6 +113,11 @@ _GENERIC_PATTERNS = [
     "according to",
     "mentioned in",
     "in the attachment",
+    "currently",
+    "owners and charterers",
+    "charterers and owners",
+    "the owners",
+    "the charterers",
 ]
 
 
