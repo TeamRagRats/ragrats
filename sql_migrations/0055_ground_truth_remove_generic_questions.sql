@@ -1,0 +1,16 @@
+DELETE FROM ground_truth
+WHERE question ILIKE '%the vessel%'
+   OR question ILIKE '%the ship%'
+   OR question ILIKE '%the cargo%'
+   OR question ILIKE '%the port%'
+   OR question ILIKE '%the charterer%'
+   OR question ILIKE '%the owner%'
+   OR question ILIKE '%the captain%'
+   OR question ILIKE '%the document%'
+   OR question ILIKE '%the email%'
+   OR question ILIKE '%the attachment%'
+   OR question ILIKE '%the chunk%'
+   OR question ILIKE '%the text%'
+   OR question ILIKE '%according to%'
+   OR question ILIKE '%mentioned in%'
+   OR question ILIKE '%in the attachment%';
