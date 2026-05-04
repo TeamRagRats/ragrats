@@ -92,7 +92,7 @@ export default function ChatPage() {
       <header className="flex items-center justify-end px-6 py-4 flex-shrink-0">
         <button
           onClick={handleLogout}
-          className="border border-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 transition-colors"
+          className="border border-gray-600 bg-black text-white px-3 py-1 rounded text-sm hover:border-green-600 hover:text-green-400 transition-colors"
         >
           Logout
         </button>
