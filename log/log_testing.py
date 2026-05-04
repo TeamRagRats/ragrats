@@ -8,6 +8,7 @@ def log_retrieval_run(
     *,
     run_id: str,
     test_type: str,
+    question_type: str,
     top_k: int,
     total: int,
     hits: int,
@@ -17,10 +18,10 @@ def log_retrieval_run(
         cur.execute(
             """
             INSERT INTO test_retrieval_run_logging
-                (run_id, test_type, top_k, total, hits, recall)
-            VALUES (%s, %s, %s, %s, %s, %s)
+                (run_id, test_type, question_type, top_k, total, hits, recall)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
-            (run_id, test_type, top_k, total, hits, recall),
+            (run_id, test_type, question_type, top_k, total, hits, recall),
         )
     conn.commit()
 
