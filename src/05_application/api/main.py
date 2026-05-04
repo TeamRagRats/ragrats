@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-# FastAPI application entry point.
+import sys
+from pathlib import Path
+
+# Ensure the api/ directory is on sys.path so sibling modules (auth, chat, deps) resolve
+# regardless of how uvicorn is invoked.
+_API_DIR = Path(__file__).resolve().parent
+if str(_API_DIR) not in sys.path:
+    sys.path.insert(0, str(_API_DIR))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
