@@ -94,10 +94,19 @@ def submit_review(
     conn: psycopg.Connection = Depends(get_db),
     username: str = Depends(verify_token),
 ):
+    row = conn.execute(
+        "SELECT q.query_text, gl.answer "
+        "FROM queries q JOIN generation_logging gl ON gl.query_id = q.query_id "
+        "WHERE q.query_id = %s::uuid",
+        (body.query_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Query not found")
+    query_text, answer = row
     conn.execute(
-        "INSERT INTO reviews (query_id, username, is_correct, feedback) "
-        "VALUES (%s::uuid, %s, %s, %s)",
-        (body.query_id, username, body.is_correct, body.feedback),
+        "INSERT INTO reviews (query_id, query_text, answer, username, is_correct, feedback) "
+        "VALUES (%s::uuid, %s, %s, %s, %s, %s)",
+        (body.query_id, query_text, answer, username, body.is_correct, body.feedback),
     )
     conn.commit()
     return {"ok": True}
