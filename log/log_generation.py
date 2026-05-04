@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from uuid import UUID
 import psycopg
 
 def log_generation(
     conn: psycopg.Connection,
     *,
-    retrieval_run_id: str | UUID | None,
     query_id: str,
+    query_text: str,
     answer: str,
     system_prompt: str,
     model: str,
@@ -18,18 +17,17 @@ def log_generation(
     generation_ms: int,
     total_ms: int,
 ) -> None:
-    """Logs a generation run to the database."""
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO generation_logging
-                (retrieval_run_id, query_id, answer, system_prompt, model, temperature,
+                (query_id, query_text, answer, system_prompt, model, temperature,
                  max_tokens, prompt_tokens, completion_tokens, generation_ms, total_ms)
-            VALUES (%s, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                str(retrieval_run_id) if retrieval_run_id else None,
                 query_id,
+                query_text,
                 answer,
                 system_prompt,
                 model,

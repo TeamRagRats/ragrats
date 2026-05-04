@@ -124,9 +124,10 @@ def main() -> None:
 
         query_id = log_query(conn, args.query, source="terminal", username="developer")
 
-        retrieval_run_id = log_retrieval(
+        log_retrieval(
             conn,
             query_id=query_id,
+            query_text=args.query,
             source_types=source_types if source_types is not None else ["all"],
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
@@ -165,8 +166,8 @@ def main() -> None:
 
         log_generation(
             conn,
-            retrieval_run_id=retrieval_run_id,
             query_id=query_id,
+            query_text=args.query,
             answer=answer,
             system_prompt=_DEFAULT_SYSTEM_PROMPT,
             model=llm.model,

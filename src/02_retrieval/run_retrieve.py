@@ -114,6 +114,7 @@ def main() -> None:
         log_retrieval(
             conn,
             query_id=query_id,
+            query_text=args.query,
             source_types=source_types if source_types is not None else ["all"],
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
