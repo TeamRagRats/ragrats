@@ -11,6 +11,8 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  queryId?: string;
+  generationId?: string;
 }
 
 export default function ChatPage() {
@@ -56,10 +58,10 @@ export default function ChatPage() {
       setLoading(true);
 
       try {
-        const answer = await sendMessage(text, sessionId);
+        const { answer, queryId, generationId } = await sendMessage(text, sessionId);
         setMessages((prev) => [
           ...prev,
-          { id: crypto.randomUUID(), role: "assistant", content: answer },
+          { id: crypto.randomUUID(), role: "assistant", content: answer, queryId, generationId },
         ]);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : "Unknown error";
@@ -107,7 +109,13 @@ export default function ChatPage() {
             <p className="text-gray-600 text-sm mt-16">_</p>
           )}
           {messages.map((msg) => (
-            <ChatBubble key={msg.id} role={msg.role} content={msg.content} />
+            <ChatBubble
+              key={msg.id}
+              role={msg.role}
+              content={msg.content}
+              queryId={msg.queryId}
+              generationId={msg.generationId}
+            />
           ))}
           {loading && <LoadingBubble />}
         </div>

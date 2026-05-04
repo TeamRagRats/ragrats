@@ -70,7 +70,7 @@ def run_query(
     max_tokens: int = 2500,
     source_types: list[str] | None = None,
     system_prompt: str | None = None,
-) -> str:
+) -> tuple[str, str, str]:
     """Run the full RAG pipeline and return the answer. Logs query, retrieval, and generation."""
     if system_prompt is None:
         system_prompt = _DEFAULT_SYSTEM_PROMPT
@@ -88,7 +88,7 @@ def run_query(
         step1_ms = int((time.monotonic() - t1) * 1000)
 
         if not winning_keys:
-            return ""
+            return "", "", ""
 
         t2 = time.monotonic()
         chunks = retrieve_chunks(
@@ -139,7 +139,7 @@ def run_query(
         generation_ms = int((time.monotonic() - t_gen) * 1000)
         total_ms = int((time.monotonic() - t_total) * 1000)
 
-        log_generation(
+        generation_id = log_generation(
             conn,
             query_id=query_id,
             query_text=query,
@@ -154,7 +154,7 @@ def run_query(
             total_ms=total_ms,
         )
 
-    return answer
+    return answer, query_id, generation_id
 
 
 def main() -> None:
@@ -189,7 +189,7 @@ def main() -> None:
 
     logger.info(f"Running query: {args.query!r}")
 
-    answer = run_query(
+    answer, _query_id, _generation_id = run_query(
         query=args.query,
         username="developer",
         source="terminal",

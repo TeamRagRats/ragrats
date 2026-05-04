@@ -43,13 +43,40 @@ export async function createSession(): Promise<string> {
   return data.session_id;
 }
 
-export async function sendMessage(message: string, sessionId: string): Promise<string> {
+export async function sendMessage(
+  message: string,
+  sessionId: string,
+): Promise<{ answer: string; queryId: string; generationId: string }> {
   const res = await fetch(`${BASE}/chat/message`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sessionId }),
   });
-  const data = (await handleResponse(res)) as { answer: string };
-  return data.answer;
+  const data = (await handleResponse(res)) as {
+    answer: string;
+    query_id: string;
+    generation_id: string;
+  };
+  return { answer: data.answer, queryId: data.query_id, generationId: data.generation_id };
+}
+
+export async function submitReview(
+  queryId: string,
+  generationId: string | null,
+  isCorrect: boolean,
+  feedback: string | null,
+): Promise<void> {
+  const res = await fetch(`${BASE}/chat/review`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query_id: queryId,
+      generation_id: generationId,
+      is_correct: isCorrect,
+      feedback,
+    }),
+  });
+  await handleResponse(res);
 }

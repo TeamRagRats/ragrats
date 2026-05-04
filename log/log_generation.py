@@ -16,7 +16,7 @@ def log_generation(
     completion_tokens: int,
     generation_ms: int,
     total_ms: int,
-) -> None:
+) -> str:
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -24,6 +24,7 @@ def log_generation(
                 (query_id, query_text, answer, system_prompt, model, temperature,
                  max_tokens, prompt_tokens, completion_tokens, generation_ms, total_ms)
             VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING generation_id
             """,
             (
                 query_id,
@@ -39,4 +40,6 @@ def log_generation(
                 total_ms,
             ),
         )
+        row = cur.fetchone()
     conn.commit()
+    return str(row[0])
