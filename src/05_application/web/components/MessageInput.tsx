@@ -1,18 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 
 interface MessageInputProps {
   onSend: (message: string) => void;
   disabled: boolean;
 }
 
-const btnClass =
-  "shrink-0 border border-gray-600 bg-black text-white text-sm px-3 py-1 rounded transition-colors hover:border-green-600 hover:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed";
-
 export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   const [value, setValue] = useState("");
-  const [focused, setFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleSend() {
@@ -20,6 +16,9 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -29,47 +28,32 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
     }
   }
 
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setValue(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  }
+
   return (
-    <div className="bg-black px-6 py-3 flex items-start gap-4 w-full max-w-xl">
-      {/* "Question:" — fixed top-left */}
-      <span className="shrink-0 text-white text-sm pt-0.5 select-none">Question:</span>
+    <div className="w-full max-w-xl flex items-start gap-3 px-4 py-3 border border-gray-800 rounded-lg bg-black focus-within:border-green-800 transition-colors">
+      <span className="shrink-0 text-gray-500 text-sm pt-1 select-none">Question:</span>
 
-      {/* Growing text area with blinking cursor overlay */}
-      <div
-        className="flex-1 relative cursor-text min-h-5"
-        onClick={() => textareaRef.current?.focus()}
-      >
-        {/* Mirror div drives the height */}
-        <div className="text-white text-sm whitespace-pre-wrap break-words invisible" aria-hidden>
-          {value || " "}
-        </div>
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        rows={1}
+        placeholder="Ask something…"
+        className="flex-1 bg-transparent text-white text-sm placeholder-gray-700 caret-white resize-none overflow-hidden focus:outline-none disabled:opacity-50 leading-6 pt-0.5"
+        style={{ minHeight: "1.5rem" }}
+      />
 
-        {/* Visible cursor + text overlay */}
-        <div className="absolute inset-0 text-white text-sm whitespace-pre-wrap break-words pointer-events-none">
-          {value}
-          <span className={focused ? "animate-blink" : "opacity-0"}>|</span>
-        </div>
-
-        {/* Hidden textarea captures input */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          disabled={disabled}
-          rows={1}
-          className="absolute inset-0 w-full h-full opacity-0 resize-none cursor-text"
-          aria-label="Question input"
-        />
-      </div>
-
-      {/* Send — fixed top-right */}
       <button
         onClick={handleSend}
         disabled={!value.trim() || disabled}
-        className={btnClass}
+        className="shrink-0 border border-gray-600 bg-black text-white text-sm px-3 py-1 rounded transition-colors hover:border-green-600 hover:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Send
       </button>
