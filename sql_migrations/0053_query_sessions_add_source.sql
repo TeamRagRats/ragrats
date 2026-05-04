@@ -1,4 +1,5 @@
 ALTER TABLE queries DROP CONSTRAINT IF EXISTS queries_session_id_fkey;
+ALTER TABLE queries DROP CONSTRAINT IF EXISTS queries_new_session_id_fkey;
 
 CREATE TABLE query_sessions_new (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
