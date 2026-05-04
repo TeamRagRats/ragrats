@@ -1,5 +1,7 @@
 ALTER TABLE retrieval_logging DROP CONSTRAINT IF EXISTS retrieval_logging_query_id_fkey;
+ALTER TABLE retrieval_logging DROP CONSTRAINT IF EXISTS retrieval_logging_new_query_id_fkey;
 ALTER TABLE generation_logging DROP CONSTRAINT IF EXISTS generation_logging_query_id_fkey;
+ALTER TABLE generation_logging DROP CONSTRAINT IF EXISTS generation_logging_new_query_id_fkey;
 
 CREATE TABLE queries_new (
     query_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
