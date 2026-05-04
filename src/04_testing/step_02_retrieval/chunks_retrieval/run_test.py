@@ -1,13 +1,17 @@
 """
-Chunk retrieval recall test.
+End-to-end chunk retrieval recall test.
 
-For every ground_truth row, embeds the question, runs retrieve_chunks with the
-known voyage_key, then expands anchors by ±expand_window neighbors (mirroring
-production) and checks if the expected chunk appears in the expanded set.
+Mirrors the full production pipeline for every ground_truth row:
+  1. Embed the question
+  2. find_winning_voyage_keys  (step 1)
+  3. retrieve_chunks from winning keys (step 2)
+  4. expand_chunks by ±expand_window neighbors
+
+Hit = expected chunk_id appears in the expanded set.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
-    python run_test.py --top-k 50
+    python run_test.py --top-k-1 500 --top-k-2 20
     python run_test.py --embed-url http://localhost:8003/v1
 """
 
@@ -28,6 +32,7 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from step_02_chunk_retrieval.expand_chunks import expand_chunks
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
@@ -42,11 +47,13 @@ def _compute_chunk_rank(expected_chunk_id: str, chunks: list) -> int | None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Chunk retrieval recall test")
-    p.add_argument("--top-k", type=int, default=20, dest="top_k",
+    p = argparse.ArgumentParser(description="End-to-end chunk retrieval recall test")
+    p.add_argument("--top-k-1", type=int, default=500, dest="top_k_1",
+                   help="Candidates for voyage_key voting (default: 500)")
+    p.add_argument("--top-k-2", type=int, default=20, dest="top_k_2",
                    help="Chunks to retrieve per question (default: 20)")
     p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
-                   help="Neighbor chunks on each side of an anchor (default: 2, matches production)")
+                   help="Neighbor chunks on each side of an anchor (default: 2)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
     args = p.parse_args()
@@ -63,24 +70,37 @@ def main() -> None:
         print("No ground_truth rows found.")
         return
 
-    print(f"Questions: {len(rows)} | top_k: {args.top_k} | expand_window: ±{args.expand_window} | embed: {args.embed_url}")
+    print(
+        f"Questions: {len(rows)} | top_k_1: {args.top_k_1} | top_k_2: {args.top_k_2} "
+        f"| expand: ±{args.expand_window} | embed: {args.embed_url}"
+    )
 
     client = EmbedClient(base_url=args.embed_url)
     run_id = str(uuid.uuid4())
 
     hits = 0
+    key_hits = 0
     reciprocal_rank_sum = 0.0
 
     with connect() as conn:
-        for i, (question_id, question, voyage_key, expected_chunk_id) in enumerate(rows, 1):
+        for i, (question_id, question, expected_key, expected_chunk_id) in enumerate(rows, 1):
             embedding = client.embed([question])[0]
-            anchor_chunks = retrieve_chunks(conn, embedding, voyage_keys=[voyage_key], top_k=args.top_k)
+
+            # Step 1 — find winning voyage_key(s)
+            winning_keys, vote_counts = find_winning_voyage_keys(
+                conn, embedding, top_k=args.top_k_1
+            )
+            key_hit = expected_key in winning_keys
+            if key_hit:
+                key_hits += 1
+
+            # Step 2 — retrieve chunks from winning keys
+            anchor_chunks = retrieve_chunks(
+                conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2
+            )
             expanded_chunks = expand_chunks(conn, anchor_chunks, window=args.expand_window)
 
-            anchor_chunk_ids = [c.chunk_id for c in anchor_chunks]
             expanded_chunk_ids = [c.chunk_id for c in expanded_chunks]
-
-            # Rank is position in anchor list; hit is whether the chunk appears after expansion
             rank = _compute_chunk_rank(expected_chunk_id, anchor_chunks)
             hit = expected_chunk_id in expanded_chunk_ids
 
@@ -93,7 +113,7 @@ def main() -> None:
                 conn,
                 run_id=run_id,
                 question_id=question_id,
-                top_k=args.top_k,
+                top_k=args.top_k_2,
                 expected_source_id=expected_chunk_id,
                 returned_source_ids=expanded_chunk_ids,
                 hit=hit,
@@ -101,10 +121,14 @@ def main() -> None:
             )
 
             if i % 50 == 0:
-                print(f"  {i}/{len(rows)} — recall so far: {hits}/{i} ({hits/i:.1%})")
+                print(
+                    f"  {i}/{len(rows)} — key recall: {key_hits}/{i} ({key_hits/i:.1%}) "
+                    f"| chunk recall: {hits}/{i} ({hits/i:.1%})"
+                )
 
     total = len(rows)
     recall = hits / total if total else 0.0
+    key_recall = key_hits / total if total else 0.0
     mrr = reciprocal_rank_sum / total if total else 0.0
 
     with connect() as conn:
@@ -112,15 +136,16 @@ def main() -> None:
             conn,
             run_id=run_id,
             test_type="chunk_retrieval",
-            top_k=args.top_k,
+            top_k=args.top_k_2,
             total=total,
             hits=hits,
             recall=recall,
         )
 
     print(f"\nDone. run_id={run_id}")
-    print(f"Recall@{args.top_k}+expand±{args.expand_window}: {hits}/{total} ({recall:.1%})")
-    print(f"MRR@{args.top_k}:                                {mrr:.4f}")
+    print(f"Voyage key recall@{args.top_k_1}: {key_hits}/{total} ({key_recall:.1%})")
+    print(f"Chunk recall@{args.top_k_2}+expand±{args.expand_window}: {hits}/{total} ({recall:.1%})")
+    print(f"MRR@{args.top_k_2}:                                       {mrr:.4f}")
 
 
 if __name__ == "__main__":
