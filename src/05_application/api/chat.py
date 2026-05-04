@@ -105,7 +105,12 @@ def submit_review(
     query_text, answer = row
     conn.execute(
         "INSERT INTO reviews (query_id, query_text, answer, username, is_correct, feedback) "
-        "VALUES (%s::uuid, %s, %s, %s, %s, %s)",
+        "VALUES (%s::uuid, %s, %s, %s, %s, %s) "
+        "ON CONFLICT (query_id) DO UPDATE SET "
+        "query_text = EXCLUDED.query_text, "
+        "answer = EXCLUDED.answer, "
+        "is_correct = EXCLUDED.is_correct, "
+        "feedback = EXCLUDED.feedback",
         (body.query_id, query_text, answer, username, body.is_correct, body.feedback),
     )
     conn.commit()
