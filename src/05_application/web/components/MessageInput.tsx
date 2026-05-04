@@ -53,7 +53,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
       <button
         onClick={handleSend}
         disabled={!value.trim() || disabled}
-        className="shrink-0 border border-gray-600 bg-black text-white text-sm px-3 py-1 rounded transition-colors hover:border-blue-400 hover:text-blue-400 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="shrink-0 border border-gray-600 bg-black text-white text-sm px-3 py-1 rounded transition-colors hover:border-green-600 hover:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Send
       </button>
