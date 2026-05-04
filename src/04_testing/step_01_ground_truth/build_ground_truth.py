@@ -59,7 +59,8 @@ CRITICAL RULES FOR THE QUESTION:
 ask it — not as a reading comprehension question about a document.
 2. The question MUST be self-contained: use the vessel name, port, company, date, or \
 contract reference as it appears in the chunk so the question makes sense without \
-knowing the source.
+knowing the source. NEVER use "the vessel", "the ship", "the cargo", "the port", \
+"the charterer" — always replace these with the actual name from the chunk.
 3. NEVER use phrases like "the email", "the document", "the chunk", "the text", \
 "according to", "mentioned in", "in the attachment" — these make the question unusable.
 4. The answer must be directly extractable from the chunk.
@@ -69,11 +70,15 @@ GOOD examples:
 - "What daily rate did Weco Bulk propose for attending two vessels simultaneously in October 2025?"
 - "What engine fault prevented MV African Juniper from departing anchorage on 1 November 2025?"
 - "Who is the port agent for Corio Bay at Buenos Aires?"
+- "On what date was MV African Juniper's ATA authorization issued by NABSA?"
 
 BAD examples:
 - "What date is mentioned in the text?" — no specific context
 - "What did the agent confirm according to the email?" — references the source
 - "What was the rate offered?" — which rate? which vessel?
+- "On what date was the vessel's ATA authorization issued by NABSA?" — "the vessel" is ambiguous
+- "What was the ship's draft on arrival?" — "the ship" is ambiguous
+- "When did the cargo loading commence?" — "the cargo" could be any voyage
 
 - question: self-contained question in English a real user would type into the system
 - answer: precise answer from the chunk in English (translate if needed)
@@ -90,6 +95,30 @@ def make_llm_client() -> tuple[OpenAI, str]:
     model = os.environ.get("LLM_MODEL") or client.models.list().data[0].id
     print(f"Using model: {model} at {LLM_BASE_URL}")
     return client, model
+
+
+_GENERIC_PATTERNS = [
+    "the vessel",
+    "the ship",
+    "the cargo",
+    "the port",
+    "the charterer",
+    "the owner",
+    "the captain",
+    "the document",
+    "the email",
+    "the attachment",
+    "the chunk",
+    "the text",
+    "according to",
+    "mentioned in",
+    "in the attachment",
+]
+
+
+def _is_specific_question(question: str) -> bool:
+    q = question.lower()
+    return not any(pattern in q for pattern in _GENERIC_PATTERNS)
 
 
 def classify_chunk(
@@ -133,12 +162,15 @@ def classify_chunk(
                 raw = raw.rsplit("```", 1)[0]
             result = json.loads(raw)
             if result.get("has_qa"):
+                question = result.get("question", "")
+                if not _is_specific_question(question):
+                    return None
                 return {
                     "chunk_id": chunk_id,
                     "source_type": source_type,
                     "source_id": source_id,
                     "voyage_key": voyage_key,
-                    "question": result.get("question", ""),
+                    "question": question,
                     "answer": result.get("answer", ""),
                     "difficulty": result.get("difficulty", "medium"),
                 }
