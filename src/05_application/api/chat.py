@@ -19,12 +19,6 @@ from deps import get_db, verify_token
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-_TOP_K_1 = 500
-_TOP_K_2 = 20
-_EXPAND_WINDOW = 2
-_TEMPERATURE = 0.3
-_MAX_TOKENS = 1250
-
 
 class CreateSessionResponse(BaseModel):
     session_id: str
@@ -79,11 +73,6 @@ def send_message(
         username=username,
         source="application",
         session_id=body.session_id,
-        top_k_1=_TOP_K_1,
-        top_k_2=_TOP_K_2,
-        expand_window=_EXPAND_WINDOW,
-        temperature=_TEMPERATURE,
-        max_tokens=_MAX_TOKENS,
     )
     return {"answer": answer, "query_id": query_id}
 
