@@ -1,5 +1,5 @@
 """
-End-to-end retrieval recall test — covers both question types.
+End-to-end retrieval recall test — full pipeline (step 1 → step 2 → expand).
 
 Extractive questions (question_type='extractive'):
   Runs the full production pipeline (step 1 → step 2 → expand) and checks
@@ -28,7 +28,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _retrieval = _repo_root / "src" / "02_retrieval"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_retrieval))
-    __package__ = "src.testing.retrieval.chunks"
+    __package__ = "src.testing.retrieval.e2e"
 
 import argparse
 import uuid
