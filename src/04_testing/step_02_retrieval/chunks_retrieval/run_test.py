@@ -57,10 +57,10 @@ def main() -> None:
                    help="Candidates for voyage_key voting (default: 500)")
     p.add_argument("--top-k-2", type=int, default=100, dest="top_k_2",
                    help="Chunks to retrieve per question (default: 100)")
-    p.add_argument("--top-n-keys", type=int, default=5, dest="top_n_keys",
-                   help="Top N voyage keys to pass to chunk retrieval (default: 5)")
-    p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
-                   help="Neighbor chunks on each side of an anchor (default: 2)")
+    p.add_argument("--top-n-keys", type=int, default=10, dest="top_n_keys",
+                   help="Top N voyage keys to pass to chunk retrieval (default: 10)")
+    p.add_argument("--expand-window", type=int, default=4, dest="expand_window",
+                   help="Neighbor chunks on each side of an anchor (default: 4)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
     p.add_argument("--rerank-url", default=None, dest="rerank_url",

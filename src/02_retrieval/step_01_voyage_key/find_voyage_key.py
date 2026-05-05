@@ -7,7 +7,7 @@ def find_winning_voyage_keys(
     conn: psycopg.Connection,
     query_embedding: list[float],
     top_k: int = 500,
-    top_n_keys: int = 5,
+    top_n_keys: int = 10,
     source_types: list[str] | None = None,
 ) -> tuple[list[str], dict[str, float]]:
     """
