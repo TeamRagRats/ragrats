@@ -33,7 +33,7 @@ from log.log_voyage_key_testing import log_voyage_key_testing
 from log.log_testing import log_retrieval_run
 
 
-def _compute_rank(expected_key: str, vote_counts: dict[str, int]) -> int | None:
+def _compute_rank(expected_key: str, vote_counts: dict[str, float]) -> int | None:
     if expected_key not in vote_counts:
         return None
     sorted_keys = sorted(vote_counts, key=lambda k: -vote_counts[k])

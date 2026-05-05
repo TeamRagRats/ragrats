@@ -15,7 +15,7 @@ def log_voyage_key_testing(
     returned_keys: list[str],
     hit: bool,
     winner_rank: int | None,
-    vote_counts: dict[str, int],
+    vote_counts: dict[str, float],
 ) -> None:
     """Logs a single question result to the test_voyage_key_logging table."""
     with conn.cursor() as cur:
