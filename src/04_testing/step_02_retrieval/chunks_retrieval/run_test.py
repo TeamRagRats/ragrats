@@ -53,8 +53,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description="End-to-end retrieval recall test")
     p.add_argument("--top-k-1", type=int, default=500, dest="top_k_1",
                    help="Candidates for voyage_key voting (default: 500)")
-    p.add_argument("--top-k-2", type=int, default=100, dest="top_k_2",
-                   help="Chunks to retrieve per question (default: 100)")
+    p.add_argument("--top-k-2", type=int, default=20, dest="top_k_2",
+                   help="Chunks to retrieve per question (default: 20)")
     p.add_argument("--top-n-keys", type=int, default=5, dest="top_n_keys",
                    help="Top N voyage keys to pass to chunk retrieval (default: 5)")
     p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
