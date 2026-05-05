@@ -14,7 +14,7 @@ same run_id so results can be compared side by side.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
-    python run_test.py --top-k-1 500 --top-k-2 20
+    python run_test.py --top-k-1 500 --top-k-2 100
     python run_test.py --embed-url http://localhost:8003/v1
 """
 
@@ -35,11 +35,9 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
-from clients.llm_client import LLMClient
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from step_02_chunk_retrieval.expand_chunks import expand_chunks
-from hyde.generate_hyde import generate_hyde
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
@@ -58,13 +56,11 @@ def main() -> None:
     p.add_argument("--top-k-2", type=int, default=100, dest="top_k_2",
                    help="Chunks to retrieve per question (default: 100)")
     p.add_argument("--top-n-keys", type=int, default=5, dest="top_n_keys",
-                   help="Top N voyage keys to pass to chunk retrieval (default: 10)")
-    p.add_argument("--expand-window", type=int, default=4, dest="expand_window",
-                   help="Neighbor chunks on each side of an anchor (default: 4)")
+                   help="Top N voyage keys to pass to chunk retrieval (default: 5)")
+    p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
+                   help="Neighbor chunks on each side of an anchor (default: 2)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
-    p.add_argument("--hyde-url", default=None, dest="hyde_url",
-                   help="LLM server base URL — enables HyDE when set (default: disabled)")
     args = p.parse_args()
 
     with connect() as conn:
@@ -88,7 +84,6 @@ def main() -> None:
     )
 
     client = EmbedClient(base_url=args.embed_url)
-    llm = LLMClient(base_url=args.hyde_url) if args.hyde_url else None
     run_id = str(uuid.uuid4())
 
     # --- Extractive ---
@@ -98,8 +93,7 @@ def main() -> None:
 
     with connect() as conn:
         for i, (question_id, question, expected_key, expected_chunk_id) in enumerate(extractive_rows, 1):
-            hyde_text = generate_hyde(llm, question) if llm else question
-            embedding = client.embed([hyde_text])[0]
+            embedding = client.embed([question])[0]
 
             winning_keys, vote_counts = find_winning_voyage_keys(conn, embedding, top_k=args.top_k_1, top_n_keys=args.top_n_keys)
             if expected_key in winning_keys:
