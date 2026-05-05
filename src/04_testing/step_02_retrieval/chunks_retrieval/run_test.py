@@ -35,11 +35,11 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
-from clients.rerank_client import RerankClient
+from clients.llm_client import LLMClient
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from step_02_chunk_retrieval.expand_chunks import expand_chunks
-from step_03_rerank.rerank_chunks import rerank_chunks
+from hyde.generate_hyde import generate_hyde
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
@@ -63,10 +63,8 @@ def main() -> None:
                    help="Neighbor chunks on each side of an anchor (default: 4)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
-    p.add_argument("--rerank-url", default=None, dest="rerank_url",
-                   help="Reranker server base URL — enables reranking when set (default: disabled)")
-    p.add_argument("--rerank-top-k", type=int, default=25, dest="rerank_top_k",
-                   help="Anchors to keep after reranking before expansion (default: 25)")
+    p.add_argument("--hyde-url", default=None, dest="hyde_url",
+                   help="LLM server base URL — enables HyDE when set (default: disabled)")
     args = p.parse_args()
 
     with connect() as conn:
@@ -90,7 +88,7 @@ def main() -> None:
     )
 
     client = EmbedClient(base_url=args.embed_url)
-    reranker = RerankClient(base_url=args.rerank_url) if args.rerank_url else None
+    llm = LLMClient(base_url=args.hyde_url) if args.hyde_url else None
     run_id = str(uuid.uuid4())
 
     # --- Extractive ---
@@ -100,15 +98,14 @@ def main() -> None:
 
     with connect() as conn:
         for i, (question_id, question, expected_key, expected_chunk_id) in enumerate(extractive_rows, 1):
-            embedding = client.embed([question])[0]
+            hyde_text = generate_hyde(llm, question) if llm else question
+            embedding = client.embed([hyde_text])[0]
 
             winning_keys, vote_counts = find_winning_voyage_keys(conn, embedding, top_k=args.top_k_1, top_n_keys=args.top_n_keys)
             if expected_key in winning_keys:
                 ext_key_hits += 1
 
             anchor_chunks = retrieve_chunks(conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, query_text=question)
-            if reranker is not None:
-                anchor_chunks = rerank_chunks(reranker, question, anchor_chunks, top_k=args.rerank_top_k)
             expanded_chunks = expand_chunks(conn, anchor_chunks, window=args.expand_window)
 
             expanded_chunk_ids = [c.chunk_id for c in expanded_chunks]
