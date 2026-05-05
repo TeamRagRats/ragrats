@@ -35,9 +35,11 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.rerank_client import RerankClient
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from step_02_chunk_retrieval.expand_chunks import expand_chunks
+from step_03_rerank.rerank_chunks import rerank_chunks
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
@@ -61,6 +63,10 @@ def main() -> None:
                    help="Neighbor chunks on each side of an anchor (default: 2)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
+    p.add_argument("--rerank-url", default=None, dest="rerank_url",
+                   help="Reranker server base URL — enables reranking when set (default: disabled)")
+    p.add_argument("--rerank-top-k", type=int, default=25, dest="rerank_top_k",
+                   help="Anchors to keep after reranking before expansion (default: 25)")
     args = p.parse_args()
 
     with connect() as conn:
@@ -84,6 +90,7 @@ def main() -> None:
     )
 
     client = EmbedClient(base_url=args.embed_url)
+    reranker = RerankClient(base_url=args.rerank_url) if args.rerank_url else None
     run_id = str(uuid.uuid4())
 
     # --- Extractive ---
@@ -100,6 +107,8 @@ def main() -> None:
                 ext_key_hits += 1
 
             anchor_chunks = retrieve_chunks(conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, query_text=question)
+            if reranker is not None:
+                anchor_chunks = rerank_chunks(reranker, question, anchor_chunks, top_k=args.rerank_top_k)
             expanded_chunks = expand_chunks(conn, anchor_chunks, window=args.expand_window)
 
             expanded_chunk_ids = [c.chunk_id for c in expanded_chunks]
