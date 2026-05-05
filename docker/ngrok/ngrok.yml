@@ -3,8 +3,14 @@ tunnels:
     api:
         proto: http
         addr: 8000
+        request_header:
+            add:
+                - "ngrok-skip-browser-warning: true"
     frontend:
         proto: http
         addr: 3000
+        request_header:
+            add:
+                - "ngrok-skip-browser-warning: true"
 agent:
     authtoken: 3DIcgwZIwLqMAcL3ffjUvyscduD_5t1Q85kvpyjeprRKYx
