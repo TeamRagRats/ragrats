@@ -99,7 +99,7 @@ def main() -> None:
             if expected_key in winning_keys:
                 ext_key_hits += 1
 
-            anchor_chunks = retrieve_chunks(conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2)
+            anchor_chunks = retrieve_chunks(conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, query_text=question)
             expanded_chunks = expand_chunks(conn, anchor_chunks, window=args.expand_window)
 
             expanded_chunk_ids = [c.chunk_id for c in expanded_chunks]

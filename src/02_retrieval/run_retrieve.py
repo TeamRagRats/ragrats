@@ -97,7 +97,8 @@ def main() -> None:
         # Step 2: retrieve chunks scoped to winning key(s)
         t2 = time.monotonic()
         chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, source_types=source_types
+            conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2,
+            query_text=args.query, source_types=source_types,
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
 

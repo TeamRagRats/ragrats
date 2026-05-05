@@ -92,7 +92,8 @@ def run_query(
 
         t2 = time.monotonic()
         chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=top_k_2, source_types=source_types
+            conn, embedding, voyage_keys=winning_keys, top_k=top_k_2,
+            query_text=query, source_types=source_types,
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
