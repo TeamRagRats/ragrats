@@ -7,15 +7,16 @@ def find_winning_voyage_keys(
     conn: psycopg.Connection,
     query_embedding: list[float],
     top_k: int = 500,
+    top_n_keys: int = 5,
     source_types: list[str] | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     """
     Searches chunks for the top_k most similar chunks to query_embedding,
-    counts voyage_key appearances, and returns all keys tied for the highest count.
+    counts voyage_key appearances, and returns the top_n_keys by vote count.
 
     Returns:
         (winning_keys, all_vote_counts)
-        winning_keys: voyage_keys tied for most appearances in the top_k
+        winning_keys: top_n_keys voyage_keys ranked by vote count
         all_vote_counts: {voyage_key: count} for every key that appeared
     """
     if source_types is not None:
@@ -44,6 +45,5 @@ def find_winning_voyage_keys(
         return [], {}
 
     all_counts = {row[0]: row[1] for row in rows}
-    max_cnt = rows[0][1]
-    winning_keys = [row[0] for row in rows if row[1] == max_cnt]
+    winning_keys = [row[0] for row in rows[:top_n_keys]]
     return winning_keys, all_counts

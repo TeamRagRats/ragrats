@@ -20,7 +20,7 @@ def retrieve_chunks(
     conn: psycopg.Connection,
     query_embedding: list[float],
     voyage_keys: list[str],
-    top_k: int = 20,
+    top_k: int = 50,
     source_types: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """

@@ -53,8 +53,10 @@ def main() -> None:
     p = argparse.ArgumentParser(description="End-to-end retrieval recall test")
     p.add_argument("--top-k-1", type=int, default=500, dest="top_k_1",
                    help="Candidates for voyage_key voting (default: 500)")
-    p.add_argument("--top-k-2", type=int, default=20, dest="top_k_2",
-                   help="Chunks to retrieve per question (default: 20)")
+    p.add_argument("--top-k-2", type=int, default=50, dest="top_k_2",
+                   help="Chunks to retrieve per question (default: 50)")
+    p.add_argument("--top-n-keys", type=int, default=5, dest="top_n_keys",
+                   help="Top N voyage keys to pass to chunk retrieval (default: 5)")
     p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
                    help="Neighbor chunks on each side of an anchor (default: 2)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
@@ -93,7 +95,7 @@ def main() -> None:
         for i, (question_id, question, expected_key, expected_chunk_id) in enumerate(extractive_rows, 1):
             embedding = client.embed([question])[0]
 
-            winning_keys, vote_counts = find_winning_voyage_keys(conn, embedding, top_k=args.top_k_1)
+            winning_keys, vote_counts = find_winning_voyage_keys(conn, embedding, top_k=args.top_k_1, top_n_keys=args.top_n_keys)
             if expected_key in winning_keys:
                 ext_key_hits += 1
 
@@ -135,7 +137,7 @@ def main() -> None:
         for i, (question_id, question, expected_key) in enumerate(investigative_rows, 1):
             embedding = client.embed([question])[0]
 
-            winning_keys, _ = find_winning_voyage_keys(conn, embedding, top_k=args.top_k_1)
+            winning_keys, _ = find_winning_voyage_keys(conn, embedding, top_k=args.top_k_1, top_n_keys=args.top_n_keys)
             hit = expected_key in winning_keys
             if hit:
                 inv_hits += 1
