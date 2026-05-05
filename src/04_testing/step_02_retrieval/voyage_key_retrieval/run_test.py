@@ -1,9 +1,9 @@
 """
 Voyage key retrieval recall test.
 
-For every ground_truth row, embeds the question, runs find_winning_voyage_keys,
+For every ground_truth_v2 row, embeds the question, runs find_winning_voyage_keys,
 and logs the result to test_voyage_key_logging and test_retrieval_run_logging.
-Results are logged separately per question_type (extractive / investigative).
+Results are logged separately per category (logistics_cargo / commercial_terms / incident_decision).
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
@@ -53,7 +53,7 @@ def _run_for_type(
         embedding = client.embed([question])[0]
         winning_keys, vote_counts = find_winning_voyage_keys(conn, embedding, top_k=top_k)
 
-        hit = expected_key in winning_keys
+        hit = expected_key in vote_counts
         rank = _compute_rank(expected_key, vote_counts)
         if hit:
             hits += 1
@@ -85,57 +85,46 @@ def main() -> None:
     args = p.parse_args()
 
     with connect() as conn:
-        extractive_rows = conn.execute("""
-            SELECT question_id, question, voyage_key
-            FROM ground_truth
-            WHERE question_type = 'extractive'
-            ORDER BY question_id
+        all_rows = conn.execute("""
+            SELECT question_id, question, voyage_key, category
+            FROM ground_truth_v2
+            ORDER BY category, question_id
         """).fetchall()
 
-        investigative_rows = conn.execute("""
-            SELECT question_id, question, voyage_key
-            FROM ground_truth
-            WHERE question_type = 'investigative'
-            ORDER BY question_id
-        """).fetchall()
+    rows_by_category: dict[str, list] = {}
+    for question_id, question, voyage_key, category in all_rows:
+        rows_by_category.setdefault(category, []).append((question_id, question, voyage_key))
 
-    print(f"Extractive: {len(extractive_rows)} | Investigative: {len(investigative_rows)} | top_k: {args.top_k}")
+    summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
+    print(f"{summary} | top_k: {args.top_k}")
 
     client = EmbedClient(base_url=args.embed_url)
     run_id = str(uuid.uuid4())
 
+    results: dict[str, tuple[int, int]] = {}
     with connect() as conn:
-        ext_hits, ext_total = _run_for_type(conn, client, extractive_rows, run_id, args.top_k, "extractive")
-        inv_hits, inv_total = _run_for_type(conn, client, investigative_rows, run_id, args.top_k, "investigative")
-
-    ext_recall = ext_hits / ext_total if ext_total else 0.0
-    inv_recall = inv_hits / inv_total if inv_total else 0.0
+        for category, rows in sorted(rows_by_category.items()):
+            hits, total = _run_for_type(conn, client, rows, run_id, args.top_k, category)
+            results[category] = (hits, total)
 
     with connect() as conn:
-        log_retrieval_run(
-            conn,
-            run_id=run_id,
-            test_type="voyage_key_retrieval",
-            question_type="extractive",
-            top_k=args.top_k,
-            total=ext_total,
-            hits=ext_hits,
-            recall=ext_recall,
-        )
-        log_retrieval_run(
-            conn,
-            run_id=run_id,
-            test_type="voyage_key_retrieval",
-            question_type="investigative",
-            top_k=args.top_k,
-            total=inv_total,
-            hits=inv_hits,
-            recall=inv_recall,
-        )
+        for category, (hits, total) in results.items():
+            recall = hits / total if total else 0.0
+            log_retrieval_run(
+                conn,
+                run_id=run_id,
+                test_type="voyage_key_retrieval",
+                question_type=category,
+                top_k=args.top_k,
+                total=total,
+                hits=hits,
+                recall=recall,
+            )
 
     print(f"\nDone. run_id={run_id}")
-    print(f"Extractive   ({ext_total}): recall@{args.top_k}: {ext_hits}/{ext_total} ({ext_recall:.1%})")
-    print(f"Investigative ({inv_total}): recall@{args.top_k}: {inv_hits}/{inv_total} ({inv_recall:.1%})")
+    for category, (hits, total) in sorted(results.items()):
+        recall = hits / total if total else 0.0
+        print(f"{category} ({total}): recall@{args.top_k}: {hits}/{total} ({recall:.1%})")
 
 
 if __name__ == "__main__":
