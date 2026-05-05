@@ -7,7 +7,10 @@
       "Bash(python)",
       "Bash(psql postgresql://teamragrats:ragrats@localhost:5433/ragrats -c \"\\\\dt\")",
       "Bash(grep -E \"\\\\.sql$\")",
-      "PowerShell(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\\\\sql_migrations\" | Where-Object { $_.PSIsContainer -eq $false } | Sort-Object Name)"
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\\\\sql_migrations\" | Where-Object { $_.PSIsContainer -eq $false } | Sort-Object Name)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
