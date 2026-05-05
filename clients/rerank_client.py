@@ -34,7 +34,6 @@ class RerankClient:
                     max_tokens=1,
                     logprobs=True,
                     top_logprobs=20,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                 )
                 content_logprobs = resp.choices[0].logprobs.content
                 if not content_logprobs:

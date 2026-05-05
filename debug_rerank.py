@@ -12,7 +12,6 @@ resp = c._client.chat.completions.create(
     max_tokens=1,
     logprobs=True,
     top_logprobs=20,
-    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
 )
 
 print("Raw token:", resp.choices[0].logprobs.content[0].token)
