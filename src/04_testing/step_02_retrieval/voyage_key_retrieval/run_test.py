@@ -47,14 +47,18 @@ def _run_for_type(
     run_id: str,
     top_k: int,
     question_type: str,
+    rank_threshold: int | None,
 ) -> tuple[int, int]:
     hits = 0
     for i, (question_id, question, expected_key) in enumerate(rows, 1):
         embedding = client.embed([question])[0]
         winning_keys, vote_counts = find_winning_voyage_keys(conn, embedding, top_k=top_k)
 
-        hit = expected_key in vote_counts
         rank = _compute_rank(expected_key, vote_counts)
+        if rank_threshold is None:
+            hit = expected_key in vote_counts
+        else:
+            hit = rank is not None and rank <= rank_threshold
         if hit:
             hits += 1
 
@@ -82,6 +86,10 @@ def main() -> None:
                    help="Candidates for voyage_key voting (default: 500)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
+    p.add_argument("--rank-threshold", type=int, default=None, dest="rank_threshold",
+                   help="Strammere hit-definition: expected_key skal ligge i top-N "
+                        "efter stemmetal blandt top_k chunks (fx --rank-threshold 3). "
+                        "Default: ingen threshold = ægte recall@k.")
     args = p.parse_args()
 
     with connect() as conn:
@@ -96,7 +104,8 @@ def main() -> None:
         rows_by_category.setdefault(category, []).append((question_id, question, voyage_key))
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    print(f"{summary} | top_k: {args.top_k}")
+    threshold_str = f" | rank<= {args.rank_threshold}" if args.rank_threshold else ""
+    print(f"{summary} | top_k: {args.top_k}{threshold_str}")
 
     client = EmbedClient(base_url=args.embed_url)
     run_id = str(uuid.uuid4())
@@ -104,7 +113,7 @@ def main() -> None:
     results: dict[str, tuple[int, int]] = {}
     with connect() as conn:
         for category, rows in sorted(rows_by_category.items()):
-            hits, total = _run_for_type(conn, client, rows, run_id, args.top_k, category)
+            hits, total = _run_for_type(conn, client, rows, run_id, args.top_k, category, args.rank_threshold)
             results[category] = (hits, total)
 
     with connect() as conn:
@@ -122,9 +131,11 @@ def main() -> None:
             )
 
     print(f"\nDone. run_id={run_id}")
+    metric_label = (f"recall@{args.top_k} (rank<= {args.rank_threshold})"
+                    if args.rank_threshold else f"recall@{args.top_k}")
     for category, (hits, total) in sorted(results.items()):
         recall = hits / total if total else 0.0
-        print(f"{category} ({total}): recall@{args.top_k}: {hits}/{total} ({recall:.1%})")
+        print(f"{category} ({total}): {metric_label}: {hits}/{total} ({recall:.1%})")
 
 
 if __name__ == "__main__":
