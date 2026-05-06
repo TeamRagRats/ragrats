@@ -85,13 +85,13 @@ def submit_review(
 ):
     row = conn.execute(
         "SELECT q.query_text, gl.answer "
-        "FROM queries q JOIN generation_logging gl ON gl.query_id = q.query_id "
+        "FROM queries q LEFT JOIN generation_logging gl ON gl.query_id = q.query_id "
         "WHERE q.query_id = %s::uuid",
         (body.query_id,),
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Query not found")
-    query_text, answer = row
+    query_text, answer = row[0], row[1] or ""
     conn.execute(
         "INSERT INTO reviews (query_id, query_text, answer, username, is_correct, feedback) "
         "VALUES (%s::uuid, %s, %s, %s, %s, %s) "
