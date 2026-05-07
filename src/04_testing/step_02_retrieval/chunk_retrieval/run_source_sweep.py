@@ -98,14 +98,10 @@ def _eval_combination(
 ) -> dict[str, tuple[int, int, float]]:
     results: dict[str, tuple[int, int, float]] = {}
     for category, rows in gt_rows_by_category.items():
-        # Only evaluate questions whose answer chunk lives in the tested source types
-        filtered = [r for r in rows if source_types is None or r[4] in source_types]
-        if not filtered:
-            continue
         hits = 0
         mrr_sum = 0.0
-        total = len(filtered)
-        for question_id, question, expected_key, expected_chunk_id, _ in filtered:
+        total = len(rows)
+        for question_id, question, expected_key, expected_chunk_id, _ in rows:
             embedding = embedding_map[question_id]
             chunks = retrieve_chunks(
                 conn, embedding, voyage_keys=[expected_key],
