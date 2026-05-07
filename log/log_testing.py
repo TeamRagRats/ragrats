@@ -13,15 +13,17 @@ def log_retrieval_run(
     total: int,
     hits: int,
     recall: float,
+    source_types: list[str] | None = None,
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO test_retrieval_run_logging
-                (run_id, test_type, question_type, top_k, total, hits, recall)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (run_id, test_type, question_type, top_k, total, hits, recall, source_types)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (run_id, test_type, question_type, top_k, total, hits, recall),
+            (run_id, test_type, question_type, top_k, total, hits, recall,
+             source_types or ["all"]),
         )
     conn.commit()
 

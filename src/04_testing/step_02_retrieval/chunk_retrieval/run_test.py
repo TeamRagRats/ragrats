@@ -71,6 +71,7 @@ def _run_for_category(
     num_queries: int = 1,
     use_instruction: bool = True,
     llm: LLMClient | None = None,
+    source_types: list[str] | None = None,
 ) -> tuple[int, int, float]:
     hits = 0
     mrr_sum = 0.0
@@ -85,7 +86,7 @@ def _run_for_category(
         embeddings = client.embed(queries)
 
         all_retrieved = [
-            retrieve_chunks(conn, emb, voyage_keys=[expected_key], top_k=top_k)
+            retrieve_chunks(conn, emb, voyage_keys=[expected_key], top_k=top_k, source_types=source_types)
             for emb in embeddings
         ]
         anchor_chunks = _dedup_chunks(all_retrieved)[:top_k]
@@ -131,14 +132,26 @@ def main() -> None:
                    help="Query variants to generate per question (1 = baseline, default: 1)")
     p.add_argument("--no-instruction", action="store_true", dest="no_instruction",
                    help="Disable instruction prefix on embeddings")
+    p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
+                   help="Filter by source type: all, thread, email-attach, fixture, phase (repeatable, default: all)")
     args = p.parse_args()
 
+    source_types = args.source_types if args.source_types and "all" not in args.source_types else None
+
     with connect() as conn:
-        all_rows = conn.execute("""
-            SELECT question_id, question, voyage_key, source_chunk_id::text, category
-            FROM ground_truth_v2
-            ORDER BY category, question_id
-        """).fetchall()
+        if source_types:
+            all_rows = conn.execute("""
+                SELECT question_id, question, voyage_key, source_chunk_id::text, category
+                FROM ground_truth_v2
+                WHERE source_type = ANY(%s)
+                ORDER BY category, question_id
+            """, (source_types,)).fetchall()
+        else:
+            all_rows = conn.execute("""
+                SELECT question_id, question, voyage_key, source_chunk_id::text, category
+                FROM ground_truth_v2
+                ORDER BY category, question_id
+            """).fetchall()
 
     rows_by_category: dict[str, list] = {}
     for question_id, question, voyage_key, source_chunk_id, category in all_rows:
@@ -149,9 +162,10 @@ def main() -> None:
     use_instruction = not args.no_instruction
     llm = LLMClient() if args.num_queries > 1 else None
     test_type = "chunk_retrieval_isolated_v2" + ("_mq" if args.num_queries > 1 else "")
+    log_source_types = source_types or ["all"]
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    print(f"{summary} | top_k: {args.top_k} | expand: ±{args.expand_window} | queries: {args.num_queries} | instruction: {use_instruction}")
+    print(f"{summary} | top_k: {args.top_k} | expand: ±{args.expand_window} | queries: {args.num_queries} | instruction: {use_instruction} | source_types: {log_source_types}")
 
     client = EmbedClient(base_url=args.embed_url)
     run_id = str(uuid.uuid4())
@@ -164,6 +178,7 @@ def main() -> None:
                 num_queries=args.num_queries,
                 use_instruction=use_instruction,
                 llm=llm,
+                source_types=source_types,
             )
             results[category] = (hits, total, mrr)
 
@@ -179,6 +194,7 @@ def main() -> None:
                 total=total,
                 hits=hits,
                 recall=recall,
+                source_types=log_source_types,
             )
 
     print(f"\nDone. run_id={run_id}")
