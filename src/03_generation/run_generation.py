@@ -27,6 +27,8 @@ from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks, expand_chunks
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
+from query_expansion import expand_query, fetch_session_history
+from multi_query_retrieval import retrieve_multi_query
 
 _REPO_ROOT = Path(__file__).parents[2]
 _DEFAULT_SYSTEM_PROMPT = (
@@ -70,31 +72,53 @@ def run_query(
     max_tokens: int = 2500,
     source_types: list[str] | None = None,
     system_prompt: str | None = None,
+    multi_query: bool = False,
+    multi_query_count: int = 4,
+    history_turns: int = 3,
 ) -> tuple[str, str]:
     """Run the full RAG pipeline and return the answer. Logs query, retrieval, and generation."""
     if system_prompt is None:
         system_prompt = _DEFAULT_SYSTEM_PROMPT
 
     embed_client = EmbedClient()
-    embedding = embed_client.embed([query])[0]
+    llm = LLMClient()
 
     t_total = time.monotonic()
 
     with connect() as conn:
-        t1 = time.monotonic()
-        winning_keys, vote_counts = find_winning_voyage_keys(
-            conn, embedding, top_k=top_k_1, source_types=source_types
-        )
-        step1_ms = int((time.monotonic() - t1) * 1000)
+        query_variants: list[str] | None = None
+        if multi_query:
+            history = fetch_session_history(conn, session_id, max_turns=history_turns)
+            variants = expand_query(
+                llm, query, history=history, max_variants=multi_query_count
+            )
+            if query and query not in variants:
+                variants = [query] + variants[: max(0, multi_query_count - 1)]
+            query_variants = variants
 
-        if not winning_keys:
+            chunks, winning_keys, vote_counts, step1_ms, step2_ms = retrieve_multi_query(
+                conn, embed_client, query_variants,
+                top_k_1=top_k_1, top_k_2=top_k_2, source_types=source_types,
+            )
+        else:
+            embedding = embed_client.embed([query])[0]
+            t1 = time.monotonic()
+            winning_keys, vote_counts = find_winning_voyage_keys(
+                conn, embedding, top_k=top_k_1, source_types=source_types
+            )
+            step1_ms = int((time.monotonic() - t1) * 1000)
+
+            if not winning_keys:
+                return "", ""
+
+            t2 = time.monotonic()
+            chunks = retrieve_chunks(
+                conn, embedding, voyage_keys=winning_keys, top_k=top_k_2, source_types=source_types
+            )
+            step2_ms = int((time.monotonic() - t2) * 1000)
+
+        if not chunks:
             return "", ""
-
-        t2 = time.monotonic()
-        chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=top_k_2, source_types=source_types
-        )
-        step2_ms = int((time.monotonic() - t2) * 1000)
 
         expanded = expand_chunks(conn, chunks, window=expand_window)
 
@@ -116,6 +140,7 @@ def run_query(
             chunks=chunks,
             chunks_expanded_returned=len(expanded),
             chunks_expanded=expanded,
+            query_variants=query_variants,
         )
 
         context = build_context([
@@ -131,7 +156,6 @@ def run_query(
             for c in expanded
         ])
 
-        llm = LLMClient()
         t_gen = time.monotonic()
         answer, usage = generate_answer(
             llm, query, context, system_prompt, temperature, max_tokens
@@ -183,6 +207,10 @@ def main() -> None:
                    help="LLM max output tokens (default: 2500)")
     p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
                    help="Neighbor chunks to fetch on each side of an anchor (default: 2)")
+    p.add_argument("--multi-query", action="store_true", dest="multi_query",
+                   help="Enable LLM-based query reformulation + multi-query retrieval with RRF fusion")
+    p.add_argument("--multi-query-count", type=int, default=4, dest="multi_query_count",
+                   help="Number of query variants when --multi-query is enabled (default: 4)")
     args = p.parse_args()
 
     source_types = _resolve_source_types(args.source_types)
@@ -199,6 +227,8 @@ def main() -> None:
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         source_types=source_types,
+        multi_query=args.multi_query,
+        multi_query_count=args.multi_query_count,
     )
 
     if not answer:

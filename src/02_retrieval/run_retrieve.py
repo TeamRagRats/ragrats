@@ -7,6 +7,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _repo_root = _here.parents[1]                     # repo root
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))                    # step_01_*, step_02_*
+    sys.path.insert(0, str(_repo_root / "src" / "03_generation"))  # multi_query_retrieval
     __package__ = "src.retrieval"
 
 import argparse
@@ -18,9 +19,12 @@ from core.db import connect
 from log.log_retrieval import log_retrieval
 from log.log_query import log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.llm_client import LLMClient
 
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks, expand_chunks
+from query_expansion import expand_query
+from multi_query_retrieval import retrieve_multi_query
 
 _SOURCE_TYPE_MAP = {
     "thread": "thread",
@@ -67,41 +71,69 @@ def main() -> None:
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
     p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
                    help="Neighbor chunks to fetch on each side of an anchor (default: 2)")
+    p.add_argument("--multi-query", action="store_true", dest="multi_query",
+                   help="Enable LLM-based query reformulation + multi-query retrieval with RRF fusion")
+    p.add_argument("--multi-query-count", type=int, default=4, dest="multi_query_count",
+                   help="Number of query variants when --multi-query is enabled (default: 4)")
     args = p.parse_args()
 
     source_types = _resolve_source_types(args.source_types)
 
-    logger.info(f"Embedding query: {args.query!r}")
     client = EmbedClient(base_url=args.embed_url)
-    embedding = client.embed([args.query])[0]
+    query_variants: list[str] | None = None
 
     t_total = time.monotonic()
 
     with connect() as conn:
-        # Step 1: identify winning voyage_key(s)
-        t1 = time.monotonic()
-        winning_keys, vote_counts = find_winning_voyage_keys(
-            conn, embedding, top_k=args.top_k_1, source_types=source_types
-        )
-        step1_ms = int((time.monotonic() - t1) * 1000)
+        if args.multi_query:
+            logger.info("Reformulating query with LLM…")
+            llm = LLMClient()
+            variants = expand_query(llm, args.query, history=[], max_variants=args.multi_query_count)
+            if args.query not in variants:
+                variants = [args.query] + variants[: max(0, args.multi_query_count - 1)]
+            query_variants = variants
+            for i, v in enumerate(query_variants):
+                logger.info(f"  [variant {i}] {v}")
 
-        if not winning_keys:
-            logger.error("No chunks found — is the chunks table populated?")
-            return
+            chunks, winning_keys, vote_counts, step1_ms, step2_ms = retrieve_multi_query(
+                conn, client, query_variants,
+                top_k_1=args.top_k_1, top_k_2=args.top_k_2, source_types=source_types,
+            )
 
-        top_vote = vote_counts[winning_keys[0]]
-        logger.info(
-            f"[step1] Winner(s): {winning_keys} — {top_vote}/{args.top_k_1} votes — {step1_ms}ms"
-        )
+            if not winning_keys:
+                logger.error("No chunks found — is the chunks table populated?")
+                return
 
-        # Step 2: retrieve chunks scoped to winning key(s)
-        t2 = time.monotonic()
-        chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, source_types=source_types
-        )
-        step2_ms = int((time.monotonic() - t2) * 1000)
+            logger.info(
+                f"[step1] Union of winners across variants: {len(winning_keys)} keys — {step1_ms}ms"
+            )
+            logger.info(f"[step2] Fused {len(chunks)} chunks — {step2_ms}ms")
+        else:
+            logger.info(f"Embedding query: {args.query!r}")
+            embedding = client.embed([args.query])[0]
 
-        logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
+            t1 = time.monotonic()
+            winning_keys, vote_counts = find_winning_voyage_keys(
+                conn, embedding, top_k=args.top_k_1, source_types=source_types
+            )
+            step1_ms = int((time.monotonic() - t1) * 1000)
+
+            if not winning_keys:
+                logger.error("No chunks found — is the chunks table populated?")
+                return
+
+            top_vote = vote_counts[winning_keys[0]]
+            logger.info(
+                f"[step1] Winner(s): {winning_keys} — {top_vote}/{args.top_k_1} votes — {step1_ms}ms"
+            )
+
+            t2 = time.monotonic()
+            chunks = retrieve_chunks(
+                conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, source_types=source_types
+            )
+            step2_ms = int((time.monotonic() - t2) * 1000)
+
+            logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
 
         expanded = expand_chunks(conn, chunks, window=args.expand_window)
         logger.info(f"[expand] {len(chunks)} chunks → {len(expanded)} after ±{args.expand_window} expansion")
@@ -127,6 +159,7 @@ def main() -> None:
             chunks=chunks,
             chunks_expanded_returned=len(expanded),
             chunks_expanded=expanded,
+            query_variants=query_variants,
         )
 
     for chunk in expanded:

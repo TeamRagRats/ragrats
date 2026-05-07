@@ -27,6 +27,7 @@ class CreateSessionResponse(BaseModel):
 class MessageRequest(BaseModel):
     message: str
     session_id: str
+    multi_query: bool = False
 
 
 class MessageResponse(BaseModel):
@@ -73,6 +74,7 @@ def send_message(
         username=username,
         source="application",
         session_id=body.session_id,
+        multi_query=body.multi_query,
     )
     return {"answer": answer, "query_id": query_id}
 

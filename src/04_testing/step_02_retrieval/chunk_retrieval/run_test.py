@@ -5,8 +5,7 @@ Feeds the correct voyage_key from ground truth directly to retrieve_chunks,
 bypassing step 1 entirely. This measures how well step 2 performs given a
 perfect voyage key, making it independent of step 1 errors.
 
-Only runs on extractive questions (question_type='extractive'), since those
-have a single known source_chunk_id to evaluate against.
+Runs over ground_truth_v2 questions that have a known source_chunk_id.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
@@ -24,6 +23,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _retrieval = _repo_root / "src" / "02_retrieval"
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_retrieval))
+    sys.path.insert(0, str(_repo_root / "src" / "03_generation"))
     __package__ = "src.testing.retrieval.chunk"
 
 import argparse
@@ -31,8 +31,10 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.llm_client import LLMClient
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from step_02_chunk_retrieval.expand_chunks import expand_chunks
+from query_expansion import expand_query, reciprocal_rank_fusion
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
@@ -52,21 +54,32 @@ def main() -> None:
                    help="Neighbor chunks on each side of an anchor (default: 2)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
+    p.add_argument("--multi-query", action="store_true", dest="multi_query",
+                   help="Reformulate each question into N variants, retrieve per variant, fuse with RRF")
+    p.add_argument("--multi-query-count", type=int, default=4, dest="multi_query_count",
+                   help="Variant count when --multi-query is enabled (default: 4)")
+    p.add_argument("--limit", type=int, default=None,
+                   help="Only run on the first N ground-truth questions (default: all)")
     args = p.parse_args()
 
     with connect() as conn:
         rows = conn.execute("""
             SELECT question_id, question, voyage_key, source_chunk_id::text
-            FROM ground_truth
-            WHERE question_type = 'extractive'
+            FROM ground_truth_v2
+            WHERE source_chunk_id IS NOT NULL
             ORDER BY question_id
         """).fetchall()
 
+    if args.limit is not None:
+        rows = rows[: args.limit]
+
+    mode = "multi-query" if args.multi_query else "single"
     print(
-        f"Extractive: {len(rows)} | top_k: {args.top_k} | expand: ±{args.expand_window}"
+        f"Questions: {len(rows)} | top_k: {args.top_k} | expand: ±{args.expand_window} | mode: {mode}"
     )
 
     client = EmbedClient(base_url=args.embed_url)
+    llm = LLMClient() if args.multi_query else None
     run_id = str(uuid.uuid4())
 
     hits = 0
@@ -74,11 +87,21 @@ def main() -> None:
 
     with connect() as conn:
         for i, (question_id, question, expected_key, expected_chunk_id) in enumerate(rows, 1):
-            embedding = client.embed([question])[0]
-
-            anchor_chunks = retrieve_chunks(
-                conn, embedding, voyage_keys=[expected_key], top_k=args.top_k
-            )
+            if args.multi_query:
+                variants = expand_query(llm, question, history=[], max_variants=args.multi_query_count)
+                if question not in variants:
+                    variants = [question] + variants[: max(0, args.multi_query_count - 1)]
+                embeddings = client.embed(variants)
+                per_variant = [
+                    retrieve_chunks(conn, emb, voyage_keys=[expected_key], top_k=args.top_k)
+                    for emb in embeddings
+                ]
+                anchor_chunks = reciprocal_rank_fusion(per_variant, top_k=args.top_k)
+            else:
+                embedding = client.embed([question])[0]
+                anchor_chunks = retrieve_chunks(
+                    conn, embedding, voyage_keys=[expected_key], top_k=args.top_k
+                )
             expanded_chunks = expand_chunks(conn, anchor_chunks, window=args.expand_window)
 
             expanded_chunk_ids = [c.chunk_id for c in expanded_chunks]
@@ -121,7 +144,7 @@ def main() -> None:
         )
 
     print(f"\nDone. run_id={run_id}")
-    print(f"Extractive ({total}): chunk recall: {recall:.1%} | MRR: {mrr:.4f}")
+    print(f"Total ({total}): chunk recall: {recall:.1%} | MRR: {mrr:.4f}")
 
 
 if __name__ == "__main__":
