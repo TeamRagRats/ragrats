@@ -98,10 +98,14 @@ def _eval_combination(
 ) -> dict[str, tuple[int, int, float]]:
     results: dict[str, tuple[int, int, float]] = {}
     for category, rows in gt_rows_by_category.items():
+        # Only evaluate questions whose answer chunk lives in the tested source types
+        filtered = [r for r in rows if source_types is None or r[4] in source_types]
+        if not filtered:
+            continue
         hits = 0
         mrr_sum = 0.0
-        total = len(rows)
-        for question_id, question, expected_key, expected_chunk_id in rows:
+        total = len(filtered)
+        for question_id, question, expected_key, expected_chunk_id, _ in filtered:
             embedding = embedding_map[question_id]
             chunks = retrieve_chunks(
                 conn, embedding, voyage_keys=[expected_key],
@@ -334,15 +338,15 @@ def main() -> None:
 
         # Fetch ground truth rows
         all_rows = conn.execute(f"""
-            SELECT question_id, question, voyage_key, source_chunk_id::text, category
+            SELECT question_id, question, voyage_key, source_chunk_id::text, category, source_type
             FROM {args.gt_table}
             ORDER BY category, question_id
         """).fetchall()
 
     gt_rows_by_category: dict[str, list] = {}
-    for question_id, question, voyage_key, source_chunk_id, category in all_rows:
+    for question_id, question, voyage_key, source_chunk_id, category, source_type in all_rows:
         gt_rows_by_category.setdefault(category, []).append(
-            (question_id, question, voyage_key, source_chunk_id)
+            (question_id, question, voyage_key, source_chunk_id, source_type)
         )
 
     total_questions = sum(len(v) for v in gt_rows_by_category.values())
@@ -353,10 +357,10 @@ def main() -> None:
     # Pre-compute all embeddings once
     print(f"\nPre-computing {total_questions} embeddings ...")
     client = EmbedClient(base_url=args.embed_url)
-    all_question_rows = [(q_id, q, key, chunk_id) for rows in gt_rows_by_category.values() for q_id, q, key, chunk_id in rows]
-    texts = [_QUERY_INSTRUCTION + q for _, q, _, _ in all_question_rows]
+    all_question_rows = [(q_id, q, key, chunk_id, st) for rows in gt_rows_by_category.values() for q_id, q, key, chunk_id, st in rows]
+    texts = [_QUERY_INSTRUCTION + q for _, q, _, _, _ in all_question_rows]
     embeddings = client.embed(texts)
-    embedding_map = {q_id: emb for (q_id, _, _, _), emb in zip(all_question_rows, embeddings)}
+    embedding_map = {q_id: emb for (q_id, _, _, _, _), emb in zip(all_question_rows, embeddings)}
     print(f"Done.\n")
 
     with connect() as conn:
