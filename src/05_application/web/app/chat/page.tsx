@@ -119,7 +119,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-800 bg-black">
         <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
       </div>
     </div>
