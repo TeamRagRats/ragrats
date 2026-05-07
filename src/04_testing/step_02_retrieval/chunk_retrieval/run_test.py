@@ -12,7 +12,9 @@ are evaluated. Results are logged separately per category.
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
     python run_test.py --top-k 20 --expand-window 2
-    python run_test.py --embed-url http://localhost:8003/v1
+    python run_test.py --num-queries 3          # enable multi-query
+    python run_test.py --num-queries 1          # baseline (no expansion)
+    python run_test.py --no-instruction         # disable instruction prefix
 """
 
 from __future__ import annotations
@@ -32,10 +34,23 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
-from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
+from clients.llm_client import LLMClient
+from step_00_query_expansion import expand_query
+from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks, RetrievedChunk
 from step_02_chunk_retrieval.expand_chunks import expand_chunks
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
+
+_QUERY_INSTRUCTION = "Represent this search query for retrieving relevant maritime project documents: "
+
+
+def _dedup_chunks(all_chunks: list[list[RetrievedChunk]]) -> list[RetrievedChunk]:
+    best: dict[str, RetrievedChunk] = {}
+    for chunks in all_chunks:
+        for chunk in chunks:
+            if chunk.chunk_id not in best or chunk.similarity > best[chunk.chunk_id].similarity:
+                best[chunk.chunk_id] = chunk
+    return sorted(best.values(), key=lambda c: c.similarity, reverse=True)
 
 
 def _compute_chunk_rank(expected_chunk_id: str, chunks: list) -> int | None:
@@ -53,17 +68,28 @@ def _run_for_category(
     top_k: int,
     expand_window: int,
     category: str,
+    num_queries: int = 1,
+    use_instruction: bool = True,
+    llm: LLMClient | None = None,
 ) -> tuple[int, int, float]:
     hits = 0
     mrr_sum = 0.0
     total = len(rows)
 
     for i, (question_id, question, expected_key, expected_chunk_id) in enumerate(rows, 1):
-        embedding = client.embed([question])[0]
+        queries = expand_query(question, n=num_queries - 1, llm=llm) if num_queries > 1 else [question]
 
-        anchor_chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=[expected_key], top_k=top_k
-        )
+        if use_instruction:
+            queries = [_QUERY_INSTRUCTION + q for q in queries]
+
+        embeddings = client.embed(queries)
+
+        all_retrieved = [
+            retrieve_chunks(conn, emb, voyage_keys=[expected_key], top_k=top_k)
+            for emb in embeddings
+        ]
+        anchor_chunks = _dedup_chunks(all_retrieved)[:top_k]
+
         expanded_chunks = expand_chunks(conn, anchor_chunks, window=expand_window)
 
         expanded_chunk_ids = [c.chunk_id for c in expanded_chunks]
@@ -101,6 +127,10 @@ def main() -> None:
                    help="Neighbor chunks on each side of an anchor (default: 2)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
+    p.add_argument("--num-queries", type=int, default=1, dest="num_queries",
+                   help="Query variants to generate per question (1 = baseline, default: 1)")
+    p.add_argument("--no-instruction", action="store_true", dest="no_instruction",
+                   help="Disable instruction prefix on embeddings")
     args = p.parse_args()
 
     with connect() as conn:
@@ -116,8 +146,12 @@ def main() -> None:
             (question_id, question, voyage_key, source_chunk_id)
         )
 
+    use_instruction = not args.no_instruction
+    llm = LLMClient() if args.num_queries > 1 else None
+    test_type = "chunk_retrieval_isolated_v2" + ("_mq" if args.num_queries > 1 else "")
+
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    print(f"{summary} | top_k: {args.top_k} | expand: ±{args.expand_window}")
+    print(f"{summary} | top_k: {args.top_k} | expand: ±{args.expand_window} | queries: {args.num_queries} | instruction: {use_instruction}")
 
     client = EmbedClient(base_url=args.embed_url)
     run_id = str(uuid.uuid4())
@@ -126,7 +160,10 @@ def main() -> None:
     with connect() as conn:
         for category, rows in sorted(rows_by_category.items()):
             hits, total, mrr = _run_for_category(
-                conn, client, rows, run_id, args.top_k, args.expand_window, category
+                conn, client, rows, run_id, args.top_k, args.expand_window, category,
+                num_queries=args.num_queries,
+                use_instruction=use_instruction,
+                llm=llm,
             )
             results[category] = (hits, total, mrr)
 
@@ -136,7 +173,7 @@ def main() -> None:
             log_retrieval_run(
                 conn,
                 run_id=run_id,
-                test_type="chunk_retrieval_isolated_v2",
+                test_type=test_type,
                 question_type=category,
                 top_k=args.top_k,
                 total=total,
