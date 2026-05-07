@@ -33,7 +33,7 @@ _SOURCE_TYPE_MAP = {
     "phase": "phase",
 }
 
-_QUERY_INSTRUCTION = "Represent this search query for retrieving relevant maritime project documents: "
+_QUERY_INSTRUCTION = "Instruct: Retrieve relevant maritime project documents for the given query\nQuery: "
 
 
 def _resolve_source_types(raw: list[str] | None) -> list[str] | None:

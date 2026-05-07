@@ -41,7 +41,7 @@ from step_02_chunk_retrieval.expand_chunks import expand_chunks
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
-_QUERY_INSTRUCTION = "Represent this search query for retrieving relevant maritime project documents: "
+_QUERY_INSTRUCTION = "Instruct: Retrieve relevant maritime project documents for the given query\nQuery: "
 
 
 def _dedup_chunks(all_chunks: list[list[RetrievedChunk]]) -> list[RetrievedChunk]:
