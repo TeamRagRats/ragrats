@@ -4,7 +4,7 @@ from pathlib import Path
 
 from clients.llm_client import LLMClient
 
-_PROMPT_PATH = Path(__file__).parents[4] / "system_prompts" / "retrieval" / "query_expansion.md"
+_PROMPT_PATH = Path(__file__).parents[3] / "system_prompts" / "retrieval" / "query_expansion.md"
 
 
 def _load_system_prompt(n: int) -> str:
