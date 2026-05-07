@@ -17,8 +17,8 @@ export default function ReviewWidget({ queryId }: ReviewWidgetProps) {
     setState("submitted");
     try {
       await submitReview(queryId, true, null);
-    } catch {
-      // fire-and-forget — don't surface review errors to user
+    } catch (err) {
+      console.error("Review submission failed:", err);
     }
   }
 
@@ -30,8 +30,8 @@ export default function ReviewWidget({ queryId }: ReviewWidgetProps) {
     setState("submitted");
     try {
       await submitReview(queryId, false, feedback || null);
-    } catch {
-      // fire-and-forget
+    } catch (err) {
+      console.error("Review submission failed:", err);
     }
   }
 
