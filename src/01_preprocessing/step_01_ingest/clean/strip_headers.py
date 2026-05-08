@@ -9,8 +9,27 @@ from __future__ import annotations
 
 import re
 
+# Header labels in languages we see in agent mails. Keep this list flat and
+# explicit so it's easy to audit when a new locale slips through.
+_HEADER_LABELS = (
+    # English
+    "From", "To", "Cc", "Bcc", "Sent", "Date", "Subject", "Reply-To",
+    # Spanish
+    "De", "Para", "Enviado", "Fecha", "Asunto",
+    # German
+    "Von", "An", "Gesendet", "Datum", "Betreff",
+    # French
+    "Exp[eé]diteur", "Destinataire", "Envoy[eé]", "Objet",
+    # Danish / Norwegian
+    "Fra", "Til", "Sendt", "Dato", "Emne",
+    # Dutch
+    "Aan", "Verzonden", "Onderwerp",
+    # Italian
+    "Da", "Inviato", "Oggetto",
+)
+
 _HEADER_LINE = re.compile(
-    r"^[ \t]*(?:From|To|Cc|Bcc|Sent|Date|Subject|Reply-To)[ \t]*:[ \t].*$",
+    r"^[ \t]*(?:" + "|".join(_HEADER_LABELS) + r")[ \t]*:[ \t].*$",
     re.MULTILINE | re.IGNORECASE,
 )
 

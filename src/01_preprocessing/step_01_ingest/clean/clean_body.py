@@ -7,7 +7,9 @@ from __future__ import annotations
 #   3. strip_headers      — defensive removal of stray leaked headers
 #   4. strip_legal_notices — confidentiality / virus / "think before you print"
 #   5. strip_contact_info — runs of 2+ phone/email/title/IMO/MMSI lines
-#   6. whitespace normalize — collapse 3+ blank lines, .strip(), empty -> None
+#   6. whitespace normalize — collapse intra-line spaces, trim per-line
+#      trailing whitespace, drop space-before-punctuation, collapse 3+ blank
+#      lines, .strip(), empty -> None
 # Called from run_ingest.py per email and from run_clean_backfill.py per row.
 
 import re
@@ -19,6 +21,9 @@ from .strip_html import strip_html
 from .strip_legal_notices import strip_legal_notices
 
 _MULTI_BLANK = re.compile(r"\n{3,}")
+_INLINE_WS = re.compile(r"[ \t]{2,}")
+_TRAILING_WS = re.compile(r"[ \t]+(\n|$)")
+_SPACE_BEFORE_PUNCT = re.compile(r" +([,.;:!?])")
 
 
 def clean_body(body_text: str | None) -> str | None:
@@ -29,6 +34,9 @@ def clean_body(body_text: str | None) -> str | None:
     s = strip_headers(s)
     s = strip_legal_notices(s)
     s = strip_contact_info(s)
+    s = _INLINE_WS.sub(" ", s)
+    s = _TRAILING_WS.sub(r"\1", s)
+    s = _SPACE_BEFORE_PUNCT.sub(r"\1", s)
     s = _MULTI_BLANK.sub("\n\n", s).strip()
     return s or None
 
