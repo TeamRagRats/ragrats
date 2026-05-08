@@ -35,8 +35,8 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex items-start gap-3 px-6 py-4 bg-black">
-      <span className="shrink-0 text-gray-400 text-sm pt-1 select-none">Question:</span>
+    <div className="w-[65%] mx-auto flex items-start gap-3 px-6 py-4 my-4 bg-black border border-white">
+      <span className="shrink-0 text-gray-400 text-base pt-1 select-none">Question:</span>
 
       <textarea
         ref={textareaRef}
@@ -46,14 +46,14 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
         disabled={disabled}
         rows={1}
         placeholder="Ask something…"
-        className="flex-1 bg-transparent text-white text-sm placeholder-gray-700 caret-white resize-none overflow-hidden focus:outline-none disabled:opacity-50 leading-6 pt-0.5"
+        className="flex-1 bg-transparent text-white text-base placeholder-gray-700 caret-white resize-none overflow-hidden focus:outline-none disabled:opacity-50 leading-6 pt-0.5"
         style={{ minHeight: "1.5rem" }}
       />
 
       <button
         onClick={handleSend}
         disabled={!value.trim() || disabled}
-        className="shrink-0 border border-gray-600 bg-black text-white text-sm px-3 py-1 transition-colors hover:border-green-600 hover:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="shrink-0 border border-gray-600 bg-black text-white text-base px-3 py-1 transition-colors hover:border-green-600 hover:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Send
       </button>

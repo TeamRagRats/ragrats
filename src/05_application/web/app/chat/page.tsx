@@ -80,6 +80,13 @@ export default function ChatPage() {
     router.replace("/login");
   }
 
+  function handleNewQuestion() {
+    setMessages([]);
+  }
+
+  const showInput = messages.length === 0;
+  const showNewQuestion = messages.length > 0 && !loading;
+
   if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -119,8 +126,20 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-800 bg-black">
-        <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
+      <div className="fixed bottom-0 left-0 right-0 bg-black">
+        {showInput && (
+          <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
+        )}
+        {showNewQuestion && (
+          <div className="w-full max-w-6xl mx-auto flex justify-center px-6 py-4 bg-black">
+            <button
+              onClick={handleNewQuestion}
+              className="border-2 bg-black text-white text-xl px-10 py-5 transition-colors hover:text-green-400 animate-glow-pulse"
+            >
+              New Question
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
