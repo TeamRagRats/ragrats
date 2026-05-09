@@ -60,6 +60,7 @@ def _process_thread(
                 "embedding": chunker.format_halfvec(vec),
                 "char_count": len(email["body_cleaned"]),
                 "strategy": "late",
+                "model": "Qwen/Qwen3-Embedding-4B",
             })
         db.upsert_chunks(conn, rows)
 
