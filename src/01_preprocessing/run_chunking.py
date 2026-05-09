@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-# Entry point for the chunking step (step_10).
-# Splits email, thread, and phase summaries into chunks and inserts them with NULL embedding.
-# Run: python -m src.preprocessing.run_chunking [--limit N] [--verbose]
+# Entry point for the chunking step (step_05).
+# Orchestrates per-source-type chunkers; each source lives in
+# step_05_chunking/sources/. Run: python -m src.01_preprocessing.run_chunking [--limit N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -11,30 +11,34 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _repo_root = _here.parents[1]
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_here))
-    __package__ = "src.preprocessing"
+    __package__ = "src.01_preprocessing"
 
 import argparse
 import logging
 import sys
 import time
-from datetime import datetime, timezone
 
 from transformers import AutoTokenizer
 
 from core.db import connect
 from log.log_run import finish_run, start_run
-from log.log_chunking import log_chunking_pending, log_chunking_finished
-from step_05_chunking.late.chunker import split_sentences, truncate_to_context
-from step_05_chunking.late_overlap.chunker import build_overlap_chunks
-from step_05_chunking.db import (
-    get_pending_emails,
-    get_pending_threads,
-    get_pending_phases,
-    upsert_chunks,
+
+from step_05_chunking.sources import (
+    email_summaries,
+    fixture_summaries,
+    phase,
+    llm_structured,
 )
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
+
+SOURCES = [
+    ("emails",          email_summaries.run),
+    ("fixtures",        fixture_summaries.run),
+    ("phases",          phase.run),
+    ("llm_structured",  llm_structured.run),
+]
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
@@ -48,48 +52,6 @@ def _setup_logging(verbose: bool = False) -> logging.Logger:
     return logger
 
 
-def _chunk_and_upsert(
-    conn,
-    source_type: str,
-    source_id: str,
-    voyage_key: str,
-    strategy: str,
-    summary: str,
-    tokenizer,
-    run_id,
-    label: str,
-    logger: logging.Logger,
-) -> int:
-    started_at = datetime.now(timezone.utc)
-    t0 = time.monotonic()
-    log_chunking_pending(conn, source_type, source_id, voyage_key, started_at, run_id)
-    try:
-        sentences = split_sentences(summary)
-        sentences = truncate_to_context(sentences, tokenizer)
-        chunks = [
-            {"chunk_index": i, "text": s, "char_count": len(s)}
-            for i, s in enumerate(sentences)
-        ]
-        n = upsert_chunks(conn, source_type, source_id, voyage_key, strategy, chunks)
-        total_chars = sum(len(s) for s in sentences)
-        log_chunking_finished(
-            conn, source_type, source_id,
-            finished_at=datetime.now(timezone.utc),
-            duration_ms=int((time.monotonic() - t0) * 1000),
-            status="ok", n_chunks=n, char_count=total_chars,
-        )
-        logger.debug(f"  [chunk] {label}: {n} chunks indsat")
-        return n
-    except Exception as exc:
-        log_chunking_finished(
-            conn, source_type, source_id,
-            finished_at=datetime.now(timezone.utc),
-            duration_ms=int((time.monotonic() - t0) * 1000),
-            status="error", error_message=f"{type(exc).__name__}: {exc}",
-        )
-        raise
-
-
 def _run_pipeline(args: argparse.Namespace, tokenizer, logger: logging.Logger) -> None:
     with connect() as conn:
         run_id = start_run(conn)
@@ -99,93 +61,12 @@ def _run_pipeline(args: argparse.Namespace, tokenizer, logger: logging.Logger) -
             logger.info("Chunking Pipeline")
             logger.info("=" * 60)
 
-            # --- Emails ---
-            emails = get_pending_emails(conn)
-            if args.limit is not None:
-                emails = emails[:args.limit]
-            logger.info(f"[chunk] {len(emails)} email(s) afventer chunking")
+            total = 0
+            for label, source_run in SOURCES:
+                logger.info(f"--- {label} ---")
+                total += source_run(conn, tokenizer, run_id, logger, args.limit)
 
-            email_done = 0
-            for email in emails:
-                email_done += _chunk_and_upsert(
-                    conn,
-                    source_type="email",
-                    source_id=str(email["email_id"]),
-                    voyage_key=email["voyage_key"],
-                    strategy="late",
-                    summary=email["summary"],
-                    tokenizer=tokenizer,
-                    run_id=run_id,
-                    label=f"email {email['email_id']}",
-                    logger=logger,
-                )
-            logger.info(f"[chunk] Emails færdige: {email_done} chunks indsat")
-
-            # --- Threads ---
-            threads = get_pending_threads(conn)
-            if args.limit is not None:
-                threads = threads[:args.limit]
-            logger.info(f"[chunk] {len(threads)} thread(s) afventer chunking")
-
-            thread_done = 0
-            for thread in threads:
-                thread_done += _chunk_and_upsert(
-                    conn,
-                    source_type="thread",
-                    source_id=str(thread["thread_id"]),
-                    voyage_key=thread["voyage_key"],
-                    strategy="late",
-                    summary=thread["summary"],
-                    tokenizer=tokenizer,
-                    run_id=run_id,
-                    label=f"thread {thread['thread_id']}",
-                    logger=logger,
-                )
-            logger.info(f"[chunk] Threads færdige: {thread_done} chunks indsat")
-
-            # --- Phases ---
-            phases_by_voyage = get_pending_phases(conn)
-            voyage_keys = list(phases_by_voyage.keys())
-            if args.limit is not None:
-                voyage_keys = voyage_keys[:args.limit]
-            logger.info(f"[chunk] {len(voyage_keys)} voyage(r) med phases afventer chunking")
-
-            phase_done = 0
-            for voyage_key in voyage_keys:
-                phases = phases_by_voyage[voyage_key]
-                started_at = datetime.now(timezone.utc)
-                t0 = time.monotonic()
-                try:
-                    chunks = build_overlap_chunks(phases)
-                    n = 0
-                    for chunk in chunks:
-                        source_id = f"{voyage_key}__{chunk['chunk_index']}"
-                        log_chunking_pending(conn, "phase", source_id, voyage_key, started_at, run_id)
-                        inserted = upsert_chunks(
-                            conn, "phase", source_id, voyage_key, "late_overlap",
-                            [chunk],
-                        )
-                        log_chunking_finished(
-                            conn, "phase", source_id,
-                            finished_at=datetime.now(timezone.utc),
-                            duration_ms=int((time.monotonic() - t0) * 1000),
-                            status="ok", n_chunks=inserted, char_count=chunk["char_count"],
-                        )
-                        n += inserted
-                    phase_done += n
-                    logger.debug(f"  [chunk] phases {voyage_key}: {n} chunks indsat")
-                except Exception as exc:
-                    log_chunking_finished(
-                        conn, "phase", voyage_key,
-                        finished_at=datetime.now(timezone.utc),
-                        duration_ms=int((time.monotonic() - t0) * 1000),
-                        status="error", error_message=f"{type(exc).__name__}: {exc}",
-                    )
-                    raise
-            logger.info(f"[chunk] Phases færdige: {phase_done} chunks indsat")
-
-            logger.info(f"[chunk] Total: {email_done + thread_done + phase_done} chunks indsat")
-
+            logger.info(f"[chunk] Total: {total} chunks indsat")
         except Exception:
             status = "failed"
             raise
@@ -196,7 +77,7 @@ def _run_pipeline(args: argparse.Namespace, tokenizer, logger: logging.Logger) -
 def main() -> None:
     parser = argparse.ArgumentParser(description="Chunking Pipeline")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
-                        help="Behandl kun de første N poster per type (til test)")
+                        help="Behandl kun de første N poster per source-type (til test)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 

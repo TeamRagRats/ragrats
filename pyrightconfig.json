@@ -1,6 +1,6 @@
 {
   "include": ["src"],
-  "extraPaths": ["src", "src/preprocessing"],
+  "extraPaths": ["src", "src/01_preprocessing"],
   "venvPath": ".",
   "venv": ".venv",
   "reportMissingImports": "warning"
