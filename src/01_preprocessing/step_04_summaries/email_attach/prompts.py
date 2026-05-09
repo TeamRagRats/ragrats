@@ -32,5 +32,5 @@ def build_email_summary_prompt(
         f"Date: {date}\n\n"
         f"Email body:\n{body.strip()}"
         f"{attach_block}\n\n"
-        "Create a 2–8 sentence summary of this email."
+        "Summarize this email. Use as many sentences as needed to capture every relevant fact, capped at 10."
     )
