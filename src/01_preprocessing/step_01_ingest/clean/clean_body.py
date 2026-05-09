@@ -29,7 +29,10 @@ _SPACE_BEFORE_PUNCT = re.compile(r" +([,.;:!?])")
 def clean_body(body_text: str | None) -> str | None:
     if not body_text:
         return body_text
-    s = strip_html(body_text)
+    # Normalize line endings so paragraph splitters (which look for \n\n) work
+    # consistently on Outlook/Windows-sourced bodies that arrive with \r\n.
+    s = body_text.replace("\r\n", "\n").replace("\r", "\n")
+    s = strip_html(s)
     s = cut_quote(s)
     s = strip_headers(s)
     s = strip_legal_notices(s)

@@ -36,8 +36,10 @@ def strip_html(text: str) -> str:
         soup = BeautifulSoup(text, "html.parser")
         for br in soup.find_all("br"):
             br.replace_with("\n")
+        # Block tags terminate a paragraph; emit a real blank line so
+        # paragraph-level cleaners (strip_legal_notices) split correctly.
         for tag in soup.find_all(_BLOCK_TAGS):
-            tag.insert_after("\n")
+            tag.insert_after("\n\n")
         text = soup.get_text()
     text = html.unescape(text)
     text = _SEPARATOR_RUN.sub("", text)

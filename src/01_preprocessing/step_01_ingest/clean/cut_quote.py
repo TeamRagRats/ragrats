@@ -7,7 +7,10 @@ from __future__ import annotations
 #   - "On <date>, <person> wrote:"  / "Le ... a écrit :"        (Gmail/Apple/French)
 #   - a line of 8+ underscores                                  (Outlook quote separator)
 #   - 2+ consecutive header-like lines (From:/To:/Sent:/Date:/Subject:/Cc:/Bcc:)
-#     within a 6-line window                                    (leaked forwarded headers)
+#     within a 6-line window AND containing at least one strong header
+#     (From/Sent/Date) AND preceded by at least one content line  (leaked
+#     forwarded headers; the strong-header + preceded-by-content guards prevent
+#     false positives on operational emails that use TO:/CC:/FM: as body fields)
 # The earliest match wins and everything from that line onward is dropped.
 
 import re
@@ -22,6 +25,11 @@ _LINE_MARKERS: tuple[re.Pattern[str], ...] = (
 
 _HEADER_LINE = re.compile(
     r"^\s*(?:From|To|Cc|Bcc|Sent|Date|Subject|Reply-To)\s*:\s*\S",
+    re.IGNORECASE,
+)
+
+_STRONG_HEADER_LINE = re.compile(
+    r"^\s*(?:From|Sent|Date)\s*:\s*\S",
     re.IGNORECASE,
 )
 
@@ -43,14 +51,18 @@ def _earliest_header_block(lines: list[str], window: int = 6, min_count: int = 2
     while i < n:
         if _HEADER_LINE.match(lines[i]):
             count = 0
+            strong = False
             j = i
             while j < min(i + window, n):
                 if _HEADER_LINE.match(lines[j]):
                     count += 1
+                    if _STRONG_HEADER_LINE.match(lines[j]):
+                        strong = True
                 elif lines[j].strip():
                     break
                 j += 1
-            if count >= min_count:
+            has_content_before = any(lines[k].strip() for k in range(0, i))
+            if count >= min_count and strong and has_content_before:
                 return i
             i = j if j > i else i + 1
         else:
