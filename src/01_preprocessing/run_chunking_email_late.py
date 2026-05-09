@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 # Entry point for late chunking of email threads (step_05_chunking/email_late).
-# Concatenates each thread, encodes via the token-pooling vLLM server (:8004),
-# mean-pools per message, and writes per-message chunks with context-aware
-# embeddings into the chunks table.
+# Loads Qwen3-Embedding-4B locally, encodes each thread in full to capture
+# cross-message attention, mean-pools per message, and writes context-aware
+# embeddings directly into the chunks table (strategy='late').
 #
-# Run: python -m src.01_preprocessing.run_email_chunking [--limit N] [--verbose]
+# Run: python -m src.01_preprocessing.run_chunking_email_late [--limit N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -21,16 +21,17 @@ import logging
 import sys
 import time
 
+import torch
 from transformers import AutoTokenizer
 
-from clients.embed_client import EmbedTokensClient, wait_for_server, DEFAULT_TOKEN_BASE_URL
 from core.db import connect
 from log.log_run import finish_run, start_run
 
-from step_05_chunking.email_late import pipeline
+from step_05_chunking.email_late import model as M, pipeline
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
+MODEL_NAME = "Qwen/Qwen3-Embedding-4B"
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
@@ -45,7 +46,7 @@ def _setup_logging(verbose: bool = False) -> logging.Logger:
     return logger
 
 
-def _run_pipeline(args: argparse.Namespace, tokenizer, client, logger: logging.Logger) -> None:
+def _run_pipeline(args, embed_model, tokenizer, device, logger) -> None:
     with connect() as conn:
         run_id = start_run(conn)
         status = "ok"
@@ -53,7 +54,7 @@ def _run_pipeline(args: argparse.Namespace, tokenizer, client, logger: logging.L
             logger.info("=" * 60)
             logger.info("Email Late Chunking Pipeline")
             logger.info("=" * 60)
-            total = pipeline.run(conn, tokenizer, client, run_id, logger, args.limit)
+            total = pipeline.run(conn, embed_model, tokenizer, device, run_id, logger, args.limit)
             logger.info("[email_late] %d chunks indsat", total)
         except Exception:
             status = "failed"
@@ -67,25 +68,19 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, metavar="N",
                         help="Behandl kun de første N threads (til test)")
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--token-server", default=DEFAULT_TOKEN_BASE_URL,
-                        help=f"Base URL for token-pooling vLLM (default: {DEFAULT_TOKEN_BASE_URL})")
+    parser.add_argument("--device", default=None,
+                        help="Torch device (default: cuda if available, else cpu)")
     args = parser.parse_args()
 
     logger = _setup_logging(verbose=args.verbose)
 
-    logger.info("Indlæser tokenizer ...")
-    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-Embedding-4B")
-    logger.info("Tokenizer klar")
+    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info("Device: %s", device)
 
-    logger.info("Venter på token-pooling server (%s) ...", args.token_server)
-    if not wait_for_server(args.token_server, timeout_s=120):
-        logger.error("Token-pooling server svarer ikke på %s. Start den med "
-                     "`docker compose -f docker/embed_token/docker-compose.yml up -d`.",
-                     args.token_server)
-        sys.exit(1)
-
-    client = EmbedTokensClient(base_url=args.token_server)
-    logger.info("Token-pooling client klar (model=%s)", client.model)
+    logger.info("Indlæser tokenizer og model (%s) ...", MODEL_NAME)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    embed_model = M.load_model(device=device)
+    logger.info("Model klar")
 
     for attempt in range(1, MAX_RETRIES + 1):
         if attempt > 1:
@@ -95,7 +90,7 @@ def main() -> None:
         try:
             t0 = time.monotonic()
             logger.info("Starter pipeline (forsøg %d/%d)", attempt, MAX_RETRIES)
-            _run_pipeline(args, tokenizer, client, logger)
+            _run_pipeline(args, embed_model, tokenizer, device, logger)
             logger.info("Pipeline færdig. Total wall-time: %.1fs", time.monotonic() - t0)
             return
         except Exception as exc:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 # Per-thread orchestrator for email late chunking:
 #   1. fetch pending threads
-#   2. for each thread: concat -> embed_tokens -> mean-pool per message -> upsert chunks + log
+#   2. for each thread: concat -> local model forward pass -> mean-pool per message -> upsert + log
 
 import logging
 from datetime import datetime, timezone
@@ -10,18 +10,18 @@ from uuid import UUID
 
 import psycopg
 
-from clients.embed_client import EmbedTokensClient
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 
-from . import chunker, db
+from . import chunker, db, model as M
 
-LATE_MAX_TOKENS = 32768  # must match docker/embed_token --max-model-len
+MAX_LENGTH = 32768
 
 
 def _process_thread(
     conn: psycopg.Connection,
+    embed_model,
     tokenizer,
-    client: EmbedTokensClient,
+    device: str,
     run_id: UUID,
     thread_id: UUID,
     logger: logging.Logger,
@@ -43,11 +43,9 @@ def _process_thread(
 
     try:
         full_text, char_spans = chunker.build_thread_text(emails)
-        token_vectors = client.embed_tokens(full_text)
+        token_vectors = M.get_token_embeddings(embed_model, tokenizer, full_text, device, MAX_LENGTH)
         n_tokens = len(token_vectors)
-        token_spans = chunker.char_spans_to_token_spans(
-            tokenizer, full_text, char_spans, n_tokens
-        )
+        token_spans = chunker.char_spans_to_token_spans(tokenizer, full_text, char_spans, n_tokens)
 
         rows: list[dict] = []
         for i, (email, span) in enumerate(zip(emails, token_spans)):
@@ -67,7 +65,7 @@ def _process_thread(
 
         finished = datetime.now(timezone.utc)
         duration_ms = int((finished - started).total_seconds() * 1000)
-        truncated = n_tokens >= LATE_MAX_TOKENS
+        truncated = n_tokens >= MAX_LENGTH
         log_chunking_finished(
             conn,
             source_type="emails",
@@ -82,13 +80,13 @@ def _process_thread(
         )
         if truncated:
             logger.warning(
-                "thread %s hit max-model-len (%d tokens); embeddings of late "
-                "messages may be missing context", thread_id, n_tokens,
+                "thread %s hit max length (%d tokens); late messages may lack full context",
+                thread_id, n_tokens,
             )
         logger.info("thread %s -> %d chunks (%d tokens%s)",
-                    thread_id, len(rows), n_tokens,
-                    ", truncated" if truncated else "")
+                    thread_id, len(rows), n_tokens, ", truncated" if truncated else "")
         return len(rows)
+
     except Exception as exc:
         finished = datetime.now(timezone.utc)
         duration_ms = int((finished - started).total_seconds() * 1000)
@@ -107,8 +105,9 @@ def _process_thread(
 
 def run(
     conn: psycopg.Connection,
+    embed_model,
     tokenizer,
-    client: EmbedTokensClient,
+    device: str,
     run_id: UUID,
     logger: logging.Logger,
     limit: int | None,
@@ -119,8 +118,9 @@ def run(
     total = 0
     for thread_id in thread_ids:
         try:
-            total += _process_thread(conn, tokenizer, client, run_id, thread_id, logger)
+            total += _process_thread(
+                conn, embed_model, tokenizer, device, run_id, thread_id, logger
+            )
         except Exception:
-            # Already logged in _process_thread; continue with the next one.
             continue
     return total
