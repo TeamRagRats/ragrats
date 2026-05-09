@@ -34,7 +34,7 @@ def _process_thread(
     started = datetime.now(timezone.utc)
     log_chunking_pending(
         conn,
-        source_type="emails",
+        source_type="email",
         source_id=str(thread_id),
         voyage_key=voyage_key,
         started_at=started,
@@ -51,7 +51,7 @@ def _process_thread(
         for i, (email, span) in enumerate(zip(emails, token_spans)):
             vec = chunker.mean_pool(token_vectors, span)
             rows.append({
-                "source_type": "emails",
+                "source_type": "email",
                 "source_id": str(email["email_id"]),
                 "voyage_key": email["voyage_key"],
                 "thread_id": str(thread_id),
@@ -68,7 +68,7 @@ def _process_thread(
         truncated = n_tokens >= MAX_LENGTH
         log_chunking_finished(
             conn,
-            source_type="emails",
+            source_type="email",
             source_id=str(thread_id),
             finished_at=finished,
             duration_ms=duration_ms,
@@ -88,11 +88,12 @@ def _process_thread(
         return len(rows)
 
     except Exception as exc:
+        conn.rollback()
         finished = datetime.now(timezone.utc)
         duration_ms = int((finished - started).total_seconds() * 1000)
         log_chunking_finished(
             conn,
-            source_type="emails",
+            source_type="email",
             source_id=str(thread_id),
             finished_at=finished,
             duration_ms=duration_ms,

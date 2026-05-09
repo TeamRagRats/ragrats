@@ -21,7 +21,7 @@ def get_pending_thread_ids(
           AND e.thread_id IS NOT NULL
           AND NOT EXISTS (
               SELECT 1 FROM chunks c
-              WHERE c.source_type = 'emails'
+              WHERE c.source_type = 'email'
                 AND c.strategy    = 'late'
                 AND c.source_id   = e.email_id::text
           )
