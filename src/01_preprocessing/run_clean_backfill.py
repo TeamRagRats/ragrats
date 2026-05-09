@@ -42,11 +42,11 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
 
-    where = "body IS NOT NULL AND body <> ''"
+    where = "body_text IS NOT NULL AND body_text <> ''"
     if args.only_null:
         where += " AND (body_cleaned IS NULL OR body_cleaned = '')"
 
-    sql_select = f"SELECT email_id, body, body_cleaned FROM emails WHERE {where} ORDER BY email_id"
+    sql_select = f"SELECT email_id, body_text, body_cleaned FROM emails WHERE {where} ORDER BY email_id"
     if args.limit is not None:
         sql_select += f" LIMIT {int(args.limit)}"
 
@@ -69,8 +69,8 @@ def main() -> int:
         pending: list[tuple[str | None, str]] = []
 
         with conn.cursor() as wcur:
-            for email_id, body, body_cleaned_old in tqdm(rows, unit="email"):
-                new_cleaned = clean_body(body)
+            for email_id, body_text, body_cleaned_old in tqdm(rows, unit="email"):
+                new_cleaned = clean_body(body_text)
                 if new_cleaned == body_cleaned_old:
                     continue
 
