@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-# Single-text embedder: forward pass -> mean-pool over non-pad tokens ->
+# Single-text embedder: forward pass -> last-token (EOS) hidden state ->
 # L2-normalize. Used by email_context chunking, where the input is
 # (prior-thread summary + email body) and we want one vector per email.
+# Qwen3-Embedding is trained with contrastive loss on the EOS hidden state,
+# so last-token pooling is the recipe that matches the training objective.
 
 import math
 
@@ -16,7 +18,7 @@ def embed_text(
     device: str,
     max_length: int = 32768,
 ) -> tuple[list[float], int, bool]:
-    """Embed `text` into a single L2-normalized vector via mean pooling.
+    """Embed `text` into a single L2-normalized vector via last-token pooling.
 
     Returns (vector, n_tokens, truncated).
     """
@@ -39,11 +41,11 @@ def embed_text(
     hidden = out.last_hidden_state.squeeze(0).to(torch.float32).cpu()  # [seq, dim]
 
     if attention_mask is not None:
-        mask = attention_mask.squeeze(0).to(torch.float32).cpu()  # [seq]
-        denom = float(mask.sum().item()) or 1.0
-        pooled = (hidden * mask.unsqueeze(-1)).sum(dim=0) / denom
+        mask = attention_mask.squeeze(0).cpu()
+        last_idx = int(mask.sum().item()) - 1
     else:
-        pooled = hidden.mean(dim=0)
+        last_idx = hidden.shape[0] - 1
+    pooled = hidden[last_idx]
 
     vec = pooled.tolist()
     norm = math.sqrt(sum(v * v for v in vec)) or 1.0
