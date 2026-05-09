@@ -49,6 +49,8 @@ def log_chunking_finished(
     n_chunks: Optional[int] = None,
     char_count: Optional[int] = None,
     error_message: Optional[str] = None,
+    total_tokens: Optional[int] = None,
+    truncated: bool = False,
 ) -> None:
     """Records the outcome of a chunking job."""
     with conn.cursor() as cur:
@@ -60,10 +62,12 @@ def log_chunking_finished(
                 status        = %s,
                 n_chunks      = %s,
                 char_count    = %s,
-                error_message = %s
+                error_message = %s,
+                total_tokens  = %s,
+                truncated     = %s
             WHERE source_type = %s AND source_id = %s
             """,
             (finished_at, duration_ms, status, n_chunks, char_count,
-             error_message, source_type, source_id),
+             error_message, total_tokens, truncated, source_type, source_id),
         )
     conn.commit()
