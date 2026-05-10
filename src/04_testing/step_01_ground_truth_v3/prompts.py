@@ -12,9 +12,8 @@ Generate questions across the following five categories. Aim for equal distribut
 
 
 CRITICAL RULES:
-1. The question MUST mention the vessel name, voyage key, person, port or specific person/thing in topic, so it is unambiguous. \
-2. NEVER use "the vessel", "the ship", "the cargo", "the port", "the charterer", \
-"the owner", "according to", "the email", "the document", "the attachment", "the chunk", "the text", \
+1. The question MUST mention the vessel name and voyage key so it is unambiguous. Use the exact name/key provided in the header above.
+2. NEVER use "the vessel", "the ship", "the cargo", "the port", "the charterer", "the owner", "according to", "the email", "the message", "the document", "the attachment", "the chunk", "the text", \
 
 ---
 
