@@ -54,6 +54,9 @@ def _validate(items: list[dict]) -> list[dict]:
     return valid
 
 
+_JSON_MODE = {"type": "json_object"}
+
+
 def generate_qa_batch(
     llm,
     source_type: str,
@@ -64,7 +67,11 @@ def generate_qa_batch(
 ) -> list[dict]:
     user_msg = build_user_message(source_type, voyage_key, vessel_name, chunk_text, n)
     try:
-        raw = llm.chat(SYSTEM_PROMPT, user_msg, temperature=0.3, max_tokens=4096)
+        raw = llm.chat(
+            SYSTEM_PROMPT, user_msg,
+            temperature=0.3, max_tokens=4096,
+            response_format=_JSON_MODE,
+        )
     except Exception as exc:
         print(f"  [warn] LLM call failed: {exc}", file=sys.stderr)
         return []
@@ -79,6 +86,9 @@ def generate_qa_batch(
     # Try full parse first
     try:
         data = json.loads(text)
+        # Unwrap {"questions": [...]} envelope from json_object mode
+        if isinstance(data, dict):
+            data = data.get("questions") or data.get("items") or list(data.values())[0] if data else []
         if isinstance(data, list):
             return _validate(data)
     except json.JSONDecodeError:

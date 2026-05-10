@@ -103,8 +103,8 @@ CRITICAL RULES:
 
 OUTPUT FORMAT
 
-Respond with a JSON array only — no markdown fences, no explanation:
-[
+Respond with a JSON object containing a "questions" key — no markdown fences, no explanation:
+{"questions": [
   {
     "question": "...",
     "category": "fact_single|summary|multi_context|reasoning|generic",
@@ -112,7 +112,7 @@ Respond with a JSON array only — no markdown fences, no explanation:
     "source_hint": "..."
   },
   ...
-]\
+]}\
 """
 
 

@@ -75,11 +75,12 @@ class LLMClient:
         temperature: float = 0.3,
         max_tokens: int = 2500,
         retries: int = 3,
+        response_format: dict | None = None,
     ) -> str:
         last_exc = None
         for attempt in range(retries):
             try:
-                response = self.client.chat.completions.create(
+                kwargs: dict = dict(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": system_prompt},
@@ -90,6 +91,9 @@ class LLMClient:
                     extra_body={"chat_template_kwargs": {"enable_thinking": False}, "repetition_penalty": 1.15},
                     timeout=60,
                 )
+                if response_format is not None:
+                    kwargs["response_format"] = response_format
+                response = self.client.chat.completions.create(**kwargs)
                 if not response.choices:
                     raise RuntimeError("LLM response has no choices")
                 return (response.choices[0].message.content or "").strip()
