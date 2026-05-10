@@ -5,15 +5,12 @@ import os
 CATEGORIES = [
     "fact_single",
     "summary",
-    "multi_context",
     "reasoning",
-    "generic",
+    "unanswerable",
 ]
 
-DEFAULT_QA_PER_CHUNK = 3
 DEFAULT_TARGET_PER_VOYAGE = 50
 DEFAULT_WORKERS = 4
-CHUNK_BUFFER_MULTIPLIER = 3
 MAX_CHARS = 3000
 
 DATABASE_URL = os.environ.get(

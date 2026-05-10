@@ -1,8 +1,14 @@
 """
 Ground truth v3 — strategy-agnostic QA generation for emails and attachments.
 
-Samples emails (body_cleaned) and attachment chunks (strategy='plain') per voyage,
-generates batched QA pairs via the local vLLM server, and inserts into ground_truth_v3.
+For each voyage, sample N chunks (stratified by source_type). For each chunk
+pick a random category from the four Know Your RAG classes (fact_single,
+summary, reasoning, unanswerable) and generate exactly ONE QA pair using
+the category-specific system prompt in system_prompts/ground_truth/.
+
+The generated question must be source-agnostic (no mention of email, pdf,
+attachment, etc.). The chunk's source metadata is recorded in the row so
+we know where each question originated.
 
 Run from this directory on SPARK:
     python run_build.py
@@ -18,6 +24,7 @@ Override env vars:
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -29,16 +36,15 @@ import psycopg
 
 from clients.llm_client import LLMClient
 from config import (
-    CHUNK_BUFFER_MULTIPLIER,
+    CATEGORIES,
     DATABASE_URL,
-    DEFAULT_QA_PER_CHUNK,
     DEFAULT_TARGET_PER_VOYAGE,
     DEFAULT_WORKERS,
     LLM_BASE_URL,
     LLM_MODEL,
 )
 from db_writer import insert_qa, next_question_id
-from generator import generate_qa_batch
+from generator import generate_qa
 from sampler import (
     ChunkRow,
     list_voyage_keys,
@@ -48,23 +54,25 @@ from sampler import (
 
 def _process_chunk(
     llm: LLMClient,
-    source_type: str,
-    source_id: str,
-    chunk_index: int | None,
-    voyage_key: str,
-    vessel_name: str,
-    text: str,
-    qa_per_chunk: int,
-) -> list[dict]:
-    results = generate_qa_batch(llm, source_type, voyage_key, vessel_name, text, qa_per_chunk)
-    for r in results:
-        r["source_type"] = source_type
-        r["source_id"] = source_id
-        r["chunk_index"] = chunk_index
-        r["voyage_key"] = voyage_key
-        r["vessel_name"] = vessel_name
-        r["text"] = text
-    return results
+    chunk: ChunkRow,
+    category: str,
+) -> dict | None:
+    qa = generate_qa(
+        llm,
+        category=category,
+        voyage_key=chunk.voyage_key,
+        vessel_name=chunk.vessel_name,
+        chunk_text=chunk.text,
+    )
+    if qa is None:
+        return None
+    qa["source_type"] = chunk.source_type
+    qa["source_id"] = chunk.source_id
+    qa["chunk_index"] = chunk.chunk_index
+    qa["voyage_key"] = chunk.voyage_key
+    qa["vessel_name"] = chunk.vessel_name
+    qa["text"] = chunk.text
+    return qa
 
 
 def process_voyage(
@@ -74,61 +82,46 @@ def process_voyage(
     write_conn: psycopg.Connection,
     q_counter: int,
     workers: int,
-    qa_per_chunk: int,
 ) -> int:
-    buffer = target * CHUNK_BUFFER_MULTIPLIER
-
     read_conn = psycopg.connect(DATABASE_URL)
-    chunks = sample_chunks(read_conn, voyage_key, buffer)
+    chunks = sample_chunks(read_conn, voyage_key, target)
     read_conn.close()
 
     if not chunks:
         print(f"  [warn] No chunks found for {voyage_key}")
         return 0
 
-    tasks: list[tuple] = [
-        (c.source_type, c.source_id, c.chunk_index, c.voyage_key, c.vessel_name, c.text)
-        for c in chunks
-    ]
+    rng = random.Random(hash(voyage_key) & 0xFFFFFFFF)
+    pairs = [(c, rng.choice(CATEGORIES)) for c in chunks]
 
     inserted = 0
-
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {
-            pool.submit(
-                _process_chunk, llm, src_type, src_id, chunk_idx, vk, vn, text, qa_per_chunk
-            ): None
-            for src_type, src_id, chunk_idx, vk, vn, text in tasks
-        }
+        futures = {pool.submit(_process_chunk, llm, c, cat): (c, cat) for c, cat in pairs}
         for future in as_completed(futures):
-            if inserted >= target:
-                break
             try:
-                results = future.result()
+                qa = future.result()
             except Exception as exc:
                 print(f"  [warn] chunk failed: {exc}", file=sys.stderr)
                 continue
-
-            for r in results:
-                if inserted >= target:
-                    break
-                question_id = f"gt3_{q_counter:04d}"
-                insert_qa(
-                    write_conn,
-                    question_id,
-                    question=r["question"],
-                    answer=r["answer"],
-                    category=r["category"],
-                    text=r.get("text"),
-                    source_hint=r.get("source_hint"),
-                    source_type=r["source_type"],
-                    source_id=r["source_id"],
-                    chunk_index=r["chunk_index"],
-                    voyage_key=r["voyage_key"],
-                    vessel_name=r["vessel_name"],
-                )
-                q_counter += 1
-                inserted += 1
+            if qa is None:
+                continue
+            question_id = f"gt3_{q_counter:04d}"
+            insert_qa(
+                write_conn,
+                question_id,
+                question=qa["question"],
+                answer=qa["answer"],
+                category=qa["category"],
+                text=qa.get("text"),
+                source_hint=qa.get("source_hint"),
+                source_type=qa["source_type"],
+                source_id=qa["source_id"],
+                chunk_index=qa["chunk_index"],
+                voyage_key=qa["voyage_key"],
+                vessel_name=qa["vessel_name"],
+            )
+            q_counter += 1
+            inserted += 1
 
     return inserted
 
@@ -136,7 +129,6 @@ def process_voyage(
 def main(
     target_per_voyage: int = DEFAULT_TARGET_PER_VOYAGE,
     workers: int = DEFAULT_WORKERS,
-    qa_per_chunk: int = DEFAULT_QA_PER_CHUNK,
     voyage_key_filter: str | None = None,
 ) -> None:
     llm = LLMClient(base_url=LLM_BASE_URL, model=LLM_MODEL or None)
@@ -157,7 +149,7 @@ def main(
 
     print(
         f"Voyages: {len(all_keys)} | target/voyage: {target_per_voyage} | "
-        f"qa/chunk: {qa_per_chunk} | workers: {workers} | starting at gt3_{q_counter:04d}"
+        f"workers: {workers} | starting at gt3_{q_counter:04d}"
     )
 
     total = 0
@@ -170,7 +162,6 @@ def main(
             write_conn=write_conn,
             q_counter=q_counter,
             workers=workers,
-            qa_per_chunk=qa_per_chunk,
         )
         print(f"  inserted: {n}/{target_per_voyage}")
         q_counter += n
@@ -184,13 +175,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ground Truth v3 Builder")
     parser.add_argument("--target-per-voyage", type=int, default=DEFAULT_TARGET_PER_VOYAGE)
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
-    parser.add_argument("--qa-per-chunk", type=int, default=DEFAULT_QA_PER_CHUNK)
     parser.add_argument("--voyage-key", type=str, default=None)
     args = parser.parse_args()
 
     main(
         target_per_voyage=args.target_per_voyage,
         workers=args.workers,
-        qa_per_chunk=args.qa_per_chunk,
         voyage_key_filter=args.voyage_key,
     )
