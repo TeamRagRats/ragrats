@@ -7,6 +7,53 @@ from config import CATEGORIES
 from prompts import SYSTEM_PROMPT, build_user_message
 
 
+def _extract_objects(text: str) -> list[dict]:
+    """Extract complete JSON objects from a potentially truncated array."""
+    objects = []
+    depth = 0
+    start = None
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                try:
+                    obj = json.loads(text[start : i + 1])
+                    if isinstance(obj, dict):
+                        objects.append(obj)
+                except json.JSONDecodeError:
+                    pass
+                start = None
+    return objects
+
+
+def _as_str(val) -> str:
+    return val.strip() if isinstance(val, str) else ""
+
+
+def _validate(items: list[dict]) -> list[dict]:
+    valid = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        question = _as_str(item.get("question"))
+        answer = _as_str(item.get("answer"))
+        category = _as_str(item.get("category"))
+        source_hint = _as_str(item.get("source_hint")) or None
+        if not question or not answer or category not in CATEGORIES:
+            continue
+        valid.append({
+            "question": question,
+            "answer": answer,
+            "category": category,
+            "source_hint": source_hint,
+        })
+    return valid
+
+
 def generate_qa_batch(
     llm,
     source_type: str,
@@ -22,7 +69,6 @@ def generate_qa_batch(
         print(f"  [warn] LLM call failed: {exc}", file=sys.stderr)
         return []
 
-    # Strip markdown fences if present
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("```", 1)[1]
@@ -30,32 +76,18 @@ def generate_qa_batch(
             text = text[4:]
         text = text.rsplit("```", 1)[0].strip()
 
+    # Try full parse first
     try:
         data = json.loads(text)
+        if isinstance(data, list):
+            return _validate(data)
     except json.JSONDecodeError:
-        print(f"  [warn] JSON parse failed: {text[:200]}", file=sys.stderr)
-        return []
+        pass
 
-    if not isinstance(data, list):
-        return []
+    # Fall back to extracting whatever complete objects exist
+    objects = _extract_objects(text)
+    if objects:
+        return _validate(objects)
 
-    valid = []
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        question = (item.get("question") or "").strip()
-        answer = (item.get("answer") or "").strip()
-        category = (item.get("category") or "").strip()
-        source_hint = (item.get("source_hint") or "").strip() or None
-
-        if not question or not answer or category not in CATEGORIES:
-            continue
-
-        valid.append({
-            "question": question,
-            "answer": answer,
-            "category": category,
-            "source_hint": source_hint,
-        })
-
-    return valid
+    print(f"  [warn] no valid objects in response: {text[:200]}", file=sys.stderr)
+    return []
