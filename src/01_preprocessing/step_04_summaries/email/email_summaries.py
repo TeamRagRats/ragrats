@@ -37,7 +37,7 @@ def get_pending_emails(
 
     sql = f"""
         SELECT e.email_id, e.thread_id, e.voyage_key, e.subject, e.body_cleaned,
-               ets.summary AS thread_summary
+               e.from_addr, e.to_addr, ets.summary AS thread_summary
         FROM emails e
         LEFT JOIN email_thread_summaries ets
                ON ets.email_id = e.email_id AND ets.status = 'ok'
@@ -57,7 +57,9 @@ def get_pending_emails(
                 "voyage_key": r[2],
                 "subject": r[3],
                 "body_cleaned": r[4],
-                "thread_summary": r[5],
+                "from_addr": r[5],
+                "to_addr": r[6] or [],
+                "thread_summary": r[7],
             }
             for r in cur.fetchall()
         ]
@@ -70,6 +72,8 @@ def _run_email(
     subject: str | None,
     body_cleaned: str | None,
     thread_summary: str | None,
+    from_addr: str | None,
+    to_addr: list[str] | None,
     llm: LLMClient,
 ) -> dict:
     base = {
@@ -78,7 +82,7 @@ def _run_email(
         "voyage_key": voyage_key,
     }
     user_prompt = build_email_summary_prompt(
-        str(email_id), str(thread_id), voyage_key, subject, body_cleaned, thread_summary
+        subject, body_cleaned, thread_summary, from_addr, to_addr
     )
     t0 = time.monotonic()
     try:
@@ -176,7 +180,9 @@ def run(
             return _run_email(
                 item["email_id"], item["thread_id"], item["voyage_key"],
                 item.get("subject"), item.get("body_cleaned"),
-                item.get("thread_summary"), llm,
+                item.get("thread_summary"),
+                item.get("from_addr"), item.get("to_addr"),
+                llm,
             )
 
         with ThreadPoolExecutor(max_workers=workers) as ex:
