@@ -97,8 +97,6 @@ section") without quoting the answer directly.
 CRITICAL RULES:
 1. The question MUST mention the vessel name and voyage key so it is unambiguous. Use the exact name/key provided in the header above.
 2. NEVER use demonstrative or vague document references: "the vessel", "this vessel", "the ship", "this ship", "the cargo", "the port", "the charterer", "the owner", "according to", "the email", "this email", "the message", "this message", "the document", "this document", "the attachment", "this attachment", "the chunk", "the text", "the notice", "this notice", "the exchange", "this exchange", "the certificate", "this certificate" (when used without a specific named subject). NEVER USE THEM. Always name the vessel, document, or context explicitly.
-3. The answer must be directly extractable from the CHUNK — not from the voyage context.
-4. The voyage context is provided only so you can write an unambiguous question.
 
 
 OUTPUT FORMAT
@@ -128,6 +126,6 @@ def build_user_message(
         f"Voyage: {voyage_key}\n"
         f"Vessel: {vessel_name}\n"
         f"Source type: {source_type}\n"
-        f"\nCHUNK:\n{snippet}\n"
+        f"\nCHUNK (the answer must come from THIS):\n{snippet}\n"
         f"\nGenerate {n_questions} questions across the five categories with equal distribution."
     )
