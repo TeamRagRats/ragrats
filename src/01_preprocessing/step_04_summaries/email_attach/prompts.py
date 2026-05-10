@@ -16,7 +16,7 @@ EMAIL_SUMMARY_SYSTEM = _load("email_attach_summary.md")
 def build_email_summary_prompt(
     direction: str,
     date: str,
-    body: str,
+    email_summary: str,
     attachments: list[dict],
 ) -> str:
     attach_block = ""
@@ -30,7 +30,7 @@ def build_email_summary_prompt(
     return (
         f"Direction: {direction}\n"
         f"Date: {date}\n\n"
-        f"Email body:\n{body.strip()}"
+        f"Email summary:\n{email_summary.strip()}"
         f"{attach_block}\n\n"
-        "Summarize this email. Use as many sentences as needed to capture every relevant fact, capped at 10."
+        "Summarize this email and its attachments. Use as many sentences as needed to capture every relevant fact, capped at 10."
     )

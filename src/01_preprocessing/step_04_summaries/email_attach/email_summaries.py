@@ -46,9 +46,17 @@ def _format_ts(ts) -> str:
 
 def get_pending_emails(conn: psycopg.Connection, limit: int | None = None) -> list[dict]:
     sql = """
-        SELECT e.email_id, e.voyage_key, e.sent_at, e.direction, e.body_cleaned
+        SELECT e.email_id, e.voyage_key, e.sent_at, e.direction, es.summary
         FROM emails e
-        WHERE e.email_id NOT IN (
+        JOIN email_summaries es ON es.email_id = e.email_id AND es.status = 'ok'
+        WHERE EXISTS (
+            SELECT 1 FROM attachments a
+            JOIN llm_structured ls ON ls.sha256 = a.sha256
+            WHERE a.email_id = e.email_id
+              AND ls.structured_md IS NOT NULL
+              AND TRIM(ls.structured_md) <> ''
+        )
+        AND e.email_id NOT IN (
             SELECT email_id FROM email_attach_summaries WHERE status = 'ok'
         )
         ORDER BY e.sent_at ASC NULLS LAST
@@ -63,7 +71,7 @@ def get_pending_emails(conn: psycopg.Connection, limit: int | None = None) -> li
                 "voyage_key": r[1],
                 "sent_at": r[2],
                 "direction": (r[3] or "UNKNOWN").upper(),
-                "body": r[4] or "",
+                "email_summary": r[4] or "",
             }
             for r in cur.fetchall()
         ]
@@ -86,7 +94,7 @@ def _process_email(email: dict, llm: LLMClient) -> dict:
     user_prompt = build_email_summary_prompt(
         direction=email["direction"],
         date=_format_ts(email["sent_at"]),
-        body=email["body"],
+        email_summary=email["email_summary"],
         attachments=email.get("attachments", []),
     )
     t0 = time.monotonic()
@@ -229,7 +237,7 @@ def run(
 
             for email in batch:
                 email["attachments"] = []
-                email["body"] = ""
+                email["email_summary"] = ""
             for r in batch_results:
                 r["summary"] = ""
             batch_results.clear()
