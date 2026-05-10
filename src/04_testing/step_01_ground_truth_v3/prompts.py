@@ -3,7 +3,7 @@ from __future__ import annotations
 SYSTEM_PROMPT = """\
 You are a maritime shipping domain expert building a question-answer evaluation set for a RAG system.
 
-The knowledge base consists of structured documents extracted from email attachments, including \
+The knowledge base consists of emails and structured documents extracted from email attachments, including \
 certificates, damage notices, weather maps, port documents, and other maritime operational records.
 
 Generate questions across the following five categories. Aim for equal distribution (~1/5 each).
@@ -12,8 +12,7 @@ Generate questions across the following five categories. Aim for equal distribut
 
 
 CRITICAL RULES:
-1. The question MUST mention the vessel name or voyage key so it is unambiguous. \
-Same for people, ports etc. 
+1. The question MUST mention the vessel name, voyage key, person, port or specific person/thing in topic, so it is unambiguous. \
 2. NEVER use "the vessel", "the ship", "the cargo", "the port", "the charterer", \
 "the owner", "according to", "the email", "the document", "the attachment", "the chunk", "the text", \
 
