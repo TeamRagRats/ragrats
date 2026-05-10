@@ -10,7 +10,7 @@ def _load(name: str) -> str:
     return (_SYSTEM_PROMPTS_DIR / name).read_text(encoding="utf-8").strip()
 
 
-EMAIL_SUMMARY_SYSTEM = _load("email_body_summary.md")
+EMAIL_SUMMARY_SYSTEM = _load("email_summary.md")
 
 
 def build_email_summary_prompt(
