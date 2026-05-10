@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 # Entry point for summary embedding of attachment summaries
-# (step_06_embedding/attach_summary).
+# (step_06_embedding/attachment_summary).
 # Embeds the attachment summary from email_attach_summaries into one vector
 # per email and writes it to chunks as source_type='attachment',
 # source_id=email_id, strategy='summary'.
 #
-# Run: python run_embedding_attach_summary.py [--limit N] [--voyage KEY] [--verbose]
+# Run: python run_embedding_attachment_summary.py [--limit N] [--voyage KEY] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -29,7 +29,7 @@ from core.db import connect
 from log.log_run import finish_run, start_run
 
 from step_06_embedding.email_late import model as M
-from step_06_embedding.attach_summary import pipeline
+from step_06_embedding.attachment_summary import pipeline
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
