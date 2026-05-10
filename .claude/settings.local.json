@@ -10,7 +10,12 @@
       "PowerShell(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\\\\sql_migrations\" | Where-Object { $_.PSIsContainer -eq $false } | Sort-Object Name)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(python -m py_compile src/01_preprocessing/step_06_embedding/email_late/chunker.py src/01_preprocessing/step_06_embedding/email_late/db.py src/01_preprocessing/step_06_embedding/email_late/pipeline.py src/01_preprocessing/run_email_chunking.py clients/embed_client.py log/log_chunking.py log/log_embedding.py)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\" -Recurse -Directory -Filter \"step_*\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(xargs grep -l \"step_05\\\\|step_06_embedding\")"
     ]
   }
 }

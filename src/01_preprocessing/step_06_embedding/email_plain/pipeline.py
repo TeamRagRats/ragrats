@@ -12,7 +12,7 @@ import psycopg
 
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 
-from step_05_chunking.email_context import embedder
+from step_06_embedding.email_context import embedder
 
 from . import db
 

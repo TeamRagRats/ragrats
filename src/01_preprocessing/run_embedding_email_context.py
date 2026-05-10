@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-# Entry point for plain chunking of emails (step_05_chunking/email_plain).
-# Embeds body_cleaned alone into one vector per email and writes it to the
-# chunks table as strategy='plain'. Baseline control for comparing against
-# 'late' and 'context' strategies.
+# Entry point for context embedding of emails (step_06_embedding/email_context).
+# Embeds (prior-thread summary + email body) into one vector per email and
+# writes it to the chunks table as strategy='context'. The stored chunk text
+# is just body_cleaned; the summary contributes only to the embedding.
 #
-# Run: python -m src.01_preprocessing.run_chunking_email_plain [--limit N] [--verbose]
+# Run: python -m src.01_preprocessing.run_embedding_email_context [--limit N] [--verbose]
 
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
@@ -27,8 +27,8 @@ from transformers import AutoTokenizer
 from core.db import connect
 from log.log_run import finish_run, start_run
 
-from step_05_chunking.email_late import model as M
-from step_05_chunking.email_plain import pipeline
+from step_06_embedding.email_late import model as M
+from step_06_embedding.email_context import pipeline
 
 MAX_RETRIES = 10
 RETRY_DELAY = 30
@@ -36,7 +36,7 @@ MODEL_NAME = "Qwen/Qwen3-Embedding-4B"
 
 
 def _setup_logging(verbose: bool = False) -> logging.Logger:
-    logger = logging.getLogger("email_plain_chunking")
+    logger = logging.getLogger("email_context_chunking")
     logger.setLevel(logging.DEBUG)
     fmt = logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s",
                             datefmt="%Y-%m-%d %H:%M:%S")
@@ -53,10 +53,10 @@ def _run_pipeline(args, embed_model, tokenizer, device, logger) -> None:
         status = "ok"
         try:
             logger.info("=" * 60)
-            logger.info("Email Plain Chunking Pipeline")
+            logger.info("Email Context Chunking Pipeline")
             logger.info("=" * 60)
             total = pipeline.run(conn, embed_model, tokenizer, device, run_id, logger, args.limit)
-            logger.info("[email_plain] %d chunks indsat", total)
+            logger.info("[email_context] %d chunks indsat", total)
         except Exception:
             status = "failed"
             raise
@@ -65,7 +65,7 @@ def _run_pipeline(args, embed_model, tokenizer, device, logger) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Email Plain Chunking Pipeline")
+    parser = argparse.ArgumentParser(description="Email Context Chunking Pipeline")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
                         help="Behandl kun de første N emails (til test)")
     parser.add_argument("--verbose", action="store_true")
