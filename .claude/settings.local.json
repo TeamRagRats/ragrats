@@ -15,7 +15,10 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\" -Recurse -Directory -Filter \"step_*\")",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Sort-Object)",
-      "Bash(xargs grep -l \"step_05\\\\|step_06_embedding\")"
+      "Bash(xargs grep -l \"step_05\\\\|step_06_embedding\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\\\\src\\\\01_preprocessing\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Sort-Object Name)"
     ]
   }
 }
