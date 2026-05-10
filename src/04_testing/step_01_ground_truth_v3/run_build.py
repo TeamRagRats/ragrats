@@ -40,11 +40,9 @@ from config import (
 from db_writer import insert_qa, next_question_id
 from generator import generate_qa_batch
 from sampler import (
-    AttachmentChunkRow,
-    EmailRow,
+    ChunkRow,
     list_voyage_keys,
-    sample_attachment_chunks,
-    sample_emails,
+    sample_chunks,
 )
 
 
@@ -78,22 +76,19 @@ def process_voyage(
     qa_per_chunk: int,
 ) -> int:
     buffer = target * CHUNK_BUFFER_MULTIPLIER
-    half = buffer // 2
 
     read_conn = psycopg.connect(DATABASE_URL)
-    emails = sample_emails(read_conn, voyage_key, half)
-    att_chunks = sample_attachment_chunks(read_conn, voyage_key, half)
+    chunks = sample_chunks(read_conn, voyage_key, buffer)
     read_conn.close()
 
-    if not emails and not att_chunks:
-        print(f"  [warn] No sources found for {voyage_key}")
+    if not chunks:
+        print(f"  [warn] No chunks found for {voyage_key}")
         return 0
 
-    tasks: list[tuple] = []
-    for e in emails:
-        tasks.append(("email", e.email_id, None, e.voyage_key, e.vessel_name, e.body_cleaned))
-    for c in att_chunks:
-        tasks.append(("attachment", c.source_id, c.chunk_index, c.voyage_key, c.vessel_name, c.text))
+    tasks: list[tuple] = [
+        (c.source_type, c.source_id, c.chunk_index, c.voyage_key, c.vessel_name, c.text)
+        for c in chunks
+    ]
 
     inserted = 0
 

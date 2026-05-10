@@ -10,6 +10,15 @@ Generate questions across the following six categories. Aim for equal distributi
 
 ---
 
+
+CRITICAL RULES:
+1. The question MUST mention the vessel name or voyage key so it is unambiguous. \
+Same for people, ports etc. 
+2. NEVER use "the vessel", "the ship", "the cargo", "the port", "the charterer", \
+"the owner", "according to", "the email", "the document", "the attachment", "the chunk", "the text", \
+
+---
+
 CATEGORY DEFINITIONS
 
 fact_single
