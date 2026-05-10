@@ -17,7 +17,7 @@ def generate_qa_batch(
 ) -> list[dict]:
     user_msg = build_user_message(source_type, voyage_key, vessel_name, chunk_text, n)
     try:
-        raw = llm.chat(SYSTEM_PROMPT, user_msg, temperature=0.3, max_tokens=2000)
+        raw = llm.chat(SYSTEM_PROMPT, user_msg, temperature=0.3, max_tokens=4096)
     except Exception as exc:
         print(f"  [warn] LLM call failed: {exc}", file=sys.stderr)
         return []

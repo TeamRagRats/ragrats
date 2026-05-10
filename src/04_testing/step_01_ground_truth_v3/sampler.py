@@ -75,7 +75,7 @@ def sample_chunks(
             chunk_index=r[3],
             voyage_key=r[4],
             vessel_name=vessel_name,
-            text=r[5] or "",
+            text=str(r[5]) if r[5] is not None else "",
         )
         for r in rows
     ]
