@@ -24,55 +24,72 @@ CATEGORY DEFINITIONS
 fact_single
 A specific, verifiable fact answerable from a single chunk. Focus on named entities, identifiers, \
 dates, locations, statuses, and numeric values found in maritime documents.
-Examples:
-- "What is the IMO number of the vessel mentioned in this damage notice?"
-- "When does the MLC certificate for this vessel expire?"
-- "Which port and berth was the vessel at when the damage occurred?"
-- "Who was the issuing authority for this certificate?"
-- "What flag state is the vessel registered under?"
+GOOD:
+- "What is the IMO number of African Juniper as stated in this damage notice?"
+- "When does Emil Selmer's MLC certificate expire?"
+- "At which berth in Santos was Corio Bay positioned when the damage occurred?"
+- "Who issued the interim flag state certificate for Aphrodite M?"
+- "Under which flag state is Berge Yotei registered?"
+BAD:
+- "What is the IMO number of the vessel?" — no vessel name
+- "When does the certificate expire?" — which certificate, which vessel?
+- "Which port was the vessel at?" — "the vessel" is forbidden
 
 summary
 Requires synthesising information across multiple parts of a single document. The answer cannot \
 be found in one sentence — it demands understanding the document as a whole.
-Examples:
-- "What damage was reported in this stevedore notice, and what was the outcome of the survey?"
-- "What does this interim certificate certify, and under what conditions is it valid?"
-- "What weather conditions are depicted across all maps in this attachment?"
+GOOD:
+- "What damage was reported to African Juniper in this stevedore notice, and what was the survey outcome?"
+- "What does Emil Selmer's interim MLC certificate certify, and under what conditions is it valid?"
+- "What weather conditions are depicted across all maps attached to the Corio Bay voyage correspondence?"
+BAD:
+- "What damage was reported in this stevedore notice?" — which vessel?
+- "What does the certificate certify?" — "the certificate" is forbidden
+- "What weather conditions are in the attachment?" — "the attachment" is forbidden
 
 multi_context
 Requires retrieving and combining information from two or more separate document chunks or \
-documents. These questions test cross-document anchoring by vessel IMO number, voyage reference, \
-or port.
-Examples:
-- "Are there multiple certificates on file for this vessel, and do their validity periods overlap?"
-- "Have any damage notices been filed for vessels managed by this shipowner?"
-- "What operational documents are available for this voyage reference?"
+documents. Specify the cross-document link (same IMO number, voyage reference, or port).
+GOOD:
+- "Are there multiple certificates on file for African Juniper with overlapping validity periods?"
+- "Have any damage notices been filed for other vessels operating under the same manager as Emil Selmer?"
+- "What operational documents are on file for the Berge Yotei v2 voyage?"
+BAD:
+- "Are there multiple certificates on file for this vessel?" — "this vessel" is forbidden
+- "What documents are available for this voyage?" — no voyage key specified
 
 reasoning
 Requires inference beyond what is literally stated. The answer is not directly in the text but \
-can be derived from it.
-Examples:
-- "Based on the survey outcome described in this notice, did the stevedores accept liability?"
-- "Is this vessel's certificate currently valid at the time of this email?"
-- "Given the wind conditions shown, would this voyage date fall within safe operating limits?"
+can be derived from it with one logical step.
+GOOD:
+- "Based on the survey findings in this African Juniper damage notice, did the stevedores accept liability?"
+- "Was Emil Selmer's MLC certificate still valid on the date this email was sent?"
+- "Given the wind speeds recorded for the Corio Bay departure, were conditions within safe operating limits?"
+BAD:
+- "Based on the survey outcome, did the stevedores accept liability?" — which vessel?
+- "Is the vessel's certificate currently valid?" — "the vessel" is forbidden
 
 unanswerable
 The question cannot be answered from the available documents. These test whether the system \
-correctly declines to answer rather than hallucinating.
-Examples:
-- "What was the repair cost claimed in this damage notice?" (if no cost is stated)
-- "What cargo was being loaded when the incident occurred?" (if not mentioned)
-Always include a note in the answer field explaining which specific piece of information is absent.
+correctly declines rather than hallucinating. Always note in the answer which information is absent.
+GOOD:
+- "What repair cost did the stevedores claim for damage sustained by African Juniper at Itaqui?" (if no cost stated)
+- "What cargo grade was Emil Selmer carrying when the hold inspection was conducted?" (if not mentioned)
+BAD:
+- "What was the repair cost claimed?" — no vessel name
+- "What cargo was being loaded when the incident occurred?" — no vessel name
 
 generic
-A domain-appropriate question that does not reference any specific vessel, voyage, port, document \
-reference, date, or named party. These test whether the system can answer general maritime \
-knowledge questions.
-Examples:
+A domain-appropriate question with no reference to any specific vessel, voyage, port, date, \
+certificate number, or named individual. Tests general maritime knowledge answerable from the corpus.
+GOOD:
 - "What is an interim MLC certificate and how long is it typically valid?"
-- "What information is typically included in a notice of damage by stevedore?"
-- "What do wind direction indicators on a maritime weather map represent?"
-- "What is the significance of a vessel's IMO number?"
+- "What information is typically included in a stevedore damage notice?"
+- "What do wind barbs on a maritime weather map indicate?"
+- "Why is a vessel's IMO number considered a permanent identifier?"
+BAD:
+- "What is the MLC certificate for African Juniper and how long is it valid?" — names specific vessel; use fact_single instead
+- "What information is in the damage notice from Santos?" — names specific port
 
 ---
 
