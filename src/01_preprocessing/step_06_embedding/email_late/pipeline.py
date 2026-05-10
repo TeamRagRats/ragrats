@@ -12,7 +12,8 @@ import psycopg
 
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 
-from . import chunker, db, model as M
+from step_05_chunking.email_late import chunker
+from . import db, model as M
 
 MAX_LENGTH = 32768
 
