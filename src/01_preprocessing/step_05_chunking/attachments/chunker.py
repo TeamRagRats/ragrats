@@ -3,19 +3,17 @@ from __future__ import annotations
 # Pure chunking logic for llm_structured.structured_md.
 # No DB access — imported by the late and context embedding runners.
 #
-# Strategy:
-#   total_chars ≤ 2048  →  single chunk (whole doc)
-#   total_chars > 2048  →  Chunk A: header block (everything before ## Content)
-#                          Chunk B+: ## Content section, split at ### boundaries
-#                            • merge if < 200 chars into next sibling
-#                            • split at paragraph breaks if > 2048 chars
-#                          If no ### subsections: paragraph-split at 2048-char ceiling
+# Strategy: fixed-window + overlap.
+#   • Target chunk size: TARGET_CHARS
+#   • Overlap between consecutive chunks: OVERLAP_CHARS
+#   • Boundary preference: paragraph break > line break > sentence end > whitespace
+#     within the last LOOKBACK_FRACTION of the window; hard cut if none found.
 
-import re
 from dataclasses import dataclass
 
-MAX_CHARS = 2048   # ≈ 512 tokens at char/4
-MIN_CHARS = 200    # ≈ 50 tokens — merge if below this
+TARGET_CHARS = 1500    # ≈ 375 tokens at char/4
+OVERLAP_CHARS = 200    # ≈ 50 tokens
+LOOKBACK_FRACTION = 0.30  # search backwards over last 30% of the window for a break
 
 
 @dataclass
@@ -25,51 +23,35 @@ class Chunk:
     section_title: str | None
     char_count: int
     token_estimate: int
+    start_offset: int   # inclusive char offset in source text
+    end_offset: int     # exclusive char offset in source text
 
 
 def chunk_structured_md(text: str) -> list[Chunk]:
-    """Split structured_md into chunks using the agreed strategy."""
+    """Split structured_md with fixed-window + overlap."""
     text = text.strip()
     if not text:
         return []
-
-    if len(text) <= MAX_CHARS:
-        return [_make_chunk(text, 0, None)]
-
-    header, content = _split_at_content(text)
-    sections: list[tuple[str | None, str]] = []
-
-    if content is None:
-        # No ## Content found — treat whole doc as content, paragraph-split
-        sections = [(None, header)]
-    else:
-        if header.strip():
-            sections.append((None, header))
-
-        h3_sections = _split_h3_sections(content)
-        if len(h3_sections) > 1:
-            h3_sections = _merge_short(h3_sections, MIN_CHARS)
-            for title, body in h3_sections:
-                if len(body) > MAX_CHARS:
-                    for para in _split_paragraphs(body, MAX_CHARS):
-                        sections.append((title, para))
-                else:
-                    sections.append((title, body))
-        else:
-            # No ### subsections — paragraph-split the content block
-            _, flat_content = h3_sections[0]
-            for para in _split_paragraphs(flat_content, MAX_CHARS):
-                sections.append((None, para))
+    if len(text) <= TARGET_CHARS:
+        return [_make_chunk(text, 0, 0, len(text))]
 
     chunks: list[Chunk] = []
-    for idx, (title, body) in enumerate(sections):
-        body = body.strip()
-        if body:
-            chunks.append(_make_chunk(body, idx, title))
+    pos = 0
+    n = len(text)
 
-    # Re-index in case empty bodies were dropped
-    for i, c in enumerate(chunks):
-        c.chunk_index = i
+    while pos < n:
+        end = pos + TARGET_CHARS
+        if end >= n:
+            chunks.append(_make_chunk(text[pos:].rstrip(), len(chunks), pos, n))
+            break
+
+        cut = _find_break(text, pos, end)
+        chunks.append(_make_chunk(text[pos:cut].rstrip(), len(chunks), pos, cut))
+
+        next_pos = cut - OVERLAP_CHARS
+        if next_pos <= pos:
+            next_pos = cut  # overlap pushed us backwards; advance forcibly
+        pos = next_pos
 
     return chunks
 
@@ -78,137 +60,45 @@ def chunk_structured_md(text: str) -> list[Chunk]:
 # Private helpers
 # ---------------------------------------------------------------------------
 
-def _make_chunk(text: str, index: int, title: str | None) -> Chunk:
+def _make_chunk(text: str, index: int, start: int, end: int) -> Chunk:
     return Chunk(
         text=text,
         chunk_index=index,
-        section_title=title,
+        section_title=None,
         char_count=len(text),
         token_estimate=len(text) // 4,
+        start_offset=start,
+        end_offset=end,
     )
 
 
-def _split_at_content(text: str) -> tuple[str, str | None]:
-    """Split at the first '## Content' heading.
+def _find_break(text: str, start: int, end: int) -> int:
+    """Return a cut position in (lookback_start, end] preferring natural boundaries.
 
-    Returns (header_block, content_block). content_block is None if the
-    heading is absent.
+    Falls back to `end` (hard cut) if no boundary is found in the lookback window.
     """
-    match = re.search(r"(?m)^## Content\b", text)
-    if not match:
-        return text, None
-    return text[: match.start()].rstrip(), text[match.start():]
+    lookback_start = end - int((end - start) * LOOKBACK_FRACTION)
 
+    # Paragraph break: prefer the LAST '\n\n' in the lookback window.
+    para = text.rfind("\n\n", lookback_start, end)
+    if para != -1:
+        return para + 2
 
-def _split_h3_sections(text: str) -> list[tuple[str | None, str]]:
-    """Split text at '### ' headings.
+    # Single newline.
+    nl = text.rfind("\n", lookback_start, end)
+    if nl != -1:
+        return nl + 1
 
-    Returns list of (title_or_None, section_text) pairs. The first entry
-    may have title=None if text before the first ### is non-empty.
-    """
-    parts = re.split(r"(?m)^(### .+)$", text)
-    # parts alternates: [pre_text, heading, body, heading, body, ...]
-    sections: list[tuple[str | None, str]] = []
+    # Sentence end ('. ', '! ', '? ').
+    for marker in (". ", "! ", "? "):
+        m = text.rfind(marker, lookback_start, end)
+        if m != -1:
+            return m + 2
 
-    pre = parts[0].strip()
-    if pre:
-        sections.append((None, pre))
+    # Any whitespace.
+    ws = text.rfind(" ", lookback_start, end)
+    if ws != -1:
+        return ws + 1
 
-    i = 1
-    while i < len(parts) - 1:
-        heading = parts[i].lstrip("#").strip()
-        body = parts[i + 1].strip()
-        sections.append((heading, f"### {parts[i].lstrip('# ').strip()}\n\n{body}" if body else f"### {heading}"))
-        i += 2
-
-    return sections if sections else [(None, text)]
-
-
-def _split_paragraphs(text: str, max_chars: int) -> list[str]:
-    """Split text at blank lines, respecting max_chars ceiling.
-
-    If a single paragraph exceeds max_chars it is hard-split at the nearest
-    whitespace before the limit.
-    """
-    paragraphs = re.split(r"\n{2,}", text)
-    chunks: list[str] = []
-    current_parts: list[str] = []
-    current_len = 0
-
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-        # If para alone exceeds ceiling, hard-split it first
-        for segment in _hard_split(para, max_chars):
-            if current_len + len(segment) + 2 > max_chars and current_parts:
-                chunks.append("\n\n".join(current_parts))
-                current_parts = [segment]
-                current_len = len(segment)
-            else:
-                current_parts.append(segment)
-                current_len += len(segment) + 2
-
-    if current_parts:
-        chunks.append("\n\n".join(current_parts))
-
-    return chunks if chunks else [text]
-
-
-def _hard_split(text: str, max_chars: int) -> list[str]:
-    """Hard-split a string that may exceed max_chars into ≤max_chars segments,
-    breaking at whitespace where possible."""
-    if len(text) <= max_chars:
-        return [text]
-    segments: list[str] = []
-    while len(text) > max_chars:
-        split_at = text.rfind(" ", 0, max_chars)
-        if split_at == -1:
-            split_at = max_chars
-        segments.append(text[:split_at].strip())
-        text = text[split_at:].strip()
-    if text:
-        segments.append(text)
-    return segments
-
-
-def _merge_short(
-    sections: list[tuple[str | None, str]], min_chars: int
-) -> list[tuple[str | None, str]]:
-    """Merge sections shorter than min_chars into an adjacent sibling.
-
-    Forward pass: accumulate short sections until the combined text reaches
-    min_chars, then emit. Any leftover at the end merges into the last emitted
-    section.
-    """
-    if len(sections) <= 1:
-        return sections
-
-    merged: list[tuple[str | None, str]] = []
-    pending_title: str | None = None
-    pending_text: str = ""
-
-    for title, body in sections:
-        if pending_text:
-            combined_title = pending_title
-            combined_text = (pending_text + "\n\n" + body).strip()
-        else:
-            combined_title = title
-            combined_text = body
-
-        if len(combined_text) < min_chars:
-            pending_title = combined_title
-            pending_text = combined_text
-        else:
-            merged.append((combined_title, combined_text))
-            pending_title = None
-            pending_text = ""
-
-    if pending_text:
-        if merged:
-            prev_title, prev_text = merged[-1]
-            merged[-1] = (prev_title, (prev_text + "\n\n" + pending_text).strip())
-        else:
-            merged.append((pending_title, pending_text))
-
-    return merged
+    # Hard cut.
+    return end

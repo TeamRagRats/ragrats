@@ -44,22 +44,12 @@ def _get_chunk_char_spans(
     structured_md: str,
     chunks: list,
 ) -> list[tuple[int, int]]:
-    """Locate each chunk's text within structured_md via sequential search.
+    """Return each chunk's (start, end) char offsets in structured_md.
 
-    Returns (start, end) char offsets relative to structured_md.
-    Falls back to (cursor, cursor) if a chunk text is not found.
+    The chunker emits start_offset / end_offset directly, so this is a thin
+    accessor — kept for symmetry with email_late.
     """
-    spans: list[tuple[int, int]] = []
-    cursor = 0
-    for chunk in chunks:
-        pos = structured_md.find(chunk.text, cursor)
-        if pos == -1:
-            # Stripped text may not match exactly — use cursor as best guess
-            spans.append((cursor, cursor + chunk.char_count))
-        else:
-            spans.append((pos, pos + len(chunk.text)))
-            cursor = pos + len(chunk.text)
-    return spans
+    return [(c.start_offset, c.end_offset) for c in chunks]
 
 
 def _process_attachment(
