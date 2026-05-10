@@ -63,6 +63,7 @@ def _process_chunk(
         r["chunk_index"] = chunk_index
         r["voyage_key"] = voyage_key
         r["vessel_name"] = vessel_name
+        r["text"] = text
     return results
 
 
@@ -118,6 +119,7 @@ def process_voyage(
                     question=r["question"],
                     answer=r["answer"],
                     category=r["category"],
+                    text=r.get("text"),
                     source_hint=r.get("source_hint"),
                     source_type=r["source_type"],
                     source_id=r["source_id"],

@@ -22,6 +22,7 @@ def insert_qa(
     question: str,
     answer: str,
     category: str,
+    text: str | None,
     source_hint: str | None,
     source_type: str,
     source_id: str,
@@ -32,9 +33,9 @@ def insert_qa(
     conn.execute(
         """
         INSERT INTO ground_truth_v3
-            (question_id, question, answer, category, source_hint,
+            (question_id, question, answer, category, text, source_hint,
              source_type, source_id, chunk_index, voyage_key, vessel_name)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (question_id) DO NOTHING
         """,
         (
@@ -42,6 +43,7 @@ def insert_qa(
             question,
             answer,
             category,
+            text,
             source_hint,
             source_type,
             source_id,
