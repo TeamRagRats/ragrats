@@ -7,7 +7,6 @@ CATEGORIES = [
     "summary",
     "multi_context",
     "reasoning",
-    "unanswerable",
     "generic",
 ]
 
