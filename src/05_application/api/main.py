@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auth import router as auth_router
 from chat import router as chat_router
+from voyages import router as voyages_router
 
 app = FastAPI(title="RagRats API", version="0.1.0")
 
@@ -27,6 +28,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(voyages_router)
 
 
 @app.get("/health")

@@ -80,6 +80,13 @@ export default function ChatPage() {
     router.replace("/login");
   }
 
+  function handleNewQuestion() {
+    setMessages([]);
+  }
+
+  const showInput = messages.length === 0;
+  const showNewQuestion = messages.length > 0 && !loading;
+
   if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -90,10 +97,16 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black">
-      <header className="flex items-center justify-end px-6 py-4 flex-shrink-0">
+      <header className="flex items-center justify-end gap-3 px-6 py-4 flex-shrink-0">
+        <button
+          onClick={() => router.push("/voyages")}
+          className="border-2 border-gray-600 bg-black text-white px-5 py-2 text-base hover:border-green-600 hover:text-green-400 transition-colors"
+        >
+          Voyages
+        </button>
         <button
           onClick={handleLogout}
-          className="border border-gray-600 bg-black text-white px-3 py-1 text-sm hover:border-green-600 hover:text-green-400 transition-colors"
+          className="border-2 border-gray-600 bg-black text-white px-5 py-2 text-base hover:border-green-600 hover:text-green-400 transition-colors"
         >
           Logout
         </button>
@@ -103,7 +116,7 @@ export default function ChatPage() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-6 py-4 pb-24 flex flex-col gap-6 items-center"
       >
-        <div className="w-full max-w-2xl flex flex-col gap-6">
+        <div className="w-full max-w-4xl flex flex-col gap-6">
           {messages.length === 0 && !loading && (
             <p className="text-gray-600 text-sm mt-16">_</p>
           )}
@@ -119,8 +132,20 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
-        <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
+      <div className="fixed bottom-0 left-0 right-0 bg-black">
+        {showInput && (
+          <MessageInput onSend={handleSend} disabled={loading || !sessionId} />
+        )}
+        {showNewQuestion && (
+          <div className="w-full max-w-6xl mx-auto flex justify-center px-6 py-4 bg-black">
+            <button
+              onClick={handleNewQuestion}
+              className="border-2 bg-black text-white text-xl px-10 py-5 transition-colors hover:text-green-400 animate-glow-pulse"
+            >
+              New Question
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

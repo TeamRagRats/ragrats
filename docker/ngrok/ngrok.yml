@@ -2,13 +2,12 @@ version: "3"
 tunnels:
     api:
         proto: http
-        addr: 8000
-        request_header:
-            add:
-                - "ngrok-skip-browser-warning: true"
+        addr: 8001
+        domain: weco-proto-api.ngrok.io
     frontend:
         proto: http
         addr: 3000
+        domain: weco-proto-type.ngrok.io
         request_header:
             add:
                 - "ngrok-skip-browser-warning: true"

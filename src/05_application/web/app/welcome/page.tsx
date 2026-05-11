@@ -1,0 +1,56 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function WelcomePage() {
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    async function check() {
+      try {
+        const res = await fetch("/api/health", { credentials: "include" });
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        setAuthChecked(true);
+      } catch {
+        router.replace("/login");
+      }
+    }
+    check();
+  }, [router]);
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <p className="text-white text-base">Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black px-8 py-12">
+      <div className="w-full max-w-3xl flex flex-col items-center gap-6">
+        <h1 className="text-6xl font-bold text-white tracking-tight text-center">Welcome</h1>
+
+        <div className="flex flex-col gap-2 text-2xl text-white leading-snug text-left w-full whitespace-nowrap">
+          <p>1) The system has read Remark and Softmar data from 20 voyages.</p>
+          <p>2) You can ask it questions like: <span className="text-green-400 italic">&ldquo;Have we had any cargo damage in Brazil?&rdquo;</span></p>
+          <p>3) Your task: ask questions and rate the answers.</p>
+        </div>
+
+        <div className="pt-4">
+          <button
+            onClick={() => router.push("/voyages")}
+            className="border-2 border-gray-600 bg-black text-white text-2xl px-12 py-4 transition-colors hover:border-green-600 hover:text-green-400"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

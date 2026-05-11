@@ -17,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      router.push("/chat");
+      router.push("/welcome");
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -33,7 +33,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="w-full max-w-sm">
         <h1 className="text-4xl font-bold text-white text-center mb-8 tracking-tight">
-          RagRats
+          Weco Test
         </h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
