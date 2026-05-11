@@ -12,4 +12,4 @@ tunnels:
             add:
                 - "ngrok-skip-browser-warning: true"
 agent:
-    authtoken: 3DIcgwZIwLqMAcL3ffjUvyscduD_5t1Q85kvpyjeprRKYxBrX
+    authtoken: 3Da4fP6AYT3w0bOYpwxQ04rhLli_HLiw5NDSFebq7ukiQD7B

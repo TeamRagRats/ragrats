@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getVoyages, type Voyage } from "@/lib/api";
 
 function formatVoyageKey(key: string | null): string | null {
@@ -14,6 +14,8 @@ function formatVoyageKey(key: string | null): string | null {
 
 export default function VoyagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromChat = searchParams.get("from") === "chat";
   const [voyages, setVoyages] = useState<Voyage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function VoyagesPage() {
     <div className="h-screen flex flex-col items-center bg-black px-8 py-4 overflow-hidden">
       <div className="w-full max-w-5xl flex flex-col gap-8 h-full">
         <h1 className="text-4xl font-bold text-white tracking-tight text-center">
-          You can ask question ragarding following voyages
+          You can ask questions regarding following voyages
         </h1>
 
         <div className="overflow-hidden">
@@ -82,7 +84,7 @@ export default function VoyagesPage() {
             onClick={() => router.push("/chat")}
             className="border-2 border-gray-600 bg-black text-white text-xl px-10 py-5 transition-colors hover:border-green-600 hover:text-green-400"
           >
-            Next
+            {fromChat ? "Back" : "Next"}
           </button>
         </div>
       </div>

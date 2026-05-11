@@ -12,9 +12,9 @@ we know where each question originated.
 
 Run from this directory on SPARK:
     python run_build.py
-    python run_build.py --target-per-voyage 50 --workers 4
+    python run_build.py --per-category 15 --workers 4
     python run_build.py --voyage-key AFRICAN_JUNIPER_1
-    python run_build.py --voyage-key AFRICAN_JUNIPER_1 --target-per-voyage 10
+    python run_build.py --voyage-key AFRICAN_JUNIPER_1 --per-category 5
 
 Override env vars:
     LLM_BASE_URL   (default: http://localhost:8002/v1)
@@ -38,7 +38,7 @@ from clients.llm_client import LLMClient
 from config import (
     CATEGORIES,
     DATABASE_URL,
-    DEFAULT_TARGET_PER_VOYAGE,
+    DEFAULT_PER_CATEGORY,
     DEFAULT_WORKERS,
     LLM_BASE_URL,
     LLM_MODEL,
@@ -77,12 +77,13 @@ def _process_chunk(
 
 def process_voyage(
     voyage_key: str,
-    target: int,
+    per_category: int,
     llm: LLMClient,
     write_conn: psycopg.Connection,
     q_counter: int,
     workers: int,
 ) -> int:
+    target = per_category * len(CATEGORIES)
     read_conn = psycopg.connect(DATABASE_URL)
     chunks = sample_chunks(read_conn, voyage_key, target)
     read_conn.close()
@@ -92,7 +93,10 @@ def process_voyage(
         return 0
 
     rng = random.Random(hash(voyage_key) & 0xFFFFFFFF)
-    pairs = [(c, rng.choice(CATEGORIES)) for c in chunks]
+    rng.shuffle(chunks)
+    pairs: list[tuple[ChunkRow, str]] = []
+    for idx, chunk in enumerate(chunks):
+        pairs.append((chunk, CATEGORIES[idx // per_category % len(CATEGORIES)]))
 
     inserted = 0
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -127,7 +131,7 @@ def process_voyage(
 
 
 def main(
-    target_per_voyage: int = DEFAULT_TARGET_PER_VOYAGE,
+    per_category: int = DEFAULT_PER_CATEGORY,
     workers: int = DEFAULT_WORKERS,
     voyage_key_filter: str | None = None,
 ) -> None:
@@ -147,9 +151,10 @@ def main(
     write_conn = psycopg.connect(DATABASE_URL)
     q_counter = next_question_id(write_conn)
 
+    target_per_voyage = per_category * len(CATEGORIES)
     print(
-        f"Voyages: {len(all_keys)} | target/voyage: {target_per_voyage} | "
-        f"workers: {workers} | starting at gt3_{q_counter:04d}"
+        f"Voyages: {len(all_keys)} | per category: {per_category} x {len(CATEGORIES)} cats "
+        f"= {target_per_voyage}/voyage | workers: {workers} | starting at gt3_{q_counter:04d}"
     )
 
     total = 0
@@ -157,7 +162,7 @@ def main(
         print(f"\n── {key} ──")
         n = process_voyage(
             voyage_key=key,
-            target=target_per_voyage,
+            per_category=per_category,
             llm=llm,
             write_conn=write_conn,
             q_counter=q_counter,
@@ -173,13 +178,13 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ground Truth v3 Builder")
-    parser.add_argument("--target-per-voyage", type=int, default=DEFAULT_TARGET_PER_VOYAGE)
+    parser.add_argument("--per-category", type=int, default=DEFAULT_PER_CATEGORY)
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     parser.add_argument("--voyage-key", type=str, default=None)
     args = parser.parse_args()
 
     main(
-        target_per_voyage=args.target_per_voyage,
+        per_category=args.per_category,
         workers=args.workers,
         voyage_key_filter=args.voyage_key,
     )

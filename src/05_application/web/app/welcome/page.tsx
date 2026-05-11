@@ -38,7 +38,7 @@ export default function WelcomePage() {
 
         <div className="flex flex-col gap-2 text-2xl text-white leading-snug text-left w-full whitespace-nowrap">
           <p>1) The system has read Remark and Softmar data from 20 voyages.</p>
-          <p>2) You can ask it questions like: <span className="text-green-400 italic">&ldquo;Have we had any cargo damage in Brazil?&rdquo;</span></p>
+          <p>2) You can ask it operational questions about the voyages.</p>
           <p>3) Your task: ask questions and rate the answers.</p>
         </div>
 

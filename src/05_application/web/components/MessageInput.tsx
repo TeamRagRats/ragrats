@@ -1,21 +1,34 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface MessageInputProps {
   onSend: (message: string) => void;
   disabled: boolean;
 }
 
+const DRAFT_KEY = "chat:draft";
+
 export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(DRAFT_KEY);
+    if (saved) setValue(saved);
+  }, []);
+
+  useEffect(() => {
+    if (value) sessionStorage.setItem(DRAFT_KEY, value);
+    else sessionStorage.removeItem(DRAFT_KEY);
+  }, [value]);
 
   function handleSend() {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
+    sessionStorage.removeItem(DRAFT_KEY);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -45,7 +58,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={1}
-        placeholder="Have we encountered any engine failures?"
+        placeholder="Ask operational questions regarding the 20 voyages here."
         className="flex-1 bg-transparent text-white text-base placeholder-gray-400 caret-white resize-none overflow-hidden focus:outline-none disabled:opacity-50 leading-6 pt-0.5"
         style={{ minHeight: "1.5rem" }}
       />
