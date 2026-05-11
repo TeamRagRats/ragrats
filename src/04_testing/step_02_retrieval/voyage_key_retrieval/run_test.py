@@ -88,7 +88,7 @@ def _run_for_type(
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Voyage key retrieval recall test")
-    p.add_argument("--top-k", type=int, default=500, dest="top_k",
+    p.add_argument("--top-k", type=int, default=1, dest="top_k",
                    help="Candidates for voyage_key voting (default: 500)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
