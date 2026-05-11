@@ -57,6 +57,20 @@ export async function sendMessage(
   return { answer: data.answer, queryId: data.query_id };
 }
 
+export interface Voyage {
+  vessel_name: string | null;
+  commodity: string | null;
+  from_range: string | null;
+  to_range: string | null;
+  load_port: string | null;
+  discharge_port: string | null;
+}
+
+export async function getVoyages(): Promise<Voyage[]> {
+  const res = await fetch(`${BASE}/voyages`, { credentials: "include" });
+  return handleResponse(res) as Promise<Voyage[]>;
+}
+
 export async function submitReview(
   queryId: string,
   isCorrect: boolean,

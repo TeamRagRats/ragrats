@@ -53,7 +53,7 @@ export default function WelcomePage() {
 
         <div className="flex justify-end pt-6">
           <button
-            onClick={() => router.push("/chat")}
+            onClick={() => router.push("/voyages")}
             className="border-2 border-gray-600 bg-black text-white text-2xl px-12 py-4 transition-colors hover:border-green-600 hover:text-green-400"
           >
             Next
