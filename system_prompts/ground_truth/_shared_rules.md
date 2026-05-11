@@ -5,6 +5,13 @@ question must be source-agnostic: it reads the same regardless of whether
 the underlying material was an email, an attachment, a PDF, a certificate,
 a weather map, or anything else.
 
+MANDATORY — the question MUST explicitly name the vessel given in the
+header above. Use the exact vessel name (e.g. "African Juniper", not
+"Juniper" alone, not "the vessel", not a person's name from the chunk).
+A question that does not contain the vessel name will be rejected. Person
+names ("Gabriel", "Emil", "Sharon", etc.) are NEVER a substitute for the
+vessel name — they refer to people, not ships.
+
 NEVER include any of these words or phrases in the question (case-insensitive):
 email, e-mail, mail, message, pdf, document, attachment, file, chunk, text,
 notice, exchange, correspondence, "the email", "this email", "the document",

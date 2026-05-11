@@ -8,9 +8,8 @@ from prompts import PROMPTS, build_user_message
 
 
 _BANNED_TOKENS = re.compile(
-    r"\b(emails?|e-?mails?|mails?|messages?|pdfs?|documents?|attachments?|"
-    r"files?|chunks?|notices?|exchanges?|correspondence|"
-    r"the\s+(vessel|ship|cargo|port|charterer|owner|certificate|exchange|notice))\b",
+    r"\b(emails?|e-?mails?|mails?|messages?|replies|reply|pdfs?|documents?|"
+    r"attachments?|files?|chunks?|notices?|exchanges?|correspondence)\b",
     re.IGNORECASE,
 )
 
@@ -19,6 +18,16 @@ _JSON_MODE = {"type": "json_object"}
 
 def _is_clean(question: str) -> bool:
     return _BANNED_TOKENS.search(question) is None
+
+
+def _mentions_vessel(question: str, vessel_name: str, voyage_key: str) -> bool:
+    """The question must reference the vessel (full name) or the voyage key."""
+    q = question.lower()
+    if vessel_name and vessel_name.lower() in q:
+        return True
+    if voyage_key and voyage_key.lower() in q:
+        return True
+    return False
 
 
 def _strip_fences(text: str) -> str:
@@ -66,6 +75,20 @@ def _as_str(val) -> str:
     return val.strip() if isinstance(val, str) else ""
 
 
+def _call_llm(llm, category: str, user_msg: str) -> str | None:
+    try:
+        return llm.chat(
+            PROMPTS[category],
+            user_msg,
+            temperature=0.1,
+            max_tokens=1024,
+            response_format=_JSON_MODE,
+        )
+    except Exception as exc:
+        print(f"  [warn] LLM call failed ({category}): {exc}", file=sys.stderr)
+        return None
+
+
 def generate_qa(
     llm,
     category: str,
@@ -78,33 +101,43 @@ def generate_qa(
         print(f"  [warn] unknown category: {category}", file=sys.stderr)
         return None
 
-    user_msg = build_user_message(voyage_key, vessel_name, chunk_text)
-    try:
-        raw = llm.chat(
-            PROMPTS[category],
-            user_msg,
-            temperature=0.3,
-            max_tokens=1024,
-            response_format=_JSON_MODE,
-        )
-    except Exception as exc:
-        print(f"  [warn] LLM call failed ({category}): {exc}", file=sys.stderr)
-        return None
+    for attempt in range(2):
+        hint = None
+        if attempt > 0:
+            hint = (
+                f"Your previous attempt did not include the exact phrase "
+                f"\"{vessel_name}\". Regenerate the question and ensure it "
+                f"contains \"{vessel_name}\" verbatim."
+            )
+        user_msg = build_user_message(voyage_key, vessel_name, chunk_text, retry_hint=hint)
 
-    obj = _parse_one_object(raw)
-    if obj is None:
-        print(f"  [warn] no valid JSON in {category} response: {raw[:200]}", file=sys.stderr)
-        return None
+        raw = _call_llm(llm, category, user_msg)
+        if raw is None:
+            return None
 
-    question = _as_str(obj.get("question"))
-    answer = _as_str(obj.get("answer"))
-    source_hint = _as_str(obj.get("source_hint")) or None
+        obj = _parse_one_object(raw)
+        if obj is None:
+            print(f"  [warn] no valid JSON in {category} response: {raw[:200]}", file=sys.stderr)
+            return None
 
-    if not question or not answer:
-        return None
+        question = _as_str(obj.get("question"))
+        answer = _as_str(obj.get("answer"))
+        source_hint = _as_str(obj.get("source_hint")) or None
 
-    if not _is_clean(question):
-        print(f"  [warn] {category} question rejected (banned token): {question[:120]}", file=sys.stderr)
+        if not question or not answer:
+            return None
+
+        if not _is_clean(question):
+            print(f"  [warn] {category} question rejected (banned token): {question[:120]}", file=sys.stderr)
+            return None
+
+        if not _mentions_vessel(question, vessel_name, voyage_key):
+            if attempt == 0:
+                continue  # retry once with hint
+            print(f"  [warn] {category} question rejected (no vessel/voyage reference after retry): {question[:120]}", file=sys.stderr)
+            return None
+        break
+    else:
         return None
 
     if category == "unanswerable" and answer != "NOT_IN_CONTEXT":

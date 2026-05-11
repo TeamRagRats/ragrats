@@ -25,10 +25,15 @@ def build_user_message(
     vessel_name: str,
     chunk_text: str,
     max_chars: int = 3000,
+    retry_hint: str | None = None,
 ) -> str:
     snippet = chunk_text.strip()[:max_chars]
+    extra = f"\n\n{retry_hint}" if retry_hint else ""
     return (
         f"Voyage: {voyage_key}\n"
         f"Vessel: {vessel_name}\n"
-        f"\nCHUNK:\n{snippet}"
+        f"\nCHUNK:\n{snippet}\n"
+        f"\nYour question MUST contain the exact phrase \"{vessel_name}\". "
+        f"A question that does not include this phrase will be rejected."
+        f"{extra}"
     )
