@@ -19,7 +19,7 @@ def get_pending_sha256s(
     """llm_structured rows not yet plain-embedded as attachments."""
     parts = [
         """
-        SELECT ls.sha256
+        SELECT DISTINCT ls.sha256
         FROM llm_structured ls
         JOIN attachments a ON a.sha256 = ls.sha256
         WHERE ls.structured_md IS NOT NULL

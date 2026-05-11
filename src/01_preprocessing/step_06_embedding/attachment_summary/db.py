@@ -26,6 +26,7 @@ def get_pending(
               WHERE c.source_type = 'attachment'
                 AND c.strategy    = 'summary'
                 AND c.source_id   = a.email_id::text
+                AND c.embedding IS NOT NULL
           )
         """
     ]
