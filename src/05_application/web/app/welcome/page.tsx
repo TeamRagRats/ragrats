@@ -33,25 +33,16 @@ export default function WelcomePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black px-8 py-12">
-      <div className="w-full max-w-3xl flex flex-col gap-10">
-        <h1 className="text-6xl font-bold text-white tracking-tight">Welcome</h1>
+      <div className="w-full max-w-3xl flex flex-col items-center gap-6">
+        <h1 className="text-6xl font-bold text-white tracking-tight text-center">Welcome</h1>
 
-        <div className="flex flex-col gap-6 text-2xl text-white leading-relaxed">
-          <p>
-            The system has read all <span className="font-bold">Remark</span> and{" "}
-            <span className="font-bold">Softmar</span> data from{" "}
-            <span className="font-bold">20 voyages</span>.
-          </p>
-          <p>
-            You can ask it questions like:{" "}
-            <em className="text-green-400">
-              &ldquo;Have we had any cargo damage in Brazil?&rdquo;
-            </em>
-          </p>
-          <p>Your task: ask questions and rate the answers.</p>
+        <div className="flex flex-col gap-2 text-2xl text-white leading-snug text-left w-full whitespace-nowrap">
+          <p>1) The system has read Remark and Softmar data from 20 voyages.</p>
+          <p>2) You can ask it questions like: <span className="text-green-400 italic">&ldquo;Have we had any cargo damage in Brazil?&rdquo;</span></p>
+          <p>3) Your task: ask questions and rate the answers.</p>
         </div>
 
-        <div className="flex justify-end pt-6">
+        <div className="pt-4">
           <button
             onClick={() => router.push("/voyages")}
             className="border-2 border-gray-600 bg-black text-white text-2xl px-12 py-4 transition-colors hover:border-green-600 hover:text-green-400"

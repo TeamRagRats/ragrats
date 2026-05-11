@@ -10,6 +10,7 @@ router = APIRouter(prefix="/voyages", tags=["voyages"])
 
 
 class Voyage(BaseModel):
+    voyage_key: str | None
     vessel_name: str | None
     commodity: str | None
     from_range: str | None
@@ -24,18 +25,19 @@ def list_voyages(
     _: str = Depends(verify_token),
 ):
     rows = conn.execute(
-        "SELECT vessel_name, commodity, fixture_fromrange, fixture_torange, "
+        "SELECT voyage_key, vessel_name, commodity, fixture_fromrange, fixture_torange, "
         "fixture_ldportname, lastdischargeportname "
-        "FROM fixtures ORDER BY vessel_name"
+        "FROM fixtures ORDER BY voyage_key"
     ).fetchall()
     return [
         Voyage(
-            vessel_name=r[0],
-            commodity=r[1],
-            from_range=r[2],
-            to_range=r[3],
-            load_port=r[4],
-            discharge_port=r[5],
+            voyage_key=r[0],
+            vessel_name=r[1],
+            commodity=r[2],
+            from_range=r[3],
+            to_range=r[4],
+            load_port=r[5],
+            discharge_port=r[6],
         )
         for r in rows
     ]

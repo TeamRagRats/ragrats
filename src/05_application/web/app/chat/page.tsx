@@ -97,10 +97,16 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-black">
-      <header className="flex items-center justify-end px-6 py-4 flex-shrink-0">
+      <header className="flex items-center justify-end gap-3 px-6 py-4 flex-shrink-0">
+        <button
+          onClick={() => router.push("/voyages")}
+          className="border-2 border-gray-600 bg-black text-white px-5 py-2 text-base hover:border-green-600 hover:text-green-400 transition-colors"
+        >
+          Voyages
+        </button>
         <button
           onClick={handleLogout}
-          className="border border-gray-600 bg-black text-white px-3 py-1 text-sm hover:border-green-600 hover:text-green-400 transition-colors"
+          className="border-2 border-gray-600 bg-black text-white px-5 py-2 text-base hover:border-green-600 hover:text-green-400 transition-colors"
         >
           Logout
         </button>

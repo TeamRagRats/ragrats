@@ -45,8 +45,8 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={1}
-        placeholder="Ask something…"
-        className="flex-1 bg-transparent text-white text-base placeholder-gray-700 caret-white resize-none overflow-hidden focus:outline-none disabled:opacity-50 leading-6 pt-0.5"
+        placeholder="Have we encountered any engine failures?"
+        className="flex-1 bg-transparent text-white text-base placeholder-gray-400 caret-white resize-none overflow-hidden focus:outline-none disabled:opacity-50 leading-6 pt-0.5"
         style={{ minHeight: "1.5rem" }}
       />
 

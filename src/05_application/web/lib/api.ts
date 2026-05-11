@@ -58,6 +58,7 @@ export async function sendMessage(
 }
 
 export interface Voyage {
+  voyage_key: string | null;
   vessel_name: string | null;
   commodity: string | null;
   from_range: string | null;
