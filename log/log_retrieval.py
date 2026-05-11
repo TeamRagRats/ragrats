@@ -51,7 +51,7 @@ def log_retrieval(
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO retrieval_logging
+            INSERT INTO test_retrieval_logging
                 (query_id, query_text, source_types, strategies, top_k_1, top_k_2, winning_keys,
                  key_vote_counts, step1_ms, step2_ms, total_ms, chunks_returned, chunks,
                  chunks_expanded_returned, chunks_expanded,
