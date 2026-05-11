@@ -40,6 +40,7 @@ export default function WelcomePage() {
           <p>1) The system has read Remark and Softmar data from 20 voyages.</p>
           <p>2) You can ask it operational questions about the voyages.</p>
           <p>3) Your task: ask questions and rate the answers.</p>
+          <p>4) Do NOT trust the information coming from the system, this is a prototype.</p>
         </div>
 
         <div className="pt-4">
