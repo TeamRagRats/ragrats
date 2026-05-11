@@ -8,6 +8,7 @@ def find_winning_voyage_keys(
     query_embedding: list[float],
     top_k: int = 500,
     source_types: list[str] | None = None,
+    strategies: list[str] | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     """
     Searches chunks for the top_k most similar chunks to query_embedding,
@@ -18,12 +19,16 @@ def find_winning_voyage_keys(
         winning_keys: voyage_keys tied for most appearances in the top_k
         all_vote_counts: {voyage_key: count} for every key that appeared
     """
+    filters: list[str] = []
+    params: list = []
     if source_types is not None:
-        where_clause = "WHERE source_type = ANY(%s)"
-        params: list = [source_types, query_embedding, top_k]
-    else:
-        where_clause = ""
-        params = [query_embedding, top_k]
+        filters.append("source_type = ANY(%s)")
+        params.append(source_types)
+    if strategies is not None:
+        filters.append("strategy = ANY(%s)")
+        params.append(strategies)
+    where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
+    params += [query_embedding, top_k]
 
     sql = f"""
         WITH ranked AS (

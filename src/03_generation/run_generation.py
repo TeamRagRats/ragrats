@@ -24,38 +24,15 @@ from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
 from step_01_voyage_key import find_winning_voyage_keys
-from step_02_chunk_retrieval import retrieve_chunks, expand_chunks
+from step_02_chunk_retrieval import retrieve_chunks
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
+from filter_args import resolve_source_types, resolve_strategies
 
 _REPO_ROOT = Path(__file__).parents[2]
 _DEFAULT_SYSTEM_PROMPT = (
     _REPO_ROOT / "system_prompts" / "generation" / "generation.md"
 ).read_text(encoding="utf-8").strip()
-
-_SOURCE_TYPE_MAP = {
-    "thread": "thread",
-    "threads": "thread",
-    "email-attach": "email_attach",
-    "email_attach": "email_attach",
-    "fixture": "fixture",
-    "phase": "phase",
-}
-
-
-def _resolve_source_types(raw: list[str] | None) -> list[str] | None:
-    if not raw or "all" in raw:
-        return None
-    resolved: list[str] = []
-    for t in raw:
-        mapped = _SOURCE_TYPE_MAP.get(t.lower())
-        if mapped is None:
-            raise ValueError(
-                f"Unknown source-type: {t!r}. Valid: all, thread, email-attach, fixture, phase"
-            )
-        if mapped not in resolved:
-            resolved.append(mapped)
-    return resolved or None
 
 
 def run_query(
@@ -65,10 +42,11 @@ def run_query(
     session_id: str | None = None,
     top_k_1: int = 500,
     top_k_2: int = 20,
-    expand_window: int = 2,
     temperature: float = 0.3,
     max_tokens: int = 2500,
     source_types: list[str] | None = None,
+    strategies: list[str] | None = None,
+    skip_voyage_key: bool = False,
     system_prompt: str | None = None,
 ) -> tuple[str, str]:
     """Run the full RAG pipeline and return the answer. Logs query, retrieval, and generation."""
@@ -81,22 +59,33 @@ def run_query(
     t_total = time.monotonic()
 
     with connect() as conn:
-        t1 = time.monotonic()
-        winning_keys, vote_counts = find_winning_voyage_keys(
-            conn, embedding, top_k=top_k_1, source_types=source_types
-        )
-        step1_ms = int((time.monotonic() - t1) * 1000)
+        if skip_voyage_key:
+            winning_keys: list[str] = []
+            vote_counts: dict[str, int] = {}
+            step1_ms = 0
+        else:
+            t1 = time.monotonic()
+            winning_keys, vote_counts = find_winning_voyage_keys(
+                conn, embedding, top_k=top_k_1,
+                source_types=source_types, strategies=strategies,
+            )
+            step1_ms = int((time.monotonic() - t1) * 1000)
 
-        if not winning_keys:
-            return "", ""
+            if not winning_keys:
+                return "", ""
 
         t2 = time.monotonic()
         chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=top_k_2, source_types=source_types
+            conn, embedding,
+            voyage_keys=winning_keys if winning_keys else None,
+            top_k=top_k_2,
+            source_types=source_types,
+            strategies=strategies,
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
-        expanded = expand_chunks(conn, chunks, window=expand_window)
+        if not chunks:
+            return "", ""
 
         query_id = log_query(conn, query, source=source, username=username, session_id=session_id)
 
@@ -105,6 +94,7 @@ def run_query(
             query_id=query_id,
             query_text=query,
             source_types=source_types if source_types is not None else ["all"],
+            strategies=strategies if strategies is not None else ["all"],
             top_k_1=top_k_1,
             top_k_2=top_k_2,
             winning_keys=winning_keys,
@@ -114,8 +104,8 @@ def run_query(
             total_ms=int((time.monotonic() - t_total) * 1000),
             chunks_returned=len(chunks),
             chunks=chunks,
-            chunks_expanded_returned=len(expanded),
-            chunks_expanded=expanded,
+            chunks_expanded_returned=0,
+            chunks_expanded=None,
         )
 
         context = build_context([
@@ -128,7 +118,7 @@ def run_query(
                 "similarity": c.similarity,
                 "text": c.text,
             }
-            for c in expanded
+            for c in chunks
         ])
 
         llm = LLMClient()
@@ -172,7 +162,11 @@ def main() -> None:
     p.add_argument("--top-k-2", type=int, default=20, dest="top_k_2",
                    help="Final chunk count (default: 20)")
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
-                   help="Filter by source type: all, thread, email-attach, fixture, phase (repeatable)")
+                   help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
+    p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+    p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
+                   help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--embed-url", default=DEFAULT_EMBED_URL,
                    help=f"Embed server base URL (default: {DEFAULT_EMBED_URL})")
     p.add_argument("--llm-url", default=DEFAULT_LLM_URL,
@@ -181,11 +175,10 @@ def main() -> None:
                    help="LLM sampling temperature (default: 0.3)")
     p.add_argument("--max-tokens", type=int, default=2500, dest="max_tokens",
                    help="LLM max output tokens (default: 2500)")
-    p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
-                   help="Neighbor chunks to fetch on each side of an anchor (default: 2)")
     args = p.parse_args()
 
-    source_types = _resolve_source_types(args.source_types)
+    source_types = resolve_source_types(args.source_types)
+    strategies = resolve_strategies(args.strategies)
 
     logger.info(f"Running query: {args.query!r}")
 
@@ -195,10 +188,11 @@ def main() -> None:
         source="terminal",
         top_k_1=args.top_k_1,
         top_k_2=args.top_k_2,
-        expand_window=args.expand_window,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         source_types=source_types,
+        strategies=strategies,
+        skip_voyage_key=args.no_voyage_key,
     )
 
     if not answer:

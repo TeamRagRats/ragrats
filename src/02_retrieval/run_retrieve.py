@@ -20,31 +20,8 @@ from log.log_query import log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
 from step_01_voyage_key import find_winning_voyage_keys
-from step_02_chunk_retrieval import retrieve_chunks, expand_chunks
-
-_SOURCE_TYPE_MAP = {
-    "thread": "thread",
-    "threads": "thread",
-    "email-attach": "email_attach",
-    "email_attach": "email_attach",
-    "fixture": "fixture",
-    "phase": "phase",
-}
-
-
-def _resolve_source_types(raw: list[str] | None) -> list[str] | None:
-    if not raw or "all" in raw:
-        return None
-    resolved: list[str] = []
-    for t in raw:
-        mapped = _SOURCE_TYPE_MAP.get(t.lower())
-        if mapped is None:
-            raise ValueError(
-                f"Unknown source-type: {t!r}. Valid: all, thread, email-attach, fixture, phase"
-            )
-        if mapped not in resolved:
-            resolved.append(mapped)
-    return resolved or None
+from step_02_chunk_retrieval import retrieve_chunks
+from filter_args import resolve_source_types, resolve_strategies
 
 
 def main() -> None:
@@ -62,14 +39,17 @@ def main() -> None:
     p.add_argument("--top-k-2", type=int, default=20, dest="top_k_2",
                    help="Final chunk count (default: 20)")
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
-                   help="Filter by source type: all, thread, email-attach, fixture, phase (repeatable)")
+                   help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
+    p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+    p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
+                   help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
-    p.add_argument("--expand-window", type=int, default=2, dest="expand_window",
-                   help="Neighbor chunks to fetch on each side of an anchor (default: 2)")
     args = p.parse_args()
 
-    source_types = _resolve_source_types(args.source_types)
+    source_types = resolve_source_types(args.source_types)
+    strategies = resolve_strategies(args.strategies)
 
     logger.info(f"Embedding query: {args.query!r}")
     client = EmbedClient(base_url=args.embed_url)
@@ -78,33 +58,44 @@ def main() -> None:
     t_total = time.monotonic()
 
     with connect() as conn:
-        # Step 1: identify winning voyage_key(s)
-        t1 = time.monotonic()
-        winning_keys, vote_counts = find_winning_voyage_keys(
-            conn, embedding, top_k=args.top_k_1, source_types=source_types
-        )
-        step1_ms = int((time.monotonic() - t1) * 1000)
+        if args.no_voyage_key:
+            winning_keys: list[str] = []
+            vote_counts: dict[str, int] = {}
+            step1_ms = 0
+            logger.info("[step1] skipped (--no-voyage-key)")
+        else:
+            t1 = time.monotonic()
+            winning_keys, vote_counts = find_winning_voyage_keys(
+                conn, embedding, top_k=args.top_k_1,
+                source_types=source_types, strategies=strategies,
+            )
+            step1_ms = int((time.monotonic() - t1) * 1000)
 
-        if not winning_keys:
-            logger.error("No chunks found — is the chunks table populated?")
-            return
+            if not winning_keys:
+                logger.error("No chunks found — is the chunks table populated?")
+                return
 
-        top_vote = vote_counts[winning_keys[0]]
-        logger.info(
-            f"[step1] Winner(s): {winning_keys} — {top_vote}/{args.top_k_1} votes — {step1_ms}ms"
-        )
+            top_vote = vote_counts[winning_keys[0]]
+            logger.info(
+                f"[step1] Winner(s): {winning_keys} — {top_vote}/{args.top_k_1} votes — {step1_ms}ms"
+            )
 
-        # Step 2: retrieve chunks scoped to winning key(s)
+        # Step 2: retrieve chunks scoped to winning key(s) (or unfiltered if skipped)
         t2 = time.monotonic()
         chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=winning_keys, top_k=args.top_k_2, source_types=source_types
+            conn, embedding,
+            voyage_keys=winning_keys if winning_keys else None,
+            top_k=args.top_k_2,
+            source_types=source_types,
+            strategies=strategies,
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
 
-        expanded = expand_chunks(conn, chunks, window=args.expand_window)
-        logger.info(f"[expand] {len(chunks)} chunks → {len(expanded)} after ±{args.expand_window} expansion")
+        if not chunks:
+            logger.error("No chunks returned — check filters / index state")
+            return
 
         total_ms = int((time.monotonic() - t_total) * 1000)
         logger.info(f"[total] {total_ms}ms")
@@ -116,6 +107,7 @@ def main() -> None:
             query_id=query_id,
             query_text=args.query,
             source_types=source_types if source_types is not None else ["all"],
+            strategies=strategies if strategies is not None else ["all"],
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
             winning_keys=winning_keys,
@@ -125,17 +117,18 @@ def main() -> None:
             total_ms=total_ms,
             chunks_returned=len(chunks),
             chunks=chunks,
-            chunks_expanded_returned=len(expanded),
-            chunks_expanded=expanded,
+            chunks_expanded_returned=0,
+            chunks_expanded=None,
         )
 
-    for chunk in expanded:
+    for chunk in chunks:
         print(json.dumps(
             {
                 "chunk_id": chunk.chunk_id,
                 "voyage_key": chunk.voyage_key,
                 "source_type": chunk.source_type,
                 "source_id": chunk.source_id,
+                "strategy": chunk.strategy,
                 "chunk_index": chunk.chunk_index,
                 "similarity": round(chunk.similarity, 4),
                 "text": chunk.text,
