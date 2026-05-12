@@ -36,8 +36,9 @@ def sample_chunks(
     conn: psycopg.Connection,
     voyage_key: str,
     limit: int,
+    strategy: str = "plain",
 ) -> list[ChunkRow]:
-    """Sample plain chunks (emails + attachments) for a voyage, stratified by source_type."""
+    """Sample chunks (emails + attachments) for a voyage from one strategy, stratified by source_type."""
     rows = conn.execute(
         """
         WITH ranked AS (
@@ -53,7 +54,7 @@ def sample_chunks(
                     ORDER BY random()
                 ) AS rn
             FROM chunks
-            WHERE strategy    = 'plain'
+            WHERE strategy    = %s
               AND voyage_key  = %s
               AND text IS NOT NULL
               AND text <> ''
@@ -63,7 +64,7 @@ def sample_chunks(
         ORDER BY random()
         LIMIT %s
         """,
-        (voyage_key, limit),
+        (strategy, voyage_key, limit),
     ).fetchall()
 
     vessel_name = vessel_name_from_key(voyage_key)

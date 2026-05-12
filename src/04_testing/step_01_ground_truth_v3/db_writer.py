@@ -29,13 +29,14 @@ def insert_qa(
     chunk_index: int | None,
     voyage_key: str,
     vessel_name: str,
+    strategy: str,
 ) -> None:
     conn.execute(
         """
         INSERT INTO ground_truth_v3
             (question_id, question, answer, category, text, source_hint,
-             source_type, source_id, chunk_index, voyage_key, vessel_name)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             source_type, source_id, chunk_index, voyage_key, vessel_name, strategy)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (question_id) DO NOTHING
         """,
         (
@@ -50,6 +51,7 @@ def insert_qa(
             chunk_index,
             voyage_key,
             vessel_name,
+            strategy,
         ),
     )
     conn.commit()

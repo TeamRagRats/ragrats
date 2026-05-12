@@ -11,6 +11,8 @@ CATEGORIES = [
 
 DEFAULT_PER_CATEGORY = 15
 DEFAULT_WORKERS = 4
+VALID_STRATEGIES = ["plain", "late", "context", "summary"]
+DEFAULT_STRATEGIES = ["plain"]
 MAX_CHARS = 3000
 
 DATABASE_URL = os.environ.get(
