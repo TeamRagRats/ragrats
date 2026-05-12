@@ -8,7 +8,7 @@ from __future__ import annotations
 VALID_SOURCE_TYPES = {"email", "attachment"}
 DEFAULT_SOURCE_TYPES = ["email", "attachment"]
 VALID_STRATEGIES = {"plain", "late", "context", "summary"}
-DEFAULT_STRATEGIES = ["late"]
+DEFAULT_STRATEGIES = ["plain"]
 
 
 def resolve_filter(
