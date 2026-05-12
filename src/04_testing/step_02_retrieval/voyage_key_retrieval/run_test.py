@@ -100,17 +100,23 @@ def main() -> None:
                    help="Strammere hit-definition: expected_key skal ligge i top-N "
                         "efter stemmetal blandt top_k chunks (fx --rank-threshold 3). "
                         "Default: ingen threshold = ægte recall@k.")
+    p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
+                   help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
+    gt_strategies = args.gt_strategies or ["all"]
+    gt_filter_sql = "" if "all" in gt_strategies else "WHERE strategy = ANY(%(gt_strategies)s)"
+    gt_params = {} if "all" in gt_strategies else {"gt_strategies": gt_strategies}
 
     with connect() as conn:
-        all_rows = conn.execute("""
+        all_rows = conn.execute(f"""
             SELECT question_id, question, voyage_key, category
             FROM ground_truth_v3
+            {gt_filter_sql}
             ORDER BY category, question_id
-        """).fetchall()
+        """, gt_params).fetchall()
 
     rows_by_category: dict[str, list] = {}
     for question_id, question, voyage_key, category in all_rows:

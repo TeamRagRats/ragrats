@@ -48,6 +48,30 @@ def _load_email_thread_map(conn) -> dict[str, str]:
     return {email_id: thread_id for email_id, thread_id in rows}
 
 
+def _load_attachment_email_map(conn) -> dict[str, str]:
+    """attachment.sha256 → email_id (text)."""
+    rows = conn.execute(
+        "SELECT sha256, email_id::text FROM attachments WHERE sha256 IS NOT NULL"
+    ).fetchall()
+    return {sha: eid for sha, eid in rows}
+
+
+def _canonical_thread(
+    source_type: str,
+    source_id: str,
+    strategy: str,
+    email_thread_map: dict[str, str],
+    attach_email_map: dict[str, str],
+) -> str | None:
+    """Cross-strategy thread key. Same email thread = same source, regardless of strategy."""
+    if source_type == "email":
+        return email_thread_map.get(source_id)
+    if strategy == "summary":
+        return email_thread_map.get(source_id)
+    email_id = attach_email_map.get(source_id)
+    return email_thread_map.get(email_id) if email_id else None
+
+
 def _matches(
     chunk,
     expected_source_type: str,
@@ -75,6 +99,24 @@ def _compute_rank(
     return None
 
 
+def _compute_source_rank(
+    chunks: list,
+    expected_thread: str | None,
+    email_thread_map: dict[str, str],
+    attach_email_map: dict[str, str],
+) -> int | None:
+    if not expected_thread:
+        return None
+    for i, chunk in enumerate(chunks, 1):
+        thread = _canonical_thread(
+            chunk.source_type, chunk.source_id, chunk.strategy,
+            email_thread_map, attach_email_map,
+        )
+        if thread == expected_thread:
+            return i
+    return None
+
+
 def _run_for_category(
     conn,
     client: EmbedClient,
@@ -87,14 +129,17 @@ def _run_for_category(
     strategies: list[str] | None,
     skip_voyage_key: bool,
     email_thread_map: dict[str, str],
-) -> tuple[int, int, int, float]:
+    attach_email_map: dict[str, str],
+) -> tuple[int, int, int, float, int, float]:
     key_hits = 0
     chunk_hits = 0
+    src_hits = 0
     mrr_sum = 0.0
+    src_mrr_sum = 0.0
     total = len(rows)
 
     for i, (question_id, question, expected_key, expected_source_type,
-            expected_source_id) in enumerate(rows, 1):
+            expected_source_id, expected_strategy) in enumerate(rows, 1):
         embedding = client.embed([question])[0]
 
         if skip_voyage_key:
@@ -122,10 +167,20 @@ def _run_for_category(
             expected_thread_id, email_thread_map,
         )
         hit = rank is not None
-
         if hit:
             chunk_hits += 1
             mrr_sum += 1.0 / rank
+
+        expected_canonical = _canonical_thread(
+            expected_source_type, expected_source_id, expected_strategy,
+            email_thread_map, attach_email_map,
+        )
+        src_rank = _compute_source_rank(
+            anchor_chunks, expected_canonical, email_thread_map, attach_email_map,
+        )
+        if src_rank is not None:
+            src_hits += 1
+            src_mrr_sum += 1.0 / src_rank
 
         expected_log = (
             f"email_thread:{expected_thread_id}"
@@ -146,11 +201,12 @@ def _run_for_category(
         if i % 50 == 0:
             print(
                 f"  [{category}] {i}/{total} — "
-                f"key: {key_hits/i:.1%} | chunk: {chunk_hits/i:.1%}"
+                f"key: {key_hits/i:.1%} | chunk: {chunk_hits/i:.1%} | source: {src_hits/i:.1%}"
             )
 
     mrr = mrr_sum / total if total else 0.0
-    return key_hits, chunk_hits, total, mrr
+    src_mrr = src_mrr_sum / total if total else 0.0
+    return key_hits, chunk_hits, total, mrr, src_hits, src_mrr
 
 
 def main() -> None:
@@ -167,22 +223,28 @@ def main() -> None:
                    help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
     p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
+    p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
+                   help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
+    gt_strategies = args.gt_strategies or ["all"]
+    gt_filter_sql = "" if "all" in gt_strategies else "WHERE strategy = ANY(%(gt_strategies)s)"
+    gt_params = {} if "all" in gt_strategies else {"gt_strategies": gt_strategies}
 
     with connect() as conn:
-        all_rows = conn.execute("""
-            SELECT question_id, question, voyage_key, source_type, source_id, category
+        all_rows = conn.execute(f"""
+            SELECT question_id, question, voyage_key, source_type, source_id, category, strategy
             FROM ground_truth_v3
+            {gt_filter_sql}
             ORDER BY category, question_id
-        """).fetchall()
+        """, gt_params).fetchall()
 
     rows_by_category: dict[str, list] = {}
-    for question_id, question, voyage_key, source_type, source_id, category in all_rows:
+    for question_id, question, voyage_key, source_type, source_id, category, strategy in all_rows:
         rows_by_category.setdefault(category, []).append(
-            (question_id, question, voyage_key, source_type, source_id)
+            (question_id, question, voyage_key, source_type, source_id, strategy)
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
@@ -191,21 +253,23 @@ def main() -> None:
     client = EmbedClient(base_url=args.embed_url)
     run_id = str(uuid.uuid4())
 
-    results: dict[str, tuple[int, int, int, float]] = {}
+    results: dict[str, tuple[int, int, int, float, int, float]] = {}
     with connect() as conn:
         email_thread_map = _load_email_thread_map(conn)
+        attach_email_map = _load_attachment_email_map(conn)
         for category, rows in sorted(rows_by_category.items()):
-            key_hits, chunk_hits, total, mrr = _run_for_category(
+            key_hits, chunk_hits, total, mrr, src_hits, src_mrr = _run_for_category(
                 conn, client, rows, run_id,
                 args.top_k_1, args.top_k_2, category,
                 source_types=source_types, strategies=strategies,
                 skip_voyage_key=args.no_voyage_key,
                 email_thread_map=email_thread_map,
+                attach_email_map=attach_email_map,
             )
-            results[category] = (key_hits, chunk_hits, total, mrr)
+            results[category] = (key_hits, chunk_hits, total, mrr, src_hits, src_mrr)
 
     with connect() as conn:
-        for category, (key_hits, chunk_hits, total, _) in results.items():
+        for category, (key_hits, chunk_hits, total, _, _, _) in results.items():
             key_recall = key_hits / total if total else 0.0
             chunk_recall = chunk_hits / total if total else 0.0
             log_retrieval_run(
@@ -230,12 +294,14 @@ def main() -> None:
             )
 
     print(f"\nDone. run_id={run_id}")
-    for category, (key_hits, chunk_hits, total, mrr) in sorted(results.items()):
+    for category, (key_hits, chunk_hits, total, mrr, src_hits, src_mrr) in sorted(results.items()):
         key_recall = key_hits / total if total else 0.0
         chunk_recall = chunk_hits / total if total else 0.0
+        src_recall = src_hits / total if total else 0.0
         print(
             f"{category} ({total}): "
-            f"key recall: {key_recall:.1%} | chunk recall: {chunk_recall:.1%} | MRR: {mrr:.4f}"
+            f"key recall: {key_recall:.1%} | chunk recall: {chunk_recall:.1%} | MRR: {mrr:.4f} || "
+            f"source recall: {src_recall:.1%} | src MRR: {src_mrr:.4f}"
         )
 
 
