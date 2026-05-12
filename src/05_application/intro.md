@@ -201,7 +201,7 @@ Creates a new query session in the `query_sessions` table. A session groups toge
 The main endpoint. Accepts `{"message": "...", "session_id": "..."}`. It:
 
 1. Validates that the `session_id` exists and belongs to the authenticated user (prevents one user from submitting queries under another user's session).
-2. Calls `run_query()` from `run_generation.py` with `source="application"` and the `session_id`. This runs the full pipeline: embedding → voyage key selection → chunk retrieval → chunk expansion → context building → LLM generation. It also logs a row to `queries`, `test_retrieval_logging`, and `generation_logging`, all linked by `query_id`. The `query_sessions.source` is set to `'application'` on the first query.
+2. Calls `run_query()` from `run_generation.py` with `source="application"` and the `session_id`. This runs the full pipeline: embedding → voyage key selection → chunk retrieval → chunk expansion → context building → LLM generation. It also logs a row to `queries`, `retrieval_logging`, and `generation_logging`, all linked by `query_id`. The `query_sessions.source` is set to `'application'` on the first query.
 3. Returns `{"answer": "..."}`.
 
 The endpoint is synchronous (`def`, not `async def`). FastAPI detects this and runs it in a thread pool automatically, so the ASGI event loop is not blocked while the pipeline runs (which can take many seconds).
@@ -469,7 +469,7 @@ Here is what happens when a user types a question and presses Enter:
    - Retrieves the top chunks by vector similarity.
    - Expands each chunk with its neighbours for more context.
    - Logs the query to the `queries` table (and updates `query_sessions.source`).
-   - Logs the retrieval to `test_retrieval_logging`.
+   - Logs the retrieval to `retrieval_logging`.
    - Builds a formatted context string from the chunks.
    - Sends the context + question to the LLM server and waits for the full answer.
    - Logs the generation to `generation_logging` (with real token counts).
