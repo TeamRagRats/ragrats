@@ -27,7 +27,7 @@ from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
-from filter_args import resolve_source_types, resolve_strategies
+from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
 
 _REPO_ROOT = Path(__file__).parents[2]
 _DEFAULT_SYSTEM_PROMPT = (
@@ -94,7 +94,7 @@ def run_query(
             query_id=query_id,
             query_text=query,
             source_types=source_types if source_types is not None else ["all"],
-            strategy=strategies if strategies is not None else ["all"],
+            strategy=strategies if strategies is not None else DEFAULT_STRATEGIES,
             top_k_1=top_k_1,
             top_k_2=top_k_2,
             winning_keys=winning_keys,

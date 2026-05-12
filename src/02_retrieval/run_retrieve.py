@@ -21,7 +21,7 @@ from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
-from filter_args import resolve_source_types, resolve_strategies
+from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
 
 
 def main() -> None:
@@ -107,7 +107,7 @@ def main() -> None:
             query_id=query_id,
             query_text=args.query,
             source_types=source_types if source_types is not None else ["all"],
-            strategy=strategies if strategies is not None else ["all"],
+            strategy=strategies if strategies is not None else DEFAULT_STRATEGIES,
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
             winning_keys=winning_keys,
