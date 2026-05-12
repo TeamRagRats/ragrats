@@ -94,7 +94,7 @@ def run_query(
             query_id=query_id,
             query_text=query,
             source_types=source_types if source_types is not None else ["all"],
-            strategies=strategies if strategies is not None else ["all"],
+            strategy=strategies if strategies is not None else ["all"],
             top_k_1=top_k_1,
             top_k_2=top_k_2,
             winning_keys=winning_keys,

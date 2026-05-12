@@ -9,7 +9,7 @@ def log_retrieval(
     query_id: str,
     query_text: str,
     source_types: list[str] | None,
-    strategies: list[str] | None = None,
+    strategy: list[str] | None = None,
     top_k_1: int,
     top_k_2: int,
     winning_keys: list[str],
@@ -52,7 +52,7 @@ def log_retrieval(
         cur.execute(
             """
             INSERT INTO retrieval_logging
-                (query_id, query_text, source_types, strategies, top_k_1, top_k_2, winning_keys,
+                (query_id, query_text, source_types, strategy, top_k_1, top_k_2, winning_keys,
                  key_vote_counts, step1_ms, step2_ms, total_ms, chunks_returned, chunks,
                  chunks_expanded_returned, chunks_expanded,
                  retrieved_source_types, retrieved_source_ids)
@@ -62,7 +62,7 @@ def log_retrieval(
                 query_id,
                 query_text,
                 source_types,
-                strategies,
+                strategy,
                 top_k_1,
                 top_k_2,
                 winning_keys,

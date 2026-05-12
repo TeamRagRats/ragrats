@@ -5,10 +5,9 @@ Feeds the correct voyage_key from ground_truth_v3 directly to retrieve_chunks,
 bypassing step 1 entirely. This measures how well step 2 performs given a
 perfect voyage key, making it independent of step 1 errors.
 
-Matches retrieved chunks against the v3 (source_type, source_id, chunk_index)
-key. For emails (chunk_index NULL in GT), any chunk for the right email counts
-as a hit — this keeps the comparison fair across strategies that index chunks
-differently within a thread.
+Correctness is source-level, with email being thread-level: emails are
+embedded with full thread context, so any email chunk in the same thread as
+the expected email counts as a hit. Attachments match on source_id directly.
 
 Categories: fact_single / summary / reasoning / unanswerable. Results logged
 separately per category.
@@ -42,22 +41,35 @@ from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
 
-def _coord_str(source_type: str, source_id: str, chunk_index: int | None) -> str:
-    return f"{source_type}:{source_id}" if chunk_index is None else f"{source_type}:{source_id}:{chunk_index}"
+def _load_email_thread_map(conn) -> dict[str, str]:
+    """email_id (text) → thread_id (text). Used so emails match at thread level."""
+    rows = conn.execute("SELECT email_id::text, thread_id::text FROM emails").fetchall()
+    return {email_id: thread_id for email_id, thread_id in rows}
 
 
-def _matches(chunk, expected_source_type: str, expected_source_id: str, expected_chunk_index: int | None) -> bool:
-    if chunk.source_type != expected_source_type or chunk.source_id != expected_source_id:
+def _matches(
+    chunk,
+    expected_source_type: str,
+    expected_source_id: str,
+    expected_thread_id: str | None,
+    email_thread_map: dict[str, str],
+) -> bool:
+    if chunk.source_type != expected_source_type:
         return False
-    # chunk_index NULL in GT (emails) → any chunk for this source counts
-    if expected_chunk_index is None:
-        return True
-    return chunk.chunk_index == expected_chunk_index
+    if expected_source_type == "email":
+        return email_thread_map.get(chunk.source_id) == expected_thread_id
+    return chunk.source_id == expected_source_id
 
 
-def _compute_rank(chunks: list, expected_source_type: str, expected_source_id: str, expected_chunk_index: int | None) -> int | None:
+def _compute_rank(
+    chunks: list,
+    expected_source_type: str,
+    expected_source_id: str,
+    expected_thread_id: str | None,
+    email_thread_map: dict[str, str],
+) -> int | None:
     for i, chunk in enumerate(chunks, 1):
-        if _matches(chunk, expected_source_type, expected_source_id, expected_chunk_index):
+        if _matches(chunk, expected_source_type, expected_source_id, expected_thread_id, email_thread_map):
             return i
     return None
 
@@ -71,13 +83,14 @@ def _run_for_category(
     category: str,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    email_thread_map: dict[str, str],
 ) -> tuple[int, int, float]:
     hits = 0
     mrr_sum = 0.0
     total = len(rows)
 
     for i, (question_id, question, expected_key, expected_source_type,
-            expected_source_id, expected_chunk_index) in enumerate(rows, 1):
+            expected_source_id) in enumerate(rows, 1):
         embedding = client.embed([question])[0]
 
         anchor_chunks = retrieve_chunks(
@@ -85,20 +98,31 @@ def _run_for_category(
             source_types=source_types, strategies=strategies,
         )
 
-        rank = _compute_rank(anchor_chunks, expected_source_type, expected_source_id, expected_chunk_index)
+        expected_thread_id = (
+            email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
+        )
+        rank = _compute_rank(
+            anchor_chunks, expected_source_type, expected_source_id,
+            expected_thread_id, email_thread_map,
+        )
         hit = rank is not None
 
         if hit:
             hits += 1
             mrr_sum += 1.0 / rank
 
+        expected_log = (
+            f"email_thread:{expected_thread_id}"
+            if expected_source_type == "email"
+            else f"{expected_source_type}:{expected_source_id}"
+        )
         log_chunk_retrieval_testing(
             conn,
             run_id=run_id,
             question_id=question_id,
             top_k=top_k,
-            expected_source_id=_coord_str(expected_source_type, expected_source_id, expected_chunk_index),
-            returned_source_ids=[c.chunk_id for c in anchor_chunks],
+            expected_source_id=expected_log,
+            returned_source_ids=[c.source_id for c in anchor_chunks],
             hit=hit,
             source_rank=rank,
         )
@@ -127,15 +151,15 @@ def main() -> None:
 
     with connect() as conn:
         all_rows = conn.execute("""
-            SELECT question_id, question, voyage_key, source_type, source_id, chunk_index, category
+            SELECT question_id, question, voyage_key, source_type, source_id, category
             FROM ground_truth_v3
             ORDER BY category, question_id
         """).fetchall()
 
     rows_by_category: dict[str, list] = {}
-    for question_id, question, voyage_key, source_type, source_id, chunk_index, category in all_rows:
+    for question_id, question, voyage_key, source_type, source_id, category in all_rows:
         rows_by_category.setdefault(category, []).append(
-            (question_id, question, voyage_key, source_type, source_id, chunk_index)
+            (question_id, question, voyage_key, source_type, source_id)
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
@@ -146,10 +170,12 @@ def main() -> None:
 
     results: dict[str, tuple[int, int, float]] = {}
     with connect() as conn:
+        email_thread_map = _load_email_thread_map(conn)
         for category, rows in sorted(rows_by_category.items()):
             hits, total, mrr = _run_for_category(
                 conn, client, rows, run_id, args.top_k, category,
                 source_types=source_types, strategies=strategies,
+                email_thread_map=email_thread_map,
             )
             results[category] = (hits, total, mrr)
 
