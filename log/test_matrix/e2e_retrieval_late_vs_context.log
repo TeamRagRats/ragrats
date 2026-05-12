@@ -1,0 +1,31 @@
+fact_single: 254 | reasoning: 214 | summary: 253 | unanswerable: 296 | top_k_1: 500 | top_k_2: 20
+  [fact_single] 50/254 — key: 100.0% | chunk: 20.0% | source: 20.0%
+  [fact_single] 100/254 — key: 100.0% | chunk: 31.0% | source: 31.0%
+  [fact_single] 150/254 — key: 100.0% | chunk: 37.3% | source: 37.3%
+  [fact_single] 200/254 — key: 100.0% | chunk: 36.5% | source: 36.5%
+  [fact_single] 250/254 — key: 100.0% | chunk: 31.6% | source: 31.6%
+  [reasoning] 50/214 — key: 100.0% | chunk: 38.0% | source: 38.0%
+  [reasoning] 100/214 — key: 100.0% | chunk: 30.0% | source: 30.0%
+  [reasoning] 150/214 — key: 100.0% | chunk: 39.3% | source: 39.3%
+  [reasoning] 200/214 — key: 100.0% | chunk: 37.0% | source: 37.0%
+  [summary] 50/253 — key: 100.0% | chunk: 44.0% | source: 44.0%
+  [summary] 100/253 — key: 100.0% | chunk: 39.0% | source: 39.0%
+  [summary] 150/253 — key: 100.0% | chunk: 40.7% | source: 40.7%
+  [summary] 200/253 — key: 100.0% | chunk: 37.5% | source: 37.5%
+  [summary] 250/253 — key: 100.0% | chunk: 36.0% | source: 36.0%
+  [unanswerable] 50/296 — key: 100.0% | chunk: 28.0% | source: 28.0%
+  [unanswerable] 100/296 — key: 100.0% | chunk: 25.0% | source: 25.0%
+  [unanswerable] 150/296 — key: 100.0% | chunk: 31.3% | source: 31.3%
+  [unanswerable] 200/296 — key: 100.0% | chunk: 29.0% | source: 29.0%
+  [unanswerable] 250/296 — key: 100.0% | chunk: 27.2% | source: 27.2%
+Traceback (most recent call last):
+  File "/home/golddigger/Desktop/ragrats/src/04_testing/step_02_retrieval/e2e_retrieval/run_test.py", line 309, in <module>
+    main()
+  File "/home/golddigger/Desktop/ragrats/src/04_testing/step_02_retrieval/e2e_retrieval/run_test.py", line 285, in main
+    log_retrieval_run(
+  File "/home/golddigger/Desktop/ragrats/log/log_testing.py", line 18, in log_retrieval_run
+    cur.execute(
+  File "/home/golddigger/Desktop/ragrats/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "test_retrieval_run_logging_pkey"
+DETAIL:  Key (run_id, question_type)=(8ad4b89f-2ff3-4de6-92af-eb8feeef3496, fact_single) already exists.

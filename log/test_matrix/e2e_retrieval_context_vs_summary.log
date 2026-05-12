@@ -1,0 +1,29 @@
+fact_single: 255 | reasoning: 197 | summary: 260 | unanswerable: 246 | top_k_1: 500 | top_k_2: 20
+  [fact_single] 50/255 — key: 100.0% | chunk: 0.0% | source: 20.0%
+  [fact_single] 100/255 — key: 100.0% | chunk: 0.0% | source: 24.0%
+  [fact_single] 150/255 — key: 100.0% | chunk: 0.0% | source: 29.3%
+  [fact_single] 200/255 — key: 100.0% | chunk: 0.0% | source: 31.5%
+  [fact_single] 250/255 — key: 100.0% | chunk: 0.0% | source: 31.2%
+  [reasoning] 50/197 — key: 100.0% | chunk: 0.0% | source: 44.0%
+  [reasoning] 100/197 — key: 100.0% | chunk: 0.0% | source: 48.0%
+  [reasoning] 150/197 — key: 100.0% | chunk: 0.0% | source: 50.0%
+  [summary] 50/260 — key: 100.0% | chunk: 0.0% | source: 40.0%
+  [summary] 100/260 — key: 100.0% | chunk: 0.0% | source: 41.0%
+  [summary] 150/260 — key: 100.0% | chunk: 0.0% | source: 44.7%
+  [summary] 200/260 — key: 100.0% | chunk: 0.0% | source: 45.5%
+  [summary] 250/260 — key: 100.0% | chunk: 0.0% | source: 43.6%
+  [unanswerable] 50/246 — key: 100.0% | chunk: 0.0% | source: 26.0%
+  [unanswerable] 100/246 — key: 100.0% | chunk: 0.0% | source: 29.0%
+  [unanswerable] 150/246 — key: 100.0% | chunk: 0.0% | source: 27.3%
+  [unanswerable] 200/246 — key: 100.0% | chunk: 0.0% | source: 27.0%
+Traceback (most recent call last):
+  File "/home/golddigger/Desktop/ragrats/src/04_testing/step_02_retrieval/e2e_retrieval/run_test.py", line 309, in <module>
+    main()
+  File "/home/golddigger/Desktop/ragrats/src/04_testing/step_02_retrieval/e2e_retrieval/run_test.py", line 285, in main
+    log_retrieval_run(
+  File "/home/golddigger/Desktop/ragrats/log/log_testing.py", line 18, in log_retrieval_run
+    cur.execute(
+  File "/home/golddigger/Desktop/ragrats/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "test_retrieval_run_logging_pkey"
+DETAIL:  Key (run_id, question_type)=(313a7e7d-c6a5-4063-9021-63863f43f98a, fact_single) already exists.

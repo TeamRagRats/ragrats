@@ -1,0 +1,30 @@
+fact_single: 241 | reasoning: 219 | summary: 270 | unanswerable: 291 | top_k_1: 500 | top_k_2: 20
+  [fact_single] 50/241 — key: 100.0% | chunk: 34.0% | source: 34.0%
+  [fact_single] 100/241 — key: 100.0% | chunk: 32.0% | source: 32.0%
+  [fact_single] 150/241 — key: 100.0% | chunk: 34.7% | source: 34.7%
+  [fact_single] 200/241 — key: 100.0% | chunk: 33.5% | source: 33.5%
+  [reasoning] 50/219 — key: 100.0% | chunk: 48.0% | source: 48.0%
+  [reasoning] 100/219 — key: 100.0% | chunk: 52.0% | source: 52.0%
+  [reasoning] 150/219 — key: 100.0% | chunk: 54.7% | source: 54.7%
+  [reasoning] 200/219 — key: 100.0% | chunk: 51.5% | source: 51.5%
+  [summary] 50/270 — key: 100.0% | chunk: 50.0% | source: 50.0%
+  [summary] 100/270 — key: 100.0% | chunk: 49.0% | source: 49.0%
+  [summary] 150/270 — key: 100.0% | chunk: 50.7% | source: 50.7%
+  [summary] 200/270 — key: 100.0% | chunk: 54.5% | source: 54.5%
+  [summary] 250/270 — key: 100.0% | chunk: 52.0% | source: 52.0%
+  [unanswerable] 50/291 — key: 100.0% | chunk: 22.0% | source: 22.0%
+  [unanswerable] 100/291 — key: 100.0% | chunk: 21.0% | source: 21.0%
+  [unanswerable] 150/291 — key: 100.0% | chunk: 26.0% | source: 26.0%
+  [unanswerable] 200/291 — key: 100.0% | chunk: 29.0% | source: 29.0%
+  [unanswerable] 250/291 — key: 100.0% | chunk: 27.6% | source: 27.6%
+Traceback (most recent call last):
+  File "/home/golddigger/Desktop/ragrats/src/04_testing/step_02_retrieval/e2e_retrieval/run_test.py", line 309, in <module>
+    main()
+  File "/home/golddigger/Desktop/ragrats/src/04_testing/step_02_retrieval/e2e_retrieval/run_test.py", line 285, in main
+    log_retrieval_run(
+  File "/home/golddigger/Desktop/ragrats/log/log_testing.py", line 18, in log_retrieval_run
+    cur.execute(
+  File "/home/golddigger/Desktop/ragrats/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UniqueViolation: duplicate key value violates unique constraint "test_retrieval_run_logging_pkey"
+DETAIL:  Key (run_id, question_type)=(8b86aa7e-794f-4584-b823-b963fea4d015, fact_single) already exists.
