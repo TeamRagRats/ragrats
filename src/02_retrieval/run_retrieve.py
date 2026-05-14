@@ -18,7 +18,9 @@ from core.db import connect
 from log.log_retrieval import log_retrieval
 from log.log_query import log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.llm_client import LLMClient
 
+from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
@@ -46,14 +48,20 @@ def main() -> None:
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
+    p.add_argument("--reformulate", action="store_true",
+                   help="Reformulate query with LLM before embedding")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
 
-    logger.info(f"Embedding query: {args.query!r}")
+    retrieval_query = args.query
+    if args.reformulate:
+        retrieval_query = reformulate_query(LLMClient(), args.query)
+
+    logger.info(f"Embedding query: {retrieval_query!r}")
     client = EmbedClient(base_url=args.embed_url)
-    embedding = client.embed([args.query])[0]
+    embedding = client.embed([retrieval_query])[0]
 
     t_total = time.monotonic()
 

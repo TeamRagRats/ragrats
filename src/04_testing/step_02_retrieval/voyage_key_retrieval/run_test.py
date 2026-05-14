@@ -28,6 +28,8 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.llm_client import LLMClient
+from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from filter_args import resolve_source_types, resolve_strategies
 from log.log_voyage_key_testing import log_voyage_key_testing
@@ -51,10 +53,12 @@ def _run_for_type(
     rank_threshold: int | None,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    llm: LLMClient | None = None,
 ) -> tuple[int, int]:
     hits = 0
     for i, (question_id, question, expected_key) in enumerate(rows, 1):
-        embedding = client.embed([question])[0]
+        q = reformulate_query(llm, question) if llm else question
+        embedding = client.embed([q])[0]
         winning_keys, vote_counts = find_winning_voyage_keys(
             conn, embedding, top_k=top_k,
             source_types=source_types, strategies=strategies,
@@ -102,6 +106,8 @@ def main() -> None:
                         "Default: ingen threshold = ægte recall@k.")
     p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
                    help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
+    p.add_argument("--reformulate", action="store_true",
+                   help="Reformulate questions with LLM before embedding")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -127,6 +133,7 @@ def main() -> None:
     print(f"{summary} | top_k: {args.top_k}{threshold_str}")
 
     client = EmbedClient(base_url=args.embed_url)
+    llm = LLMClient() if args.reformulate else None
     run_id = str(uuid.uuid4())
 
     results: dict[str, tuple[int, int]] = {}
@@ -135,6 +142,7 @@ def main() -> None:
             hits, total = _run_for_type(
                 conn, client, rows, run_id, args.top_k, category, args.rank_threshold,
                 source_types=source_types, strategies=strategies,
+                llm=llm,
             )
             results[category] = (hits, total)
 
