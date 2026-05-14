@@ -23,6 +23,7 @@ from log.log_query import log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
 
+from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 from step_01_context_builder import build_context
@@ -53,8 +54,11 @@ def run_query(
     if system_prompt is None:
         system_prompt = _DEFAULT_SYSTEM_PROMPT
 
+    llm = LLMClient()
+    retrieval_query = reformulate_query(llm, query)
+
     embed_client = EmbedClient()
-    embedding = embed_client.embed([query])[0]
+    embedding = embed_client.embed([retrieval_query])[0]
 
     t_total = time.monotonic()
 
@@ -121,7 +125,6 @@ def run_query(
             for c in chunks
         ])
 
-        llm = LLMClient()
         t_gen = time.monotonic()
         answer, usage = generate_answer(
             llm, query, context, system_prompt, temperature, max_tokens
