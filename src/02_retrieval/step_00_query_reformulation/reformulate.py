@@ -8,7 +8,7 @@ from clients.llm_client import LLMClient
 _logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    Path(__file__).parents[4] / "system_prompts" / "reformulation" / "rewrite.md"
+    Path(__file__).parents[3] / "system_prompts" / "reformulation" / "rewrite.md"
 ).read_text(encoding="utf-8").strip()
 
 
