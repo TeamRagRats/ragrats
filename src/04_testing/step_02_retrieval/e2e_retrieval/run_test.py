@@ -37,6 +37,7 @@ from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
+from BM25 import hybrid_retrieve_chunks
 from filter_args import resolve_source_types, resolve_strategies
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
@@ -130,6 +131,8 @@ def _run_for_category(
     skip_voyage_key: bool,
     email_thread_map: dict[str, str],
     attach_email_map: dict[str, str],
+    hybrid_mode: str | None = None,
+    rrf_k: int = 60,
 ) -> tuple[int, int, int, float, int, float]:
     key_hits = 0
     chunk_hits = 0
@@ -152,12 +155,21 @@ def _run_for_category(
             if expected_key in vote_counts:
                 key_hits += 1
 
-        anchor_chunks = retrieve_chunks(
-            conn, embedding,
-            voyage_keys=winning_keys if winning_keys else None,
-            top_k=top_k_2,
-            source_types=source_types, strategies=strategies,
-        )
+        if hybrid_mode is not None:
+            anchor_chunks = hybrid_retrieve_chunks(
+                conn, query_text=question, query_embedding=embedding,
+                voyage_keys=winning_keys if winning_keys else None,
+                top_k=top_k_2,
+                source_types=source_types, strategies=strategies,
+                rrf_k=rrf_k, mode=hybrid_mode,
+            )
+        else:
+            anchor_chunks = retrieve_chunks(
+                conn, embedding,
+                voyage_keys=winning_keys if winning_keys else None,
+                top_k=top_k_2,
+                source_types=source_types, strategies=strategies,
+            )
 
         expected_thread_id = (
             email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
@@ -225,6 +237,12 @@ def main() -> None:
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
                    help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
+    p.add_argument("--hybrid", action="store_true",
+                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+    p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
+                   help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
+    p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
+                   help="RRF constant for hybrid fusion (default: 60)")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -251,6 +269,7 @@ def main() -> None:
     print(f"{summary} | top_k_1: {args.top_k_1} | top_k_2: {args.top_k_2}")
 
     client = EmbedClient(base_url=args.embed_url)
+    hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
     run_id = str(uuid.uuid4())
 
     results: dict[str, tuple[int, int, int, float, int, float]] = {}
@@ -265,6 +284,8 @@ def main() -> None:
                 skip_voyage_key=args.no_voyage_key,
                 email_thread_map=email_thread_map,
                 attach_email_map=attach_email_map,
+                hybrid_mode=hybrid_mode,
+                rrf_k=args.rrf_k,
             )
             results[category] = (key_hits, chunk_hits, total, mrr, src_hits, src_mrr)
 
