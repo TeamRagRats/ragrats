@@ -1,0 +1,26 @@
+fact_single: 254 | reasoning: 214 | summary: 253 | unanswerable: 296 | top_k: 50
+  [fact_single] 50/254 — chunk recall: 0.0% | source recall: 34.0%
+  [fact_single] 100/254 — chunk recall: 0.0% | source recall: 36.0%
+  [fact_single] 150/254 — chunk recall: 0.0% | source recall: 36.7%
+  [fact_single] 200/254 — chunk recall: 0.0% | source recall: 40.0%
+  [fact_single] 250/254 — chunk recall: 0.0% | source recall: 42.4%
+  [reasoning] 50/214 — chunk recall: 0.0% | source recall: 34.0%
+  [reasoning] 100/214 — chunk recall: 0.0% | source recall: 34.0%
+  [reasoning] 150/214 — chunk recall: 0.0% | source recall: 41.3%
+  [reasoning] 200/214 — chunk recall: 0.0% | source recall: 42.0%
+  [summary] 50/253 — chunk recall: 0.0% | source recall: 38.0%
+  [summary] 100/253 — chunk recall: 0.0% | source recall: 40.0%
+  [summary] 150/253 — chunk recall: 0.0% | source recall: 40.7%
+  [summary] 200/253 — chunk recall: 0.0% | source recall: 38.0%
+  [summary] 250/253 — chunk recall: 0.0% | source recall: 39.6%
+  [unanswerable] 50/296 — chunk recall: 0.0% | source recall: 46.0%
+  [unanswerable] 100/296 — chunk recall: 0.0% | source recall: 43.0%
+  [unanswerable] 150/296 — chunk recall: 0.0% | source recall: 36.7%
+  [unanswerable] 200/296 — chunk recall: 0.0% | source recall: 37.5%
+  [unanswerable] 250/296 — chunk recall: 0.0% | source recall: 36.8%
+
+Done. run_id=819429bb-dfab-4149-b3f9-92990c0d6bea
+fact_single (254): chunk recall: 0/254 (0.0%) | MRR: 0.0000 || source recall: 109/254 (42.9%) | MRR: 0.1331
+reasoning (214): chunk recall: 0/214 (0.0%) | MRR: 0.0000 || source recall: 92/214 (43.0%) | MRR: 0.1404
+summary (253): chunk recall: 0/253 (0.0%) | MRR: 0.0000 || source recall: 101/253 (39.9%) | MRR: 0.1595
+unanswerable (296): chunk recall: 0/296 (0.0%) | MRR: 0.0000 || source recall: 110/296 (37.2%) | MRR: 0.1140

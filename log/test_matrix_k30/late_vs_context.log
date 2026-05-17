@@ -1,0 +1,26 @@
+fact_single: 254 | reasoning: 214 | summary: 253 | unanswerable: 296 | top_k: 30
+  [fact_single] 50/254 — chunk recall: 46.0% | source recall: 46.0%
+  [fact_single] 100/254 — chunk recall: 64.0% | source recall: 64.0%
+  [fact_single] 150/254 — chunk recall: 62.0% | source recall: 62.0%
+  [fact_single] 200/254 — chunk recall: 58.0% | source recall: 58.0%
+  [fact_single] 250/254 — chunk recall: 54.8% | source recall: 54.8%
+  [reasoning] 50/214 — chunk recall: 78.0% | source recall: 78.0%
+  [reasoning] 100/214 — chunk recall: 67.0% | source recall: 67.0%
+  [reasoning] 150/214 — chunk recall: 68.7% | source recall: 68.7%
+  [reasoning] 200/214 — chunk recall: 68.0% | source recall: 68.0%
+  [summary] 50/253 — chunk recall: 66.0% | source recall: 66.0%
+  [summary] 100/253 — chunk recall: 65.0% | source recall: 65.0%
+  [summary] 150/253 — chunk recall: 63.3% | source recall: 63.3%
+  [summary] 200/253 — chunk recall: 58.5% | source recall: 58.5%
+  [summary] 250/253 — chunk recall: 60.8% | source recall: 60.8%
+  [unanswerable] 50/296 — chunk recall: 50.0% | source recall: 50.0%
+  [unanswerable] 100/296 — chunk recall: 49.0% | source recall: 49.0%
+  [unanswerable] 150/296 — chunk recall: 50.0% | source recall: 50.0%
+  [unanswerable] 200/296 — chunk recall: 44.0% | source recall: 44.0%
+  [unanswerable] 250/296 — chunk recall: 43.2% | source recall: 43.2%
+
+Done. run_id=fb9a463b-d5bc-4a10-8142-df282334dccf
+fact_single (254): chunk recall: 140/254 (55.1%) | MRR: 0.1783 || source recall: 140/254 (55.1%) | MRR: 0.1783
+reasoning (214): chunk recall: 146/214 (68.2%) | MRR: 0.2320 || source recall: 146/214 (68.2%) | MRR: 0.2320
+summary (253): chunk recall: 155/253 (61.3%) | MRR: 0.2863 || source recall: 155/253 (61.3%) | MRR: 0.2863
+unanswerable (296): chunk recall: 128/296 (43.2%) | MRR: 0.1658 || source recall: 128/296 (43.2%) | MRR: 0.1658
