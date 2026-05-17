@@ -38,6 +38,7 @@ from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from clients.llm_client import LLMClient
 from step_00_query_reformulation import reformulate_query
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
+from BM25 import hybrid_retrieve_chunks
 from filter_args import resolve_source_types, resolve_strategies
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
@@ -133,6 +134,8 @@ def _run_for_category(
     email_thread_map: dict[str, str],
     attach_email_map: dict[str, str],
     llm: LLMClient | None = None,
+    hybrid_mode: str | None = None,
+    rrf_k: int = 60,
 ) -> tuple[int, int, float, int, float]:
     hits = 0
     src_hits = 0
@@ -145,10 +148,18 @@ def _run_for_category(
         q = reformulate_query(llm, question) if llm else question
         embedding = client.embed([q])[0]
 
-        anchor_chunks = retrieve_chunks(
-            conn, embedding, voyage_keys=[expected_key], top_k=top_k,
-            source_types=source_types, strategies=strategies,
-        )
+        if hybrid_mode is not None:
+            anchor_chunks = hybrid_retrieve_chunks(
+                conn, query_text=question, query_embedding=embedding,
+                voyage_keys=[expected_key], top_k=top_k,
+                source_types=source_types, strategies=strategies,
+                rrf_k=rrf_k, mode=hybrid_mode,
+            )
+        else:
+            anchor_chunks = retrieve_chunks(
+                conn, embedding, voyage_keys=[expected_key], top_k=top_k,
+                source_types=source_types, strategies=strategies,
+            )
 
         expected_thread_id = (
             email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
@@ -215,6 +226,12 @@ def main() -> None:
                    help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate questions with LLM before embedding")
+    p.add_argument("--hybrid", action="store_true",
+                   help="Hybrid retrieval: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+    p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
+                   help="BM25-only retrieval (diagnostic). Implies hybrid retriever path.")
+    p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
+                   help="RRF constant for hybrid fusion (default: 60)")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -242,6 +259,7 @@ def main() -> None:
 
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
+    hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
     run_id = str(uuid.uuid4())
 
     results: dict[str, tuple[int, int, float, int, float]] = {}
@@ -255,6 +273,8 @@ def main() -> None:
                 email_thread_map=email_thread_map,
                 attach_email_map=attach_email_map,
                 llm=llm,
+                hybrid_mode=hybrid_mode,
+                rrf_k=args.rrf_k,
             )
             results[category] = (hits, total, mrr, src_hits, src_mrr)
 

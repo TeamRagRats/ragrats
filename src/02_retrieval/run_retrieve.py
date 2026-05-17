@@ -23,6 +23,7 @@ from clients.llm_client import LLMClient
 from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
+from BM25 import hybrid_retrieve_chunks
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
 
 
@@ -50,6 +51,12 @@ def main() -> None:
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate query with LLM before embedding")
+    p.add_argument("--hybrid", action="store_true",
+                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+    p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
+                   help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
+    p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
+                   help="RRF constant for hybrid fusion (default: 60)")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -90,13 +97,28 @@ def main() -> None:
 
         # Step 2: retrieve chunks scoped to winning key(s) (or unfiltered if skipped)
         t2 = time.monotonic()
-        chunks = retrieve_chunks(
-            conn, embedding,
-            voyage_keys=winning_keys if winning_keys else None,
-            top_k=args.top_k_2,
-            source_types=source_types,
-            strategies=strategies,
-        )
+        use_hybrid = args.hybrid or args.bm25_only
+        if use_hybrid:
+            mode = "bm25_only" if args.bm25_only else "hybrid"
+            chunks = hybrid_retrieve_chunks(
+                conn,
+                query_text=args.query,
+                query_embedding=embedding,
+                voyage_keys=winning_keys if winning_keys else None,
+                top_k=args.top_k_2,
+                source_types=source_types,
+                strategies=strategies,
+                rrf_k=args.rrf_k,
+                mode=mode,
+            )
+        else:
+            chunks = retrieve_chunks(
+                conn, embedding,
+                voyage_keys=winning_keys if winning_keys else None,
+                top_k=args.top_k_2,
+                source_types=source_types,
+                strategies=strategies,
+            )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
