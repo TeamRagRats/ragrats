@@ -19,11 +19,13 @@ from log.log_retrieval import log_retrieval
 from log.log_query import log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from clients.llm_client import LLMClient
+from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERANK_URL
 
 from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 from BM25 import hybrid_retrieve_chunks
+from reranker import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
 
 
@@ -57,6 +59,12 @@ def main() -> None:
                    help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
+    p.add_argument("--rerank", action="store_true",
+                   help="Rerank step_02 output with Qwen3-Reranker-8B")
+    p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
+                   help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
+    p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
+                   help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -95,7 +103,15 @@ def main() -> None:
                 f"[step1] Winner(s): {winning_keys} — {top_vote}/{args.top_k_1} votes — {step1_ms}ms"
             )
 
-        # Step 2: retrieve chunks scoped to winning key(s) (or unfiltered if skipped)
+        # Step 2: retrieve chunks scoped to winning key(s) (or unfiltered if skipped).
+        # When --rerank is on, oversample to rerank_pool then trim to top_k_2 via reranker.
+        rerank_pool = (
+            args.rerank_pool
+            if args.rerank_pool is not None
+            else DEFAULT_RERANK_OVERSAMPLE * args.top_k_2
+        )
+        step2_top_k = rerank_pool if args.rerank else args.top_k_2
+
         t2 = time.monotonic()
         use_hybrid = args.hybrid or args.bm25_only
         if use_hybrid:
@@ -105,7 +121,7 @@ def main() -> None:
                 query_text=args.query,
                 query_embedding=embedding,
                 voyage_keys=winning_keys if winning_keys else None,
-                top_k=args.top_k_2,
+                top_k=step2_top_k,
                 source_types=source_types,
                 strategies=strategies,
                 rrf_k=args.rrf_k,
@@ -115,13 +131,25 @@ def main() -> None:
             chunks = retrieve_chunks(
                 conn, embedding,
                 voyage_keys=winning_keys if winning_keys else None,
-                top_k=args.top_k_2,
+                top_k=step2_top_k,
                 source_types=source_types,
                 strategies=strategies,
             )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
         logger.info(f"[step2] Retrieved {len(chunks)} chunks — {step2_ms}ms")
+
+        rerank_ms: int | None = None
+        rerank_model: str | None = None
+        if args.rerank:
+            rerank_client = RerankClient(base_url=args.rerank_url)
+            rerank_model = rerank_client.model
+            t_r = time.monotonic()
+            chunks = rerank_chunks(rerank_client, args.query, chunks, top_k=args.top_k_2)
+            rerank_ms = int((time.monotonic() - t_r) * 1000)
+            logger.info(
+                f"[rerank] {rerank_model} reduced {step2_top_k}→{len(chunks)} — {rerank_ms}ms"
+            )
 
         if not chunks:
             logger.error("No chunks returned — check filters / index state")
@@ -149,6 +177,10 @@ def main() -> None:
             chunks=chunks,
             chunks_expanded_returned=0,
             chunks_expanded=None,
+            reranked=args.rerank,
+            rerank_model=rerank_model,
+            rerank_pool=rerank_pool if args.rerank else None,
+            rerank_ms=rerank_ms,
         )
 
     for chunk in chunks:

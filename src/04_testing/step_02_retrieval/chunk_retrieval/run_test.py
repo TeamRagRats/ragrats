@@ -36,9 +36,11 @@ import uuid
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from clients.llm_client import LLMClient
+from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERANK_URL
 from step_00_query_reformulation import reformulate_query
 from step_02_chunk_retrieval.retrieve_chunks import retrieve_chunks
 from BM25 import hybrid_retrieve_chunks
+from reranker import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
 from filter_args import resolve_source_types, resolve_strategies
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
@@ -136,6 +138,8 @@ def _run_for_category(
     llm: LLMClient | None = None,
     hybrid_mode: str | None = None,
     rrf_k: int = 60,
+    reranker: RerankClient | None = None,
+    rerank_pool: int | None = None,
 ) -> tuple[int, int, float, int, float]:
     hits = 0
     src_hits = 0
@@ -148,18 +152,22 @@ def _run_for_category(
         q = reformulate_query(llm, question) if llm else question
         embedding = client.embed([q])[0]
 
+        step2_top_k = rerank_pool if reranker is not None else top_k
         if hybrid_mode is not None:
             anchor_chunks = hybrid_retrieve_chunks(
                 conn, query_text=question, query_embedding=embedding,
-                voyage_keys=[expected_key], top_k=top_k,
+                voyage_keys=[expected_key], top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
                 rrf_k=rrf_k, mode=hybrid_mode,
             )
         else:
             anchor_chunks = retrieve_chunks(
-                conn, embedding, voyage_keys=[expected_key], top_k=top_k,
+                conn, embedding, voyage_keys=[expected_key], top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
             )
+
+        if reranker is not None:
+            anchor_chunks = rerank_chunks(reranker, question, anchor_chunks, top_k=top_k)
 
         expected_thread_id = (
             email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
@@ -232,6 +240,12 @@ def main() -> None:
                    help="BM25-only retrieval (diagnostic). Implies hybrid retriever path.")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
+    p.add_argument("--rerank", action="store_true",
+                   help="Rerank retrieved chunks with Qwen3-Reranker-8B")
+    p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
+                   help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k)")
+    p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
+                   help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -260,6 +274,12 @@ def main() -> None:
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
     hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
+    reranker = RerankClient(base_url=args.rerank_url) if args.rerank else None
+    rerank_pool = (
+        args.rerank_pool
+        if args.rerank_pool is not None
+        else DEFAULT_RERANK_OVERSAMPLE * args.top_k
+    )
     run_id = str(uuid.uuid4())
 
     results: dict[str, tuple[int, int, float, int, float]] = {}
@@ -275,6 +295,8 @@ def main() -> None:
                 llm=llm,
                 hybrid_mode=hybrid_mode,
                 rrf_k=args.rrf_k,
+                reranker=reranker,
+                rerank_pool=rerank_pool,
             )
             results[category] = (hits, total, mrr, src_hits, src_mrr)
 

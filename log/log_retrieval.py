@@ -21,6 +21,10 @@ def log_retrieval(
     chunks: list,
     chunks_expanded_returned: int = 0,
     chunks_expanded: list | None = None,
+    reranked: bool = False,
+    rerank_model: str | None = None,
+    rerank_pool: int | None = None,
+    rerank_ms: int | None = None,
 ) -> None:
     def _serialise(cs: list) -> str:
         return json.dumps([
@@ -55,8 +59,10 @@ def log_retrieval(
                 (query_id, query_text, source_types, strategy, top_k_1, top_k_2, winning_keys,
                  key_vote_counts, step1_ms, step2_ms, total_ms, chunks_returned, chunks,
                  chunks_expanded_returned, chunks_expanded,
-                 retrieved_source_types, retrieved_source_ids)
-            VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s)
+                 retrieved_source_types, retrieved_source_ids,
+                 reranked, rerank_model, rerank_pool, rerank_ms)
+            VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s,
+                    %s, %s, %s, %s)
             """,
             (
                 query_id,
@@ -76,6 +82,10 @@ def log_retrieval(
                 chunks_expanded_json,
                 retrieved_source_types,
                 retrieved_source_ids,
+                reranked,
+                rerank_model,
+                rerank_pool,
+                rerank_ms,
             ),
         )
     conn.commit()

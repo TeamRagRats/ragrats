@@ -1,0 +1,44 @@
+services:
+  reranker:
+    image: nvcr.io/nvidia/vllm:26.04-py3
+    container_name: ragrats_reranker
+    ipc: host
+    ports:
+      - "127.0.0.1:8004:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Force HuggingFace + vLLM caches into the mounted locations so model
+      # weights and compiled kernels survive container restarts.
+      - HF_HOME=/root/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/root/.cache/huggingface/hub
+      - TRANSFORMERS_CACHE=/root/.cache/huggingface/transformers
+      - VLLM_CACHE_ROOT=/root/.cache/vllm
+      - TORCHINDUCTOR_CACHE_DIR=/root/.cache/torchinductor
+      - TRITON_CACHE_DIR=/root/.cache/triton
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - vllm_cache:/root/.cache/vllm
+      - torchinductor_cache:/root/.cache/torchinductor
+      - triton_cache:/root/.cache/triton
+    command: >
+      vllm serve Qwen/Qwen3-Reranker-8B
+      --task score
+      --hf_overrides '{"architectures":["Qwen3ForSequenceClassification"],"classifier_from_token":["no","yes"],"is_original_qwen3_reranker":true}'
+      --dtype auto
+      --max-model-len 8192
+      --gpu-memory-utilization ${RERANKER_GPU_MEM_UTIL:-0.35}
+      --trust-remote-code
+      --port 8000
+
+volumes:
+  vllm_cache:
+  torchinductor_cache:
+  triton_cache:

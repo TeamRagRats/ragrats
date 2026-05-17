@@ -22,10 +22,12 @@ from log.log_generation import log_generation
 from log.log_query import log_query
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
+from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERANK_URL
 
 from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
+from reranker import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
@@ -49,6 +51,9 @@ def run_query(
     strategies: list[str] | None = None,
     skip_voyage_key: bool = False,
     system_prompt: str | None = None,
+    rerank: bool = False,
+    rerank_pool: int | None = None,
+    rerank_url: str | None = None,
 ) -> tuple[str, str]:
     """Run the full RAG pipeline and return the answer. Logs query, retrieval, and generation."""
     if system_prompt is None:
@@ -78,15 +83,31 @@ def run_query(
             if not winning_keys:
                 return "", ""
 
+        effective_rerank_pool = (
+            rerank_pool if rerank_pool is not None else DEFAULT_RERANK_OVERSAMPLE * top_k_2
+        )
+        step2_top_k = effective_rerank_pool if rerank else top_k_2
+
         t2 = time.monotonic()
         chunks = retrieve_chunks(
             conn, embedding,
             voyage_keys=winning_keys if winning_keys else None,
-            top_k=top_k_2,
+            top_k=step2_top_k,
             source_types=source_types,
             strategies=strategies,
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
+
+        rerank_ms: int | None = None
+        rerank_model: str | None = None
+        if rerank and chunks:
+            rerank_client = RerankClient(
+                base_url=rerank_url if rerank_url is not None else DEFAULT_RERANK_URL,
+            )
+            rerank_model = rerank_client.model
+            t_r = time.monotonic()
+            chunks = rerank_chunks(rerank_client, query, chunks, top_k=top_k_2)
+            rerank_ms = int((time.monotonic() - t_r) * 1000)
 
         if not chunks:
             return "", ""
@@ -110,6 +131,10 @@ def run_query(
             chunks=chunks,
             chunks_expanded_returned=0,
             chunks_expanded=None,
+            reranked=rerank,
+            rerank_model=rerank_model,
+            rerank_pool=effective_rerank_pool if rerank else None,
+            rerank_ms=rerank_ms,
         )
 
         context = build_context([
@@ -178,6 +203,12 @@ def main() -> None:
                    help="LLM sampling temperature (default: 0.3)")
     p.add_argument("--max-tokens", type=int, default=2500, dest="max_tokens",
                    help="LLM max output tokens (default: 2500)")
+    p.add_argument("--rerank", action="store_true",
+                   help="Rerank retrieved chunks with Qwen3-Reranker-8B before generation")
+    p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
+                   help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
+    p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
+                   help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -196,6 +227,9 @@ def main() -> None:
         source_types=source_types,
         strategies=strategies,
         skip_voyage_key=args.no_voyage_key,
+        rerank=args.rerank,
+        rerank_pool=args.rerank_pool,
+        rerank_url=args.rerank_url,
     )
 
     if not answer:
