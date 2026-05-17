@@ -22,6 +22,7 @@ def hybrid_retrieve_chunks(
     strategies: list[str] | None = None,
     rrf_k: int = 60,
     mode: Mode = "hybrid",
+    ef_search: int | None = None,
 ) -> list[RetrievedChunk]:
     """Hybrid retrieval: vector + BM25 fused via RRF.
 
@@ -50,6 +51,7 @@ def hybrid_retrieve_chunks(
         conn, query_embedding,
         voyage_keys=voyage_keys, top_k=vector_pool,
         source_types=source_types, strategies=strategies,
+        ef_search=ef_search,
     )
 
     return rrf_fuse(vector_hits, bm25_hits, top_k=top_k, rrf_k=rrf_k)

@@ -137,6 +137,8 @@ def _run_for_category(
     rrf_k: int = 60,
     reranker: RerankClient | None = None,
     rerank_pool: int | None = None,
+    ef_search_1: int | None = None,
+    ef_search_2: int | None = None,
 ) -> tuple[int, int, int, float, int, float]:
     key_hits = 0
     chunk_hits = 0
@@ -155,6 +157,7 @@ def _run_for_category(
             winning_keys, vote_counts = find_winning_voyage_keys(
                 conn, embedding, top_k=top_k_1,
                 source_types=source_types, strategies=strategies,
+                ef_search=ef_search_1,
             )
             if expected_key in vote_counts:
                 key_hits += 1
@@ -167,6 +170,7 @@ def _run_for_category(
                 top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
                 rrf_k=rrf_k, mode=hybrid_mode,
+                ef_search=ef_search_2,
             )
         else:
             anchor_chunks = retrieve_chunks(
@@ -174,6 +178,7 @@ def _run_for_category(
                 voyage_keys=winning_keys if winning_keys else None,
                 top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
+                ef_search=ef_search_2,
             )
 
         if reranker is not None:
@@ -257,6 +262,10 @@ def main() -> None:
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
                    help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
+    p.add_argument("--ef-search-1", type=int, default=None, dest="ef_search_1",
+                   help="HNSW ef_search for step 1 (default: = top-k-1). Must be >= top-k-1.")
+    p.add_argument("--ef-search-2", type=int, default=None, dest="ef_search_2",
+                   help="HNSW ef_search for step 2 (default: = effective step-2 LIMIT).")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -280,7 +289,10 @@ def main() -> None:
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    print(f"{summary} | top_k_1: {args.top_k_1} | top_k_2: {args.top_k_2}")
+    ef1 = args.ef_search_1 if args.ef_search_1 is not None else args.top_k_1
+    ef2 = args.ef_search_2 if args.ef_search_2 is not None else args.top_k_2
+    print(f"{summary} | top_k_1: {args.top_k_1} | top_k_2: {args.top_k_2} | "
+          f"ef_search_1: {ef1} | ef_search_2: {ef2}")
 
     client = EmbedClient(base_url=args.embed_url)
     hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
@@ -308,6 +320,8 @@ def main() -> None:
                 rrf_k=args.rrf_k,
                 reranker=reranker,
                 rerank_pool=rerank_pool,
+                ef_search_1=args.ef_search_1,
+                ef_search_2=args.ef_search_2,
             )
             results[category] = (key_hits, chunk_hits, total, mrr, src_hits, src_mrr)
 

@@ -24,6 +24,7 @@ def retrieve_chunks(
     top_k: int = 20,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    ef_search: int | None = None,
 ) -> list[RetrievedChunk]:
     """
     Returns the top_k most similar chunks from chunks, optionally filtered to
@@ -31,6 +32,10 @@ def retrieve_chunks(
 
     When voyage_keys is None, no voyage_key filter is applied — useful when the
     caller wants to bypass step 1 (voyage_key voting).
+
+    ef_search: HNSW candidate-pool size. Defaults to top_k. Always SET LOCAL
+    here so this step does not silently inherit step 1's value (or fall back
+    to Postgres' default of 40 when step 1 is skipped).
     """
     filters: list[str] = []
     params: list = [query_embedding]
@@ -59,6 +64,8 @@ def retrieve_chunks(
         ORDER BY distance
         LIMIT %s
     """
+    effective_ef = int(ef_search) if ef_search is not None else int(top_k)
+    conn.execute(f"SET LOCAL hnsw.ef_search = {effective_ef}")
     rows = conn.execute(sql, params).fetchall()
     return [
         RetrievedChunk(

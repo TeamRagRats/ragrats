@@ -54,6 +54,8 @@ def run_query(
     rerank: bool = False,
     rerank_pool: int | None = None,
     rerank_url: str | None = None,
+    ef_search_1: int | None = None,
+    ef_search_2: int | None = None,
 ) -> tuple[str, str]:
     """Run the full RAG pipeline and return the answer. Logs query, retrieval, and generation."""
     if system_prompt is None:
@@ -77,6 +79,7 @@ def run_query(
             winning_keys, vote_counts = find_winning_voyage_keys(
                 conn, embedding, top_k=top_k_1,
                 source_types=source_types, strategies=strategies,
+                ef_search=ef_search_1,
             )
             step1_ms = int((time.monotonic() - t1) * 1000)
 
@@ -95,6 +98,7 @@ def run_query(
             top_k=step2_top_k,
             source_types=source_types,
             strategies=strategies,
+            ef_search=ef_search_2,
         )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
@@ -135,6 +139,11 @@ def run_query(
             rerank_model=rerank_model,
             rerank_pool=effective_rerank_pool if rerank else None,
             rerank_ms=rerank_ms,
+            ef_search_1=(
+                None if skip_voyage_key
+                else (ef_search_1 if ef_search_1 is not None else top_k_1)
+            ),
+            ef_search_2=(ef_search_2 if ef_search_2 is not None else step2_top_k),
         )
 
         context = build_context([
@@ -209,6 +218,11 @@ def main() -> None:
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
                    help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
+    p.add_argument("--ef-search-1", type=int, default=None, dest="ef_search_1",
+                   help="HNSW ef_search for step 1 (default: = top-k-1). Must be >= top-k-1.")
+    p.add_argument("--ef-search-2", type=int, default=None, dest="ef_search_2",
+                   help="HNSW ef_search for step 2 (default: = effective step-2 LIMIT). "
+                        "Must be >= that LIMIT.")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -230,6 +244,8 @@ def main() -> None:
         rerank=args.rerank,
         rerank_pool=args.rerank_pool,
         rerank_url=args.rerank_url,
+        ef_search_1=args.ef_search_1,
+        ef_search_2=args.ef_search_2,
     )
 
     if not answer:

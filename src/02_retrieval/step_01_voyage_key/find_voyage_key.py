@@ -9,6 +9,7 @@ def find_winning_voyage_keys(
     top_k: int = 500,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    ef_search: int | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     """
     Searches chunks for the top_k most similar chunks to query_embedding,
@@ -18,6 +19,10 @@ def find_winning_voyage_keys(
         (winning_keys, all_vote_counts)
         winning_keys: voyage_keys tied for most appearances in the top_k
         all_vote_counts: {voyage_key: count} for every key that appeared
+
+    ef_search: HNSW candidate-pool size for this step. Defaults to top_k
+    (pgvector requires ef_search >= LIMIT). Raise above top_k to trade
+    latency for recall.
     """
     filters: list[str] = []
     params: list = []
@@ -43,7 +48,8 @@ def find_winning_voyage_keys(
         GROUP BY voyage_key
         ORDER BY cnt DESC, voyage_key
     """
-    conn.execute(f"SET LOCAL hnsw.ef_search = {int(top_k)}")
+    effective_ef = int(ef_search) if ef_search is not None else int(top_k)
+    conn.execute(f"SET LOCAL hnsw.ef_search = {effective_ef}")
     rows = conn.execute(sql, params).fetchall()
     if not rows:
         return [], {}

@@ -65,6 +65,11 @@ def main() -> None:
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
                    help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
+    p.add_argument("--ef-search-1", type=int, default=None, dest="ef_search_1",
+                   help="HNSW ef_search for step 1 (default: = top-k-1). Must be >= top-k-1.")
+    p.add_argument("--ef-search-2", type=int, default=None, dest="ef_search_2",
+                   help="HNSW ef_search for step 2 (default: = effective step-2 LIMIT). "
+                        "Must be >= that LIMIT (= rerank-pool when --rerank, else top-k-2).")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -91,6 +96,7 @@ def main() -> None:
             winning_keys, vote_counts = find_winning_voyage_keys(
                 conn, embedding, top_k=args.top_k_1,
                 source_types=source_types, strategies=strategies,
+                ef_search=args.ef_search_1,
             )
             step1_ms = int((time.monotonic() - t1) * 1000)
 
@@ -126,6 +132,7 @@ def main() -> None:
                 strategies=strategies,
                 rrf_k=args.rrf_k,
                 mode=mode,
+                ef_search=args.ef_search_2,
             )
         else:
             chunks = retrieve_chunks(
@@ -134,6 +141,7 @@ def main() -> None:
                 top_k=step2_top_k,
                 source_types=source_types,
                 strategies=strategies,
+                ef_search=args.ef_search_2,
             )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
@@ -181,6 +189,13 @@ def main() -> None:
             rerank_model=rerank_model,
             rerank_pool=rerank_pool if args.rerank else None,
             rerank_ms=rerank_ms,
+            ef_search_1=(
+                None if args.no_voyage_key
+                else (args.ef_search_1 if args.ef_search_1 is not None else args.top_k_1)
+            ),
+            ef_search_2=(
+                args.ef_search_2 if args.ef_search_2 is not None else step2_top_k
+            ),
         )
 
     for chunk in chunks:

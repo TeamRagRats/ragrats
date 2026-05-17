@@ -140,6 +140,7 @@ def _run_for_category(
     rrf_k: int = 60,
     reranker: RerankClient | None = None,
     rerank_pool: int | None = None,
+    ef_search: int | None = None,
 ) -> tuple[int, int, float, int, float]:
     hits = 0
     src_hits = 0
@@ -159,11 +160,13 @@ def _run_for_category(
                 voyage_keys=[expected_key], top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
                 rrf_k=rrf_k, mode=hybrid_mode,
+                ef_search=ef_search,
             )
         else:
             anchor_chunks = retrieve_chunks(
                 conn, embedding, voyage_keys=[expected_key], top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
+                ef_search=ef_search,
             )
 
         if reranker is not None:
@@ -246,6 +249,9 @@ def main() -> None:
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
                    help=f"Reranker server base URL (default: {DEFAULT_RERANK_URL})")
+    p.add_argument("--ef-search", type=int, default=None, dest="ef_search",
+                   help="HNSW ef_search for step 2 (default: = effective LIMIT). "
+                        "Must be >= effective LIMIT (= rerank-pool when --rerank, else top-k).")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -269,7 +275,8 @@ def main() -> None:
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    print(f"{summary} | top_k: {args.top_k}")
+    ef = args.ef_search if args.ef_search is not None else args.top_k
+    print(f"{summary} | top_k: {args.top_k} | ef_search: {ef}")
 
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
@@ -297,6 +304,7 @@ def main() -> None:
                 rrf_k=args.rrf_k,
                 reranker=reranker,
                 rerank_pool=rerank_pool,
+                ef_search=args.ef_search,
             )
             results[category] = (hits, total, mrr, src_hits, src_mrr)
 

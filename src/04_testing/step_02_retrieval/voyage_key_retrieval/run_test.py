@@ -54,6 +54,7 @@ def _run_for_type(
     source_types: list[str] | None,
     strategies: list[str] | None,
     llm: LLMClient | None = None,
+    ef_search: int | None = None,
 ) -> tuple[int, int]:
     hits = 0
     for i, (question_id, question, expected_key) in enumerate(rows, 1):
@@ -62,6 +63,7 @@ def _run_for_type(
         winning_keys, vote_counts = find_winning_voyage_keys(
             conn, embedding, top_k=top_k,
             source_types=source_types, strategies=strategies,
+            ef_search=ef_search,
         )
 
         rank = _compute_rank(expected_key, vote_counts)
@@ -108,6 +110,8 @@ def main() -> None:
                    help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate questions with LLM before embedding")
+    p.add_argument("--ef-search", type=int, default=None, dest="ef_search",
+                   help="HNSW ef_search for step 1 (default: = top-k). Must be >= top-k.")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -130,7 +134,8 @@ def main() -> None:
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
     threshold_str = f" | rank<= {args.rank_threshold}" if args.rank_threshold else ""
-    print(f"{summary} | top_k: {args.top_k}{threshold_str}")
+    ef = args.ef_search if args.ef_search is not None else args.top_k
+    print(f"{summary} | top_k: {args.top_k} | ef_search: {ef}{threshold_str}")
 
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
@@ -143,6 +148,7 @@ def main() -> None:
                 conn, client, rows, run_id, args.top_k, category, args.rank_threshold,
                 source_types=source_types, strategies=strategies,
                 llm=llm,
+                ef_search=args.ef_search,
             )
             results[category] = (hits, total)
 
