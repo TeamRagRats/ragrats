@@ -1,6 +1,6 @@
 services:
   reranker:
-    image: nvcr.io/nvidia/vllm:26.04-py3
+    image: vllm/vllm-openai:v0.8.5
     container_name: ragrats_reranker
     ipc: host
     ports:
