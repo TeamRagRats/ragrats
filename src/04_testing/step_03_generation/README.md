@@ -9,9 +9,9 @@ Feed `correct_sources` fra ground_truth direkte til `build_context` + `generate_
 Sammenlign output med `correct_answer` via LLM-as-judge eller semantisk lighed.
 
 ```python
-context = build_context(fetch_chunks_by_source(gt_sources))
+context = build_context(conn, [chunk], [chunk.voyage_key])
 answer, _ = generate_answer(llm, query, context, ...)
-score = judge(answer, correct_answer)  # 1–5
+score = judge(answer, ground_truth_answer)  # 1–5
 ```
 
 **End-to-end vs. isolated:**

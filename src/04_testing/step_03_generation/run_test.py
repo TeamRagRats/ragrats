@@ -20,8 +20,10 @@ if __name__ == "__main__" and __package__ in (None, ""):
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
     _repo_root = _here.parents[2]
+    _retrieval = _repo_root / "src" / "02_retrieval"
     _generation = _repo_root / "src" / "03_generation"
     sys.path.insert(0, str(_repo_root))
+    sys.path.insert(0, str(_retrieval))
     sys.path.insert(0, str(_generation))
     __package__ = "src.testing.generation.accuracy"
 
@@ -34,7 +36,8 @@ from pathlib import Path
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
-from step_01_context_builder import build_context
+from step_02_chunk_retrieval.retrieve_vector import RetrievedChunk
+from step_01_build_context import build_context
 from step_02_llm_generation import generate_answer
 from log.log_generation_accuracy_testing import log_generation_accuracy_testing
 from log.log_testing import log_generation_run
@@ -102,7 +105,7 @@ def main() -> None:
         rows = conn.execute("""
             SELECT gt.question_id, gt.question, gt.ground_truth_answer,
                    c.chunk_id::text, c.voyage_key, c.source_type, c.source_id,
-                   c.chunk_index, c.text
+                   c.strategy, c.chunk_index, c.text
             FROM ground_truth gt
             JOIN chunks c ON c.chunk_id = gt.source_chunk_id
             WHERE gt.source_chunk_id IS NOT NULL
@@ -125,17 +128,19 @@ def main() -> None:
     with connect() as conn:
         for i, (question_id, question, ground_truth_answer,
                 chunk_id, voyage_key, source_type, source_id,
-                chunk_index, chunk_text) in enumerate(rows, 1):
+                strategy, chunk_index, chunk_text) in enumerate(rows, 1):
 
-            context = build_context([{
-                "chunk_id": chunk_id,
-                "voyage_key": voyage_key,
-                "source_type": source_type,
-                "source_id": source_id,
-                "chunk_index": chunk_index,
-                "similarity": 1.0,
-                "text": chunk_text,
-            }])
+            chunk = RetrievedChunk(
+                chunk_id=chunk_id,
+                source_type=source_type,
+                source_id=source_id,
+                strategy=strategy,
+                voyage_key=voyage_key,
+                chunk_index=chunk_index,
+                text=chunk_text,
+                similarity=1.0,
+            )
+            context = build_context(conn, [chunk], [voyage_key])
 
             t_gen = time.monotonic()
             generated_answer, _ = generate_answer(
