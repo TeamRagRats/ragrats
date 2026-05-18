@@ -32,7 +32,7 @@ services:
       vllm serve ${VLLM_MODEL:-nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4}
       --dtype auto
       --max-model-len ${VLLM_MAX_MODEL_LEN:-170000}
-      --gpu-memory-utilization ${VLLM_GPU_MEM_UTIL:-0.70}
+      --gpu-memory-utilization ${VLLM_GPU_MEM_UTIL:-0.60}
       --enable-prefix-caching
       --trust-remote-code
       --port 8000
