@@ -12,15 +12,15 @@ voyage keys) where pure embedding similarity sometimes misses an exact match.
 
 ## What's implemented
 
-### Database — `sql_migrations/0081_chunks_tsvector.sql`
+### Database — `sql_migrations/0086_chunks_tsvector_all_strategies.sql`
 
-Adds a persistent lexical index on `chunks`:
+Extends the persistent lexical index on `chunks` (originally added in 0081):
 
 - **Column** `text_tsv tsvector` — `GENERATED ALWAYS AS (...) STORED`.
-  Auto-populates `to_tsvector('simple', text)` for `strategy='context'` rows;
-  NULL for everything else. No trigger needed; Postgres maintains it on
-  every INSERT/UPDATE.
-- **Index** `chunks_text_tsv_gin` — partial GIN on `strategy='context'`.
+  Auto-populates `to_tsvector('simple', text)` for all four strategies
+  (`context`, `plain`, `late`, `summary`); NULL for any future unknown value.
+  No trigger needed; Postgres maintains it on every INSERT/UPDATE.
+- **Index** `chunks_text_tsv_gin` — partial GIN on all four strategies.
 
 Tokenizer is `'simple'` on purpose: the corpus is full of proper nouns
 (vessel names, port names, voyage keys) where stemming hurts recall.
@@ -30,7 +30,7 @@ Tokenizer is `'simple'` on purpose: the corpus is full of proper nouns
 | File | Responsibility |
 |---|---|
 | `tokenize_query.py` | Normalize raw user input (strip punctuation, collapse whitespace, lowercase) before `plainto_tsquery`. |
-| `score_bm25.py` | `bm25_retrieve(conn, query_text, top_k, voyage_keys, source_types)` — pure SQL, hardcoded `strategy='context'`, returns `list[RetrievedChunk]` with `similarity = ts_rank`. |
+| `score_bm25.py` | `bm25_retrieve(conn, query_text, top_k, voyage_keys, source_types, strategies)` — pure SQL, defaults to all four strategies, returns `list[RetrievedChunk]` with `similarity = ts_rank`. |
 | `fuse_scores.py` | `rrf_fuse(vector_results, bm25_results, top_k, rrf_k=60)` — Reciprocal Rank Fusion, deduped by `chunk_id`. |
 | `hybrid_retrieve.py` | `hybrid_retrieve_chunks(...)` — orchestrator. `mode='hybrid'` runs both retrievers and fuses; `mode='bm25_only'` skips the vector half. |
 | `__init__.py` | Re-exports the four functions above. |
@@ -66,9 +66,9 @@ Both lists are fused by chunk identity.
 ### 1. Migration applied
 
 ```sql
-SELECT count(*) FROM chunks WHERE text_tsv IS NOT NULL AND strategy = 'context';
--- expected: equal to count(*) FROM chunks WHERE strategy = 'context'
-SELECT count(*) FROM chunks WHERE text_tsv IS NOT NULL AND strategy <> 'context';
+SELECT strategy, count(*) FROM chunks WHERE text_tsv IS NOT NULL GROUP BY strategy;
+-- expected: rows for context, plain, late, summary
+SELECT count(*) FROM chunks WHERE text_tsv IS NULL AND strategy IN ('context','plain','late','summary');
 -- expected: 0
 ```
 
@@ -78,7 +78,7 @@ SELECT count(*) FROM chunks WHERE text_tsv IS NOT NULL AND strategy <> 'context'
 EXPLAIN ANALYZE
 SELECT chunk_id, ts_rank(text_tsv, plainto_tsquery('simple', 'demurrage claim')) AS score
 FROM chunks
-WHERE strategy = 'context'
+WHERE strategy IN ('context', 'plain', 'late', 'summary')
   AND text_tsv @@ plainto_tsquery('simple', 'demurrage claim')
 ORDER BY score DESC LIMIT 5;
 ```
@@ -131,8 +131,9 @@ should be ≥ vector on `fact_single` (the keyword-heavy class).
 
 ## Scope boundaries
 
-- BM25 runs **only against `strategy='context'`** rows. The vector side
-  keeps whatever `--strategy` filter the user passes.
+- BM25 runs against all four strategies (`context`, `plain`, `late`, `summary`)
+  by default; pass `strategies` to restrict. The vector side keeps the same
+  `--strategy` filter.
 - BM25 is only in **step_02**. Step_01 voyage_key voting stays pure vector.
 - No new Python dependencies — pure Postgres + stdlib.
 - Fusion is **RRF only**. No linear weighting, no score normalization.

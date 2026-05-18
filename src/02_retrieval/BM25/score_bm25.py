@@ -7,29 +7,35 @@ from step_02_chunk_retrieval.retrieve_chunks import RetrievedChunk
 from .tokenize_query import tokenize_query
 
 
+_ALL_BM25_STRATEGIES = ("context", "plain", "late", "summary")
+
+
 def bm25_retrieve(
     conn: psycopg.Connection,
     query_text: str,
     top_k: int = 20,
     voyage_keys: list[str] | None = None,
     source_types: list[str] | None = None,
+    strategies: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """Lexical retrieval against chunks via Postgres ts_rank.
 
-    Hardcoded to strategy='context' — that's the only strategy backed by the
-    text_tsv column / partial GIN index from migration 0081. Returns
-    RetrievedChunk rows with `similarity` set to the raw ts_rank score so
-    callers can introspect; ranking for fusion uses position, not score.
+    Queries all strategies that have a populated text_tsv (context, plain,
+    late, summary — backed by migration 0086). Pass `strategies` to restrict
+    to a subset. Returns RetrievedChunk rows with `similarity` set to the raw
+    ts_rank score; ranking for fusion uses position, not score.
     """
     normalized = tokenize_query(query_text)
     if not normalized:
         return []
 
+    effective_strategies = list(strategies) if strategies is not None else list(_ALL_BM25_STRATEGIES)
+
     where_parts: list[str] = [
-        "strategy = 'context'",
+        "strategy = ANY(%s)",
         "text_tsv @@ plainto_tsquery('simple', %s)",
     ]
-    where_params: list = [normalized]
+    where_params: list = [effective_strategies, normalized]
     if voyage_keys is not None:
         where_parts.append("voyage_key = ANY(%s)")
         where_params.append(voyage_keys)

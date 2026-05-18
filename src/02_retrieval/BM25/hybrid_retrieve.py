@@ -29,8 +29,8 @@ def hybrid_retrieve_chunks(
     - query_text: ORIGINAL user query (no LLM reformulation) — fed to BM25.
     - query_embedding: embedding of the (optionally reformulated) query —
       fed to the vector retriever.
-    - strategies: passed through to the vector retriever. BM25 hardcodes
-      strategy='context' internally regardless of this argument.
+    - strategies: forwarded to both the vector retriever and BM25. Defaults
+      to all four strategies (context, plain, late, summary).
     - mode='bm25_only': skip the vector side entirely (diagnostic).
 
     Returns the same list[RetrievedChunk] shape as retrieve_chunks() so
@@ -41,6 +41,7 @@ def hybrid_retrieve_chunks(
     bm25_hits = bm25_retrieve(
         conn, query_text, top_k=bm25_pool,
         voyage_keys=voyage_keys, source_types=source_types,
+        strategies=strategies,
     )
 
     if mode == "bm25_only":
