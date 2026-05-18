@@ -4,10 +4,9 @@ from typing import Literal
 
 import psycopg
 
-from step_02_chunk_retrieval.retrieve_chunks import RetrievedChunk, retrieve_chunks
-
-from .fuse_scores import rrf_fuse
-from .score_bm25 import bm25_retrieve
+from .retrieve_vector import RetrievedChunk, retrieve_chunks
+from .bm25.fuse_scores import rrf_fuse
+from .bm25.score_bm25 import bm25_retrieve
 
 Mode = Literal["hybrid", "bm25_only"]
 

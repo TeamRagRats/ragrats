@@ -9,7 +9,7 @@ from collections import defaultdict
 
 import psycopg
 
-from .retrieve_chunks import RetrievedChunk
+from step_02_chunk_retrieval.retrieve_vector import RetrievedChunk
 
 
 def expand_chunks(

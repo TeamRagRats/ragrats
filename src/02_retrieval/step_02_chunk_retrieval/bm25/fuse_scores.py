@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from step_02_chunk_retrieval.retrieve_chunks import RetrievedChunk
+from ..retrieve_vector import RetrievedChunk
 
 
 def rrf_fuse(

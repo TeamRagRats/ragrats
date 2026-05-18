@@ -1,4 +1,4 @@
-from .retrieve_chunks import retrieve_chunks, RetrievedChunk
-from .expand_chunks import expand_chunks
+from .retrieve_vector import retrieve_chunks, RetrievedChunk
+from .retrieve_hybrid import hybrid_retrieve_chunks
 
-__all__ = ["retrieve_chunks", "RetrievedChunk", "expand_chunks"]
+__all__ = ["retrieve_chunks", "RetrievedChunk", "hybrid_retrieve_chunks"]

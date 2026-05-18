@@ -2,8 +2,9 @@
 
 Lexical (BM25-style) retrieval via Postgres `ts_rank`, fused with the existing
 vector retriever using Reciprocal Rank Fusion (RRF). Slotted into **step_02**
-of the retrieval pipeline. Step_00 (reformulation) and step_01 (voyage_key
-voting) are untouched.
+of the retrieval pipeline as the hybrid path (`retrieve_hybrid.py` is the
+orchestrator; this folder holds the BM25 internals). Step_00 (reformulation)
+and step_01 (voyage_key voting) are untouched.
 
 The goal is recall on keyword-heavy queries (vessel names, port names, dates,
 voyage keys) where pure embedding similarity sometimes misses an exact match.
@@ -25,15 +26,15 @@ Extends the persistent lexical index on `chunks` (originally added in 0081):
 Tokenizer is `'simple'` on purpose: the corpus is full of proper nouns
 (vessel names, port names, voyage keys) where stemming hurts recall.
 
-### Python modules — `src/02_retrieval/BM25/`
+### Python modules — `src/02_retrieval/step_02_chunk_retrieval/`
 
 | File | Responsibility |
 |---|---|
-| `tokenize_query.py` | Normalize raw user input (strip punctuation, collapse whitespace, lowercase) before `plainto_tsquery`. |
-| `score_bm25.py` | `bm25_retrieve(conn, query_text, top_k, voyage_keys, source_types, strategies)` — pure SQL, defaults to all four strategies, returns `list[RetrievedChunk]` with `similarity = ts_rank`. |
-| `fuse_scores.py` | `rrf_fuse(vector_results, bm25_results, top_k, rrf_k=60)` — Reciprocal Rank Fusion, deduped by `chunk_id`. |
-| `hybrid_retrieve.py` | `hybrid_retrieve_chunks(...)` — orchestrator. `mode='hybrid'` runs both retrievers and fuses; `mode='bm25_only'` skips the vector half. |
-| `__init__.py` | Re-exports the four functions above. |
+| `retrieve_hybrid.py` | `hybrid_retrieve_chunks(...)` — orchestrator. `mode='hybrid'` runs both retrievers and fuses; `mode='bm25_only'` skips the vector half. |
+| `bm25/tokenize_query.py` | Normalize raw user input (strip punctuation, collapse whitespace, lowercase) before `plainto_tsquery`. |
+| `bm25/score_bm25.py` | `bm25_retrieve(conn, query_text, top_k, voyage_keys, source_types, strategies)` — pure SQL, defaults to all four strategies, returns `list[RetrievedChunk]` with `similarity = ts_rank`. |
+| `bm25/fuse_scores.py` | `rrf_fuse(vector_results, bm25_results, top_k, rrf_k=60)` — Reciprocal Rank Fusion, deduped by `chunk_id`. |
+| `bm25/__init__.py` | Re-exports `bm25_retrieve`, `rrf_fuse`, `tokenize_query`. |
 
 ### CLI flags
 

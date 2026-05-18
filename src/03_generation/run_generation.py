@@ -27,7 +27,7 @@ from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERA
 from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
-from reranker import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
+from step_03_rerank import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
 from step_01_context_builder import build_context
 from step_02_llm_generation import generate_answer
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES

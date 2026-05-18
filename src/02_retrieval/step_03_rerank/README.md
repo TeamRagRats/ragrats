@@ -9,7 +9,7 @@ best match.
 Pipeline placement:
 
 ```
-Query → reformulate → embed → step_01 → step_02 (vector | hybrid) → [reranker] → top_k
+Query → reformulate → embed → step_01 → step_02 (vector | hybrid) → [step_03_rerank] → top_k
 ```
 
 Off by default — opt in with `--rerank`, same convention as `--hybrid`.
@@ -35,7 +35,7 @@ on first contact. `rerank(query, documents, top_n=None)` returns
 POSTs to `/v1/rerank` via `urllib` (the `openai` SDK does not surface this
 endpoint as a first-class method).
 
-### Python module — `src/02_retrieval/reranker/`
+### Python module — `src/02_retrieval/step_03_rerank/`
 
 | File | Responsibility |
 |---|---|

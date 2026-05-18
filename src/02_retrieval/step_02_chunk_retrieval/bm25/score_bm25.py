@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import psycopg
 
-from step_02_chunk_retrieval.retrieve_chunks import RetrievedChunk
+from ..retrieve_vector import RetrievedChunk
 
 from .tokenize_query import tokenize_query
 
