@@ -163,7 +163,7 @@ def main() -> None:
             context = build_context(conn, chunks, [voyage_key])
 
             t_gen = time.monotonic()
-            generated_answer, _ = generate_answer(
+            generated_answer, _, _ = generate_answer(
                 llm_client, question, context, _SYSTEM_PROMPT,
                 args.temperature, args.max_tokens,
             )

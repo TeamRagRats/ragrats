@@ -144,12 +144,13 @@ def run_query(
                 else (ef_search_1 if ef_search_1 is not None else top_k_1)
             ),
             ef_search_2=(ef_search_2 if ef_search_2 is not None else step2_top_k),
+            embed_input=retrieval_query,
         )
 
         context = build_context(conn, chunks, winning_keys)
 
         t_gen = time.monotonic()
-        answer, usage = generate_answer(
+        answer, usage, llm_input = generate_answer(
             llm, query, context, system_prompt, temperature, max_tokens
         )
         generation_ms = int((time.monotonic() - t_gen) * 1000)
@@ -168,6 +169,7 @@ def run_query(
             completion_tokens=usage["completion_tokens"],
             generation_ms=generation_ms,
             total_ms=total_ms,
+            llm_input=llm_input,
         )
 
     return answer, query_id

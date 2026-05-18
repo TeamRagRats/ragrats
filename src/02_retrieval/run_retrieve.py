@@ -195,6 +195,7 @@ def main() -> None:
             ef_search_2=(
                 args.ef_search_2 if args.ef_search_2 is not None else step2_top_k
             ),
+            embed_input=retrieval_query,
         )
 
     for chunk in chunks:

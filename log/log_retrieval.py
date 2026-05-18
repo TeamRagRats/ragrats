@@ -27,6 +27,7 @@ def log_retrieval(
     rerank_ms: int | None = None,
     ef_search_1: int | None = None,
     ef_search_2: int | None = None,
+    embed_input: str | None = None,
 ) -> None:
     def _serialise(cs: list) -> str:
         return json.dumps([
@@ -63,10 +64,10 @@ def log_retrieval(
                  chunks_expanded_returned, chunks_expanded,
                  retrieved_source_types, retrieved_source_ids,
                  reranked, rerank_model, rerank_pool, rerank_ms,
-                 ef_search_1, ef_search_2)
+                 ef_search_1, ef_search_2, embed_input)
             VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s,
                     %s, %s, %s, %s,
-                    %s, %s)
+                    %s, %s, %s)
             """,
             (
                 query_id,
@@ -92,6 +93,7 @@ def log_retrieval(
                 rerank_ms,
                 ef_search_1,
                 ef_search_2,
+                embed_input,
             ),
         )
     conn.commit()
