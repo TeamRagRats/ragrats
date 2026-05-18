@@ -29,7 +29,7 @@ services:
       - torchinductor_cache:/root/.cache/torchinductor
       - triton_cache:/root/.cache/triton
     command: >
-      vllm serve Qwen/Qwen3-Reranker-8B
+      vllm serve Qwen/Qwen3-Reranker-4B
       --convert classify
       --hf_overrides '{"architectures":["Qwen3ForSequenceClassification"],"classifier_from_token":["no","yes"],"is_original_qwen3_reranker":true}'
       --dtype auto
