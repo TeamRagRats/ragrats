@@ -1,6 +1,6 @@
 services:
   reranker:
-    image: vllm/vllm-openai:v0.8.5
+    image: nvcr.io/nvidia/vllm:26.04-py3
     container_name: ragrats_reranker
     ipc: host
     ports:
@@ -30,7 +30,7 @@ services:
       - triton_cache:/root/.cache/triton
     command: >
       vllm serve Qwen/Qwen3-Reranker-8B
-      --task score
+      --convert classify
       --hf_overrides '{"architectures":["Qwen3ForSequenceClassification"],"classifier_from_token":["no","yes"],"is_original_qwen3_reranker":true}'
       --dtype auto
       --max-model-len 8192
