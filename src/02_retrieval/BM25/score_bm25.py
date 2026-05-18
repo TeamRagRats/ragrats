@@ -29,13 +29,20 @@ def bm25_retrieve(
     if not normalized:
         return []
 
+    # Build an OR tsquery so any matching term scores a hit. plainto_tsquery
+    # AND-s all words, making full-sentence queries match nothing.
+    tokens = [t for t in normalized.split() if len(t) > 1]
+    if not tokens:
+        return []
+    tsquery_str = " | ".join(tokens)
+
     effective_strategies = list(strategies) if strategies is not None else list(_ALL_BM25_STRATEGIES)
 
     where_parts: list[str] = [
         "strategy = ANY(%s)",
-        "text_tsv @@ plainto_tsquery('simple', %s)",
+        "text_tsv @@ to_tsquery('simple', %s)",
     ]
-    where_params: list = [effective_strategies, normalized]
+    where_params: list = [effective_strategies, tsquery_str]
     if voyage_keys is not None:
         where_parts.append("voyage_key = ANY(%s)")
         where_params.append(voyage_keys)
@@ -45,13 +52,13 @@ def bm25_retrieve(
 
     sql = f"""
         SELECT chunk_id::text, source_type, source_id, strategy, voyage_key, chunk_index, text,
-               ts_rank(text_tsv, plainto_tsquery('simple', %s)) AS score
+               ts_rank(text_tsv, to_tsquery('simple', %s)) AS score
         FROM chunks
         WHERE {" AND ".join(where_parts)}
         ORDER BY score DESC
         LIMIT %s
     """
-    params = [normalized] + where_params + [top_k]
+    params = [tsquery_str] + where_params + [top_k]
     rows = conn.execute(sql, params).fetchall()
     return [
         RetrievedChunk(
