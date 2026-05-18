@@ -28,7 +28,7 @@ from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks
 from step_03_rerank import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
-from step_01_context_builder import build_context
+from step_01_build_context import build_context
 from step_02_llm_generation import generate_answer
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
 
@@ -146,18 +146,7 @@ def run_query(
             ef_search_2=(ef_search_2 if ef_search_2 is not None else step2_top_k),
         )
 
-        context = build_context([
-            {
-                "chunk_id": c.chunk_id,
-                "voyage_key": c.voyage_key,
-                "source_type": c.source_type,
-                "source_id": c.source_id,
-                "chunk_index": c.chunk_index,
-                "similarity": c.similarity,
-                "text": c.text,
-            }
-            for c in chunks
-        ])
+        context = build_context(conn, chunks, winning_keys)
 
         t_gen = time.monotonic()
         answer, usage = generate_answer(
