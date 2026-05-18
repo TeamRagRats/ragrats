@@ -2,7 +2,7 @@
 Voyage key retrieval recall test.
 
 For every ground_truth_v3 row, embeds the question, runs find_winning_voyage_keys,
-and logs the result to test_voyage_key_logging and test_retrieval_run_logging.
+and logs the result to test_retrieval_vk_logging and test_retrieval_run_logging.
 Results are logged separately per category (fact_single / summary / reasoning / unanswerable).
 
 Run on SPARK where both postgres and the embed server are reachable:
@@ -164,6 +164,11 @@ def main() -> None:
                 total=total,
                 hits=hits,
                 recall=recall,
+                strategy=",".join(strategies),
+                bm25=False,
+                reranker=False,
+                reformulator=llm is not None,
+                ef=args.ef_search if args.ef_search is not None else args.top_k,
             )
 
     print(f"\nDone. run_id={run_id}")

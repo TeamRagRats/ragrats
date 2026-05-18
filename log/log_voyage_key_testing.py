@@ -17,11 +17,11 @@ def log_voyage_key_testing(
     winner_rank: int | None,
     vote_counts: dict[str, int],
 ) -> None:
-    """Logs a single question result to the test_voyage_key_logging table."""
+    """Logs a single question result to the test_retrieval_vk_logging table."""
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO test_voyage_key_logging
+            INSERT INTO test_retrieval_vk_logging
                 (run_id, question_id, top_k, expected_key, returned_keys, hit, winner_rank, vote_counts)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,

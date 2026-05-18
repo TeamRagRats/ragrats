@@ -320,6 +320,11 @@ def main() -> None:
                 total=total,
                 hits=hits,
                 recall=recall,
+                strategy=",".join(strategies),
+                bm25=hybrid_mode is not None,
+                reranker=reranker is not None,
+                reformulator=llm is not None,
+                ef=args.ef_search if args.ef_search is not None else args.top_k,
             )
 
     print(f"\nDone. run_id={run_id}")

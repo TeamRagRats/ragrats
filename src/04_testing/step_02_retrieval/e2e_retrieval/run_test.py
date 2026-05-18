@@ -10,7 +10,7 @@ pipeline (find_winning_voyage_keys → retrieve_chunks) and checks:
 
 Categories: fact_single / summary / reasoning / unanswerable. Voyage key and
 chunk results are logged separately to test_retrieval_run_logging under the
-same run_id; per-question chunk results to test_chunk_retrieval_logging.
+same run_id; per-question chunk results to test_retrieval_chunk_logging.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
@@ -338,6 +338,11 @@ def main() -> None:
                 total=total,
                 hits=key_hits,
                 recall=key_recall,
+                strategy=",".join(strategies),
+                bm25=hybrid_mode is not None,
+                reranker=reranker is not None,
+                reformulator=False,
+                ef=ef1,
             )
             log_retrieval_run(
                 conn,
@@ -348,6 +353,11 @@ def main() -> None:
                 total=total,
                 hits=chunk_hits,
                 recall=chunk_recall,
+                strategy=",".join(strategies),
+                bm25=hybrid_mode is not None,
+                reranker=reranker is not None,
+                reformulator=False,
+                ef=ef2,
             )
 
     print(f"\nDone. run_id={run_id}")

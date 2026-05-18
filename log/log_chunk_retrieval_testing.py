@@ -14,11 +14,11 @@ def log_chunk_retrieval_testing(
     hit: bool,
     source_rank: int | None,
 ) -> None:
-    """Logs a single question result to the test_chunk_retrieval_logging table."""
+    """Logs a single question result to the test_retrieval_chunk_logging table."""
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO test_chunk_retrieval_logging
+            INSERT INTO test_retrieval_chunk_logging
                 (run_id, question_id, top_k, expected_source_id, returned_source_ids, hit, source_rank)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
