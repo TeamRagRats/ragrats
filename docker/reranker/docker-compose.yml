@@ -34,7 +34,7 @@ services:
       --hf_overrides '{"architectures":["Qwen3ForSequenceClassification"],"classifier_from_token":["no","yes"],"is_original_qwen3_reranker":true}'
       --dtype auto
       --max-model-len 8192
-      --gpu-memory-utilization ${RERANKER_GPU_MEM_UTIL:-0.35}
+      --gpu-memory-utilization ${RERANKER_GPU_MEM_UTIL:-0.25}
       --trust-remote-code
       --port 8000
 
