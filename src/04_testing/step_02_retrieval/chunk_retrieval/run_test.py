@@ -314,7 +314,7 @@ def main() -> None:
             log_retrieval_run(
                 conn,
                 run_id=run_id,
-                test_type="chunk_retrieval_isolated_v3",
+                test_type="chunk_retrieval",
                 question_type=category,
                 top_k=args.top_k,
                 total=total,

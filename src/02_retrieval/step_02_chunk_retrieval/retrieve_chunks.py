@@ -64,7 +64,7 @@ def retrieve_chunks(
         ORDER BY distance
         LIMIT %s
     """
-    effective_ef = int(ef_search) if ef_search is not None else int(top_k)
+    effective_ef = int(ef_search) if ef_search is not None else 100
     conn.execute(f"SET LOCAL hnsw.ef_search = {effective_ef}")
     rows = conn.execute(sql, params).fetchall()
     return [
