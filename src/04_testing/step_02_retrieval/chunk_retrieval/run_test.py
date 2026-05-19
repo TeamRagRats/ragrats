@@ -83,11 +83,16 @@ def _matches(
     expected_source_id: str,
     expected_thread_id: str | None,
     email_thread_map: dict[str, str],
+    attach_email_map: dict[str, str],
+    expected_strategy: str | None,
 ) -> bool:
-    if chunk.source_type != expected_source_type:
-        return False
     if expected_source_type == "email":
-        return email_thread_map.get(chunk.source_id) == expected_thread_id
+        # any chunk (email or attachment) from the same thread counts as a hit
+        thread = _canonical_thread(
+            chunk.source_type, chunk.source_id, chunk.strategy,
+            email_thread_map, attach_email_map,
+        )
+        return thread == expected_thread_id
     return chunk.source_id == expected_source_id
 
 
@@ -97,9 +102,12 @@ def _compute_rank(
     expected_source_id: str,
     expected_thread_id: str | None,
     email_thread_map: dict[str, str],
+    attach_email_map: dict[str, str],
+    expected_strategy: str | None,
 ) -> int | None:
     for i, chunk in enumerate(chunks, 1):
-        if _matches(chunk, expected_source_type, expected_source_id, expected_thread_id, email_thread_map):
+        if _matches(chunk, expected_source_type, expected_source_id, expected_thread_id,
+                    email_thread_map, attach_email_map, expected_strategy):
             return i
     return None
 
@@ -175,7 +183,7 @@ def _run_for_category(
         )
         rank = _compute_rank(
             anchor_chunks, expected_source_type, expected_source_id,
-            expected_thread_id, email_thread_map,
+            expected_thread_id, email_thread_map, attach_email_map, expected_strategy,
         )
         hit = rank is not None
         if hit:
