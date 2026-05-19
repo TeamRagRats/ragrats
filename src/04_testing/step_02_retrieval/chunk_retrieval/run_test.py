@@ -155,7 +155,7 @@ def _run_for_category(
     total = len(rows)
 
     for i, (question_id, question, expected_key, expected_source_type,
-            expected_source_id, expected_strategy) in enumerate(rows, 1):
+            expected_source_id, expected_strategy, expected_thread_id) in enumerate(rows, 1):
         q = reformulate_query(llm, question) if llm else question
         embedding = client.embed([q])[0]
 
@@ -178,9 +178,6 @@ def _run_for_category(
         if reranker is not None:
             anchor_chunks = rerank_chunks(reranker, question, anchor_chunks, top_k=top_k)
 
-        expected_thread_id = (
-            email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
-        )
         rank = _compute_rank(
             anchor_chunks, expected_source_type, expected_source_id,
             expected_thread_id, email_thread_map, attach_email_map, expected_strategy,
@@ -263,15 +260,16 @@ def main() -> None:
 
     with connect() as conn:
         all_rows = conn.execute("""
-            SELECT question_id, question, voyage_key, 'email'::text, source_id::text, category
+            SELECT question_id, question, voyage_key, 'email'::text,
+                   source_id::text, category, thread_id::text
             FROM ground_truth
             ORDER BY category, question_id
         """).fetchall()
 
     rows_by_category: dict[str, list] = {}
-    for question_id, question, voyage_key, source_type, source_id, category in all_rows:
+    for question_id, question, voyage_key, source_type, source_id, category, thread_id in all_rows:
         rows_by_category.setdefault(category, []).append(
-            (question_id, question, voyage_key, source_type, source_id, None)
+            (question_id, question, voyage_key, source_type, source_id, None, thread_id)
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
