@@ -1,13 +1,12 @@
 """
 Isolated chunk retrieval test — step 2 only.
 
-Feeds the correct voyage_key from ground_truth_v3 directly to retrieve_chunks,
+Feeds the correct voyage_key from ground_truth directly to retrieve_chunks,
 bypassing step 1 entirely. This measures how well step 2 performs given a
 perfect voyage key, making it independent of step 1 errors.
 
-Correctness is source-level, with email being thread-level: emails are
-embedded with full thread context, so any email chunk in the same thread as
-the expected email counts as a hit. Attachments match on source_id directly.
+Ground truth is email-only (source_type=email). Correctness is thread-level:
+any email chunk in the same thread as the expected email counts as a hit.
 
 Categories: fact_single / summary / reasoning / unanswerable. Results logged
 separately per category.
@@ -232,8 +231,6 @@ def main() -> None:
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
                    help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
-    p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
-                   help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate questions with LLM before embedding")
     p.add_argument("--hybrid", action="store_true",
@@ -255,22 +252,18 @@ def main() -> None:
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
-    gt_strategies = args.gt_strategies or ["all"]
-    gt_filter_sql = "" if "all" in gt_strategies else "WHERE strategy = ANY(%(gt_strategies)s)"
-    gt_params = {} if "all" in gt_strategies else {"gt_strategies": gt_strategies}
 
     with connect() as conn:
-        all_rows = conn.execute(f"""
-            SELECT question_id, question, voyage_key, source_type, source_id, category, strategy
-            FROM ground_truth_v3
-            {gt_filter_sql}
+        all_rows = conn.execute("""
+            SELECT question_id, question, voyage_key, 'email'::text, source_id::text, category
+            FROM ground_truth
             ORDER BY category, question_id
-        """, gt_params).fetchall()
+        """).fetchall()
 
     rows_by_category: dict[str, list] = {}
-    for question_id, question, voyage_key, source_type, source_id, category, strategy in all_rows:
+    for question_id, question, voyage_key, source_type, source_id, category in all_rows:
         rows_by_category.setdefault(category, []).append(
-            (question_id, question, voyage_key, source_type, source_id, strategy)
+            (question_id, question, voyage_key, source_type, source_id, None)
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
