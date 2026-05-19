@@ -89,6 +89,17 @@ class RerankClient:
                     (int(item["index"]), float(item["relevance_score"]))
                     for item in results
                 ]
+            except urllib.error.HTTPError as exc:
+                body = ""
+                try:
+                    body = exc.read().decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                if attempt == retries:
+                    raise RuntimeError(
+                        f"Rerank server returned HTTP {exc.code}: {body}"
+                    ) from exc
+                time.sleep(attempt * 2)
             except Exception:
                 if attempt == retries:
                     raise

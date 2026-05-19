@@ -288,10 +288,6 @@ def main() -> None:
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    ef1 = args.ef_search_1 if args.ef_search_1 is not None else args.top_k_1
-    ef2 = args.ef_search_2 if args.ef_search_2 is not None else args.top_k_2
-    print(f"{summary} | top_k_1: {args.top_k_1} | top_k_2: {args.top_k_2} | "
-          f"ef_search_1: {ef1} | ef_search_2: {ef2}")
 
     client = EmbedClient(base_url=args.embed_url)
     hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
@@ -301,6 +297,11 @@ def main() -> None:
         if args.rerank_pool is not None
         else DEFAULT_RERANK_OVERSAMPLE * args.top_k_2
     )
+    ef1 = args.ef_search_1 if args.ef_search_1 is not None else args.top_k_1
+    effective_limit_2 = rerank_pool if reranker is not None else args.top_k_2
+    ef2 = args.ef_search_2 if args.ef_search_2 is not None else effective_limit_2
+    print(f"{summary} | top_k_1: {args.top_k_1} | top_k_2: {args.top_k_2} | "
+          f"ef_search_1: {ef1} | ef_search_2: {ef2}")
     run_id = str(uuid.uuid4())
 
     results: dict[str, tuple[int, int, int, float, int, float]] = {}

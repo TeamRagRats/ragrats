@@ -274,8 +274,6 @@ def main() -> None:
         )
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
-    ef = args.ef_search if args.ef_search is not None else args.top_k
-    print(f"{summary} | top_k: {args.top_k} | ef_search: {ef}")
 
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
@@ -286,6 +284,9 @@ def main() -> None:
         if args.rerank_pool is not None
         else DEFAULT_RERANK_OVERSAMPLE * args.top_k
     )
+    effective_limit = rerank_pool if reranker is not None else args.top_k
+    ef = args.ef_search if args.ef_search is not None else effective_limit
+    print(f"{summary} | top_k: {args.top_k} | ef_search: {ef}")
     run_id = str(uuid.uuid4())
 
     results: dict[str, tuple[int, int, float, int, float]] = {}
@@ -323,7 +324,7 @@ def main() -> None:
                 bm25=hybrid_mode is not None,
                 reranker=reranker is not None,
                 reformulator=llm is not None,
-                ef=args.ef_search if args.ef_search is not None else args.top_k,
+                ef=args.ef_search if args.ef_search is not None else effective_limit,
             )
 
     print(f"\nDone. run_id={run_id}")
