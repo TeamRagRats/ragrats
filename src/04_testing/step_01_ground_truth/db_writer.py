@@ -12,16 +12,12 @@ def insert_qa(
     answer: str,
     category: str,
     body_cleaned: str,
-    structured_md: str,
+    structured_md: str | None,
     thread_id: UUID,
     source_id: UUID,
     voyage_key: str,
 ) -> bool:
-    """Insert one ground_truth row. Returns True if inserted, False on conflict.
-
-    body_cleaned and structured_md are NOT NULL in the schema. Pass "" for
-    structured_md when the source email has no attachments.
-    """
+    """Insert one ground_truth row. Returns True if inserted, False on conflict."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -37,7 +33,7 @@ def insert_qa(
                 category,
                 answer,
                 body_cleaned,
-                structured_md or "",
+                structured_md if structured_md else None,
                 thread_id,
                 source_id,
                 voyage_key,
