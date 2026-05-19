@@ -1,4 +1,4 @@
-# Reranker — Qwen3-Reranker-8B
+# Reranker — Qwen3-Reranker (currently deployed: 4B)
 
 Optional cross-encoder reranking stage that sits **after** step_02 (vector or
 hybrid) and reorders the candidate pool by genuine query-document relevance.
@@ -20,12 +20,15 @@ Off by default — opt in with `--rerank`, same convention as `--hybrid`.
 
 ### Infrastructure — `docker/reranker/docker-compose.yml`
 
-New vLLM container `ragrats_reranker` on port **8004**. Serves
-`Qwen/Qwen3-Reranker-8B` in `--task score` mode with the
+New vLLM container `ragrats_reranker` on port **8004**. Currently serves
+`Qwen/Qwen3-Reranker-4B` (see `docker/reranker/docker-compose.yml` for the
+exact model ID at any given time) in classify mode with the
 `classifier_from_token=["no","yes"]` override that converts the generative
 "yes/no" recipe into a sequence-classification head exposing
 `/v1/rerank`. Coexists with `ragrats_vllm` on the same GPU
-(`--gpu-memory-utilization 0.35` by default).
+(`--gpu-memory-utilization` configurable via env). Run
+`python src/04_testing/step_02_retrieval/diagnose_config.py` to confirm the
+live model ID against this doc.
 
 ### Client — `clients/rerank_client.py`
 
@@ -63,7 +66,7 @@ and `src/03_generation/run_generation.py`:
 
 | Flag | Effect |
 |---|---|
-| `--rerank` | Rerank step_02 output with Qwen3-Reranker-8B |
+| `--rerank` | Rerank step_02 output with the configured reranker model |
 | `--rerank-pool INT` | Candidates fed to the reranker (default: `3 × top_k_2`) |
 | `--rerank-url URL` | Reranker base URL (default: `http://localhost:8004/v1`) |
 
@@ -86,7 +89,8 @@ when `--reformulate` is set.
 ```bash
 cd docker/reranker && docker compose up -d
 curl http://localhost:8004/v1/models
-# expected: data: [{"id": "Qwen/Qwen3-Reranker-8B", ...}]
+# expected: data: [{"id": "Qwen/Qwen3-Reranker-4B", ...}]
+# (or whatever is currently configured in docker/reranker/docker-compose.yml)
 ```
 
 ### 2. Client smoke test

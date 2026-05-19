@@ -94,14 +94,14 @@ def _run_for_type(
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Voyage key retrieval recall test")
-    p.add_argument("--top-k", type=int, default=5, dest="top_k",
+    p.add_argument("--top-k", type=int, default=500, dest="top_k",
                    help="Candidates for voyage_key voting (default: 500)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
     p.add_argument("--rank-threshold", type=int, default=None, dest="rank_threshold",
                    help="Strammere hit-definition: expected_key skal ligge i top-N "
                         "efter stemmetal blandt top_k chunks (fx --rank-threshold 3). "
@@ -141,6 +141,12 @@ def main() -> None:
     llm = LLMClient() if args.reformulate else None
     run_id = str(uuid.uuid4())
 
+    print(
+        f"Pipeline: reformulate={'on' if llm else 'off'} "
+        f"| strategy={strategies if strategies is not None else 'all'} "
+        f"| source_type={source_types if source_types is not None else 'all'}"
+    )
+
     results: dict[str, tuple[int, int]] = {}
     with connect() as conn:
         for category, rows in sorted(rows_by_category.items()):
@@ -164,7 +170,7 @@ def main() -> None:
                 total=total,
                 hits=hits,
                 recall=recall,
-                strategy=",".join(strategies),
+                strategy=",".join(strategies) if strategies is not None else "all",
                 bm25=False,
                 reranker=False,
                 reformulator=llm is not None,

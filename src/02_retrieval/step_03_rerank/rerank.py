@@ -15,7 +15,7 @@ def rerank_chunks(
     chunks: list[RetrievedChunk],
     top_k: int,
 ) -> list[RetrievedChunk]:
-    """Reorder `chunks` by Qwen3-Reranker-8B relevance and truncate to top_k.
+    """Reorder `chunks` by reranker relevance and truncate to top_k.
 
     The reranker receives the ORIGINAL user query (no LLM reformulation) and
     every chunk's `text`. Returned chunks carry `similarity = rerank_score`

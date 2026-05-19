@@ -231,19 +231,20 @@ def main() -> None:
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
     p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
                    help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate questions with LLM before embedding")
     p.add_argument("--hybrid", action="store_true",
-                   help="Hybrid retrieval: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+                   help="Hybrid retrieval: fuse vector + BM25 via RRF (BM25 against same strategies as vector)")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
                    help="BM25-only retrieval (diagnostic). Implies hybrid retriever path.")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
     p.add_argument("--rerank", action="store_true",
-                   help="Rerank retrieved chunks with Qwen3-Reranker-8B")
+                   help="Rerank retrieved chunks with the configured reranker model "
+                        "(see diagnose_config.py for the deployed model)")
     p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
@@ -288,6 +289,15 @@ def main() -> None:
     )
     run_id = str(uuid.uuid4())
 
+    print(
+        f"Pipeline: hybrid={hybrid_mode or 'off'} "
+        f"| rerank={'on' if reranker else 'off'} "
+        f"| rerank_pool={rerank_pool if reranker else '-'} "
+        f"| reformulate={'on' if llm else 'off'} "
+        f"| strategy={strategies if strategies is not None else 'all'} "
+        f"| source_type={source_types if source_types is not None else 'all'}"
+    )
+
     results: dict[str, tuple[int, int, float, int, float]] = {}
     with connect() as conn:
         email_thread_map = _load_email_thread_map(conn)
@@ -319,7 +329,7 @@ def main() -> None:
                 total=total,
                 hits=hits,
                 recall=recall,
-                strategy=",".join(strategies),
+                strategy=",".join(strategies) if strategies is not None else "all",
                 bm25=hybrid_mode is not None,
                 reranker=reranker is not None,
                 reformulator=llm is not None,

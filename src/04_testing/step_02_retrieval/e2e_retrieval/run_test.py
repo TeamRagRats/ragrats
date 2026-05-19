@@ -16,6 +16,7 @@ Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
     python run_test.py --top-k-1 500 --top-k-2 20
     python run_test.py --strategy late --source-type email
+    python run_test.py --hybrid --rerank --reformulate    # full production pipeline
 """
 
 from __future__ import annotations
@@ -35,7 +36,9 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
+from clients.llm_client import LLMClient
 from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERANK_URL
+from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks, hybrid_retrieve_chunks
 from step_03_rerank import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
@@ -132,6 +135,7 @@ def _run_for_category(
     skip_voyage_key: bool,
     email_thread_map: dict[str, str],
     attach_email_map: dict[str, str],
+    llm: LLMClient | None = None,
     hybrid_mode: str | None = None,
     rrf_k: int = 60,
     reranker: RerankClient | None = None,
@@ -148,7 +152,8 @@ def _run_for_category(
 
     for i, (question_id, question, expected_key, expected_source_type,
             expected_source_id, expected_strategy) in enumerate(rows, 1):
-        embedding = client.embed([question])[0]
+        q = reformulate_query(llm, question) if llm else question
+        embedding = client.embed([q])[0]
 
         if skip_voyage_key:
             winning_keys, vote_counts = [], {}
@@ -244,19 +249,20 @@ def main() -> None:
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
     p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
                    help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
     p.add_argument("--hybrid", action="store_true",
-                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against same strategies as vector)")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
                    help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
     p.add_argument("--rerank", action="store_true",
-                   help="Rerank step_02 output with Qwen3-Reranker-8B")
+                   help="Rerank step_02 output with the configured reranker model "
+                        "(see diagnose_config.py for the deployed model)")
     p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
@@ -265,6 +271,8 @@ def main() -> None:
                    help="HNSW ef_search for step 1 (default: = top-k-1). Must be >= top-k-1.")
     p.add_argument("--ef-search-2", type=int, default=None, dest="ef_search_2",
                    help="HNSW ef_search for step 2 (default: = effective step-2 LIMIT).")
+    p.add_argument("--reformulate", action="store_true",
+                   help="Reformulate questions with LLM before embedding (matches production run_query)")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -294,6 +302,7 @@ def main() -> None:
           f"ef_search_1: {ef1} | ef_search_2: {ef2}")
 
     client = EmbedClient(base_url=args.embed_url)
+    llm = LLMClient() if args.reformulate else None
     hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
     reranker = RerankClient(base_url=args.rerank_url) if args.rerank else None
     rerank_pool = (
@@ -302,6 +311,15 @@ def main() -> None:
         else DEFAULT_RERANK_OVERSAMPLE * args.top_k_2
     )
     run_id = str(uuid.uuid4())
+
+    print(
+        f"Pipeline: hybrid={hybrid_mode or 'off'} "
+        f"| rerank={'on' if reranker else 'off'} "
+        f"| rerank_pool={rerank_pool if reranker else '-'} "
+        f"| reformulate={'on' if llm else 'off'} "
+        f"| strategy={strategies if strategies is not None else 'all'} "
+        f"| source_type={source_types if source_types is not None else 'all'}"
+    )
 
     results: dict[str, tuple[int, int, int, float, int, float]] = {}
     with connect() as conn:
@@ -315,6 +333,7 @@ def main() -> None:
                 skip_voyage_key=args.no_voyage_key,
                 email_thread_map=email_thread_map,
                 attach_email_map=attach_email_map,
+                llm=llm,
                 hybrid_mode=hybrid_mode,
                 rrf_k=args.rrf_k,
                 reranker=reranker,
@@ -337,10 +356,10 @@ def main() -> None:
                 total=total,
                 hits=key_hits,
                 recall=key_recall,
-                strategy=",".join(strategies),
+                strategy=",".join(strategies) if strategies is not None else "all",
                 bm25=hybrid_mode is not None,
                 reranker=reranker is not None,
-                reformulator=False,
+                reformulator=llm is not None,
                 ef=ef1,
             )
             log_retrieval_run(
@@ -352,10 +371,10 @@ def main() -> None:
                 total=total,
                 hits=chunk_hits,
                 recall=chunk_recall,
-                strategy=",".join(strategies),
+                strategy=",".join(strategies) if strategies is not None else "all",
                 bm25=hybrid_mode is not None,
                 reranker=reranker is not None,
-                reformulator=False,
+                reformulator=llm is not None,
                 ef=ef2,
             )
 

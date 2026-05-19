@@ -26,7 +26,7 @@ class RerankClient:
     """Cross-encoder reranker client for vLLM `--task score` servers.
 
     Hits the OpenAI-compatible `/v1/rerank` endpoint exposed by vLLM when
-    Qwen3-Reranker-8B is served with classifier_from_token=['no','yes'].
+    a Qwen3 reranker is served with classifier_from_token=['no','yes'].
     The `openai` SDK does not surface /rerank as a first-class method, so
     we POST via urllib directly.
     """

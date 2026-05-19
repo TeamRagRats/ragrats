@@ -45,7 +45,7 @@ def main() -> None:
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
     p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
@@ -53,13 +53,13 @@ def main() -> None:
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate query with LLM before embedding")
     p.add_argument("--hybrid", action="store_true",
-                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against same strategies as vector)")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
                    help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
     p.add_argument("--rerank", action="store_true",
-                   help="Rerank step_02 output with Qwen3-Reranker-8B")
+                   help="Rerank step_02 output with the configured reranker model")
     p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",

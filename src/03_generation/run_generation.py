@@ -32,6 +32,22 @@ from step_01_build_context import build_context
 from step_02_llm_generation import generate_answer
 from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
 
+# --------------------------------------------------------------------------
+# Structural gaps to be addressed separately (not in test-fix scope):
+#
+# 1. Hybrid retrieval is NOT wired into run_query — only retrieve_chunks
+#    (pure vector) is called. To enable, import hybrid_retrieve_chunks,
+#    add a `hybrid: bool` kwarg, and branch on it the same way run_retrieve.py
+#    does. The query reformulator (step_00) is calibrated for hybrid + BM25
+#    so the two changes belong together.
+# 2. DEFAULT_RERANK_OVERSAMPLE = 3 (pool = 60 @ top_k_2=20) is below SOTA
+#    cross-encoder guidance of 5-10x. Worth benchmarking with --rerank-pool
+#    100-200 before deciding on a new default.
+# 3. The reformulator system prompt explicitly mentions hybrid retrieval as
+#    its target backend; tracking #1 above is what makes this prompt match
+#    the production pipeline.
+# --------------------------------------------------------------------------
+
 _REPO_ROOT = Path(__file__).parents[2]
 _DEFAULT_SYSTEM_PROMPT = (
     _REPO_ROOT / "system_prompts" / "generation" / "generation.md"
@@ -192,7 +208,7 @@ def main() -> None:
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
     p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--embed-url", default=DEFAULT_EMBED_URL,
@@ -204,7 +220,7 @@ def main() -> None:
     p.add_argument("--max-tokens", type=int, default=2500, dest="max_tokens",
                    help="LLM max output tokens (default: 2500)")
     p.add_argument("--rerank", action="store_true",
-                   help="Rerank retrieved chunks with Qwen3-Reranker-8B before generation")
+                   help="Rerank retrieved chunks with the configured reranker model before generation")
     p.add_argument("--rerank-pool", type=int, default=None, dest="rerank_pool",
                    help=f"Candidate pool fed to reranker (default: {DEFAULT_RERANK_OVERSAMPLE}x top-k-2)")
     p.add_argument("--rerank-url", default=DEFAULT_RERANK_URL, dest="rerank_url",
