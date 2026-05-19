@@ -25,7 +25,7 @@ def rerank_chunks(
     if not chunks:
         return []
 
-    scored = client.rerank(query=query, documents=[c.text for c in chunks])
+    scored = client.rerank(query=query, documents=[c.text[:6000] for c in chunks])
     if not scored:
         return chunks[:top_k]
 
