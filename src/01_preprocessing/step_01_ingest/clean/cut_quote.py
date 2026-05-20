@@ -4,6 +4,7 @@ from __future__ import annotations
 # writer's new message survives. Markers detected:
 #   - any line starting with `>`                               (Outlook/Gmail/Apple quote)
 #   - "-----Original Message-----" / "-----Forwarded message-----"
+#   - "---- Replied Message ----"                                (Outlook-CN reply)
 #   - "On <date>, <person> wrote:"  / "Le ... a écrit :"        (Gmail/Apple/French)
 #   - a line of 8+ underscores                                  (Outlook quote separator)
 #   - 2+ consecutive header-like lines (From:/To:/Sent:/Date:/Subject:/Cc:/Bcc:)
@@ -17,7 +18,7 @@ import re
 
 _LINE_MARKERS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\s*>"),
-    re.compile(r"^\s*-{3,}\s*(?:Original\s+Message|Forwarded\s+message|Forwarded\s+by)\b", re.IGNORECASE),
+    re.compile(r"^\s*-{3,}\s*(?:Original\s+Message|Forwarded\s+message|Forwarded\s+by|Replied\s+Message)\b", re.IGNORECASE),
     re.compile(r"^\s*_{8,}\s*$"),
     re.compile(r"^\s*On\b.{1,300}\bwrote\s*:", re.IGNORECASE),
     re.compile(r"^\s*Le\b.{1,300}\b(?:a\s+écrit|wrote)\s*:", re.IGNORECASE),
