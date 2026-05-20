@@ -1,7 +1,7 @@
 """
 End-to-end retrieval recall test — full pipeline (step 1 → step 2).
 
-For every ground_truth_v3 row, embeds the question, runs the production
+For every ground_truth row, embeds the question, runs the production
 pipeline (find_winning_voyage_keys → retrieve_chunks) and checks:
   - voyage key recall:  expected_key in winning_keys (vote winners)
   - chunk recall:       source-level for attachments, thread-level for emails
@@ -247,8 +247,8 @@ def main() -> None:
                    help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
     p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
-    p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
-                   help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
+    p.add_argument("--voyage", type=str, default=None,
+                   help="Run only on this voyage_key (default: all voyages in ground_truth)")
     p.add_argument("--hybrid", action="store_true",
                    help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
@@ -269,17 +269,18 @@ def main() -> None:
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
-    gt_strategies = args.gt_strategies or ["all"]
-    gt_filter_sql = "" if "all" in gt_strategies else "WHERE strategy = ANY(%(gt_strategies)s)"
-    gt_params = {} if "all" in gt_strategies else {"gt_strategies": gt_strategies}
 
+    voyage_filter_sql = "WHERE voyage_key = %(voyage)s" if args.voyage else ""
+    voyage_params = {"voyage": args.voyage} if args.voyage else {}
     with connect() as conn:
         all_rows = conn.execute(f"""
-            SELECT question_id, question, voyage_key, source_type, source_id, category, strategy
-            FROM ground_truth_v3
-            {gt_filter_sql}
-            ORDER BY category, question_id
-        """, gt_params).fetchall()
+            SELECT question_id::text, question, voyage_key,
+                   'email' AS source_type, source_id::text, category,
+                   'plain' AS strategy
+            FROM ground_truth
+            {voyage_filter_sql}
+            ORDER BY category, question_id::text
+        """, voyage_params).fetchall()
 
     rows_by_category: dict[str, list] = {}
     for question_id, question, voyage_key, source_type, source_id, category, strategy in all_rows:

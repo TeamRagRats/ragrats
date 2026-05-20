@@ -8,6 +8,12 @@ from clients.rerank_client import RerankClient
 
 DEFAULT_RERANK_OVERSAMPLE = 3
 
+# Qwen3-Reranker-8B has an 8192-token context. We pre-truncate each chunk's
+# text by character count so (query + doc) reliably fits. ~4 chars/token is
+# a safe rule of thumb for English+Danish; 24000 chars ≈ 6000 tokens, leaving
+# ample room for the query.
+_MAX_DOC_CHARS = 24000
+
 
 def rerank_chunks(
     client: RerankClient,
@@ -25,7 +31,8 @@ def rerank_chunks(
     if not chunks:
         return []
 
-    scored = client.rerank(query=query, documents=[c.text for c in chunks])
+    documents = [(c.text or "")[:_MAX_DOC_CHARS] for c in chunks]
+    scored = client.rerank(query=query, documents=documents)
     if not scored:
         return chunks[:top_k]
 

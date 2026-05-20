@@ -1,7 +1,7 @@
 """
 Voyage key retrieval recall test.
 
-For every ground_truth_v3 row, embeds the question, runs find_winning_voyage_keys,
+For every ground_truth row, embeds the question, runs find_winning_voyage_keys,
 and logs the result to test_retrieval_vk_logging and test_retrieval_run_logging.
 Results are logged separately per category (fact_single / summary / reasoning / unanswerable).
 
@@ -106,8 +106,8 @@ def main() -> None:
                    help="Strammere hit-definition: expected_key skal ligge i top-N "
                         "efter stemmetal blandt top_k chunks (fx --rank-threshold 3). "
                         "Default: ingen threshold = ægte recall@k.")
-    p.add_argument("--gt-strategy", action="append", dest="gt_strategies", metavar="STRATEGY",
-                   help="Filter ground_truth_v3 by source strategy: plain, late, context, summary, all (repeatable; default: all)")
+    p.add_argument("--voyage", type=str, default=None,
+                   help="Run only on this voyage_key (default: all voyages in ground_truth)")
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate questions with LLM before embedding")
     p.add_argument("--ef-search", type=int, default=None, dest="ef_search",
@@ -116,17 +116,16 @@ def main() -> None:
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
-    gt_strategies = args.gt_strategies or ["all"]
-    gt_filter_sql = "" if "all" in gt_strategies else "WHERE strategy = ANY(%(gt_strategies)s)"
-    gt_params = {} if "all" in gt_strategies else {"gt_strategies": gt_strategies}
 
+    voyage_filter_sql = "WHERE voyage_key = %(voyage)s" if args.voyage else ""
+    voyage_params = {"voyage": args.voyage} if args.voyage else {}
     with connect() as conn:
         all_rows = conn.execute(f"""
-            SELECT question_id, question, voyage_key, category
-            FROM ground_truth_v3
-            {gt_filter_sql}
-            ORDER BY category, question_id
-        """, gt_params).fetchall()
+            SELECT question_id::text, question, voyage_key, category
+            FROM ground_truth
+            {voyage_filter_sql}
+            ORDER BY category, question_id::text
+        """, voyage_params).fetchall()
 
     rows_by_category: dict[str, list] = {}
     for question_id, question, voyage_key, category in all_rows:
