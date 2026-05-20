@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 # Entry point for plain embedding of emails (step_06_embedding/email_plain).
-# Embeds body_cleaned alone into one vector per email and writes it to the
-# chunks table as strategy='plain'. Baseline control for comparing against
+# Splits body_cleaned into fixed windows (shared general_chunker) and embeds
+# each chunk into its own vector, writing them to the chunks table as
+# strategy='plain'. Short emails yield a single chunk == the whole body.
+# Same chunking as attachment_plain. Baseline control for comparing against
 # 'late' and 'context' strategies.
 #
 # Run: python -m src.01_preprocessing.run_embedding_email_plain [--limit N] [--verbose]
