@@ -1,9 +1,8 @@
 """
-Generation accuracy test (retrieval bypassed).
+Generation accuracy test.
 
-For every ground_truth row, feeds the known correct chunk directly to
-build_context + generate_answer, then scores the output against
-ground_truth_answer using:
+For every ground_truth row, feeds body_cleaned + structured_md directly to
+generate_answer, then scores the output against the ground_truth answer using:
   - cosine similarity between embeddings (objective baseline)
   - LLM-as-judge 1-5 score (qualitative signal, same-model bias acknowledged)
 
@@ -20,10 +19,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
     _repo_root = _here.parents[2]
-    _retrieval = _repo_root / "src" / "02_retrieval"
     _generation = _repo_root / "src" / "03_generation"
     sys.path.insert(0, str(_repo_root))
-    sys.path.insert(0, str(_retrieval))
     sys.path.insert(0, str(_generation))
     __package__ = "src.testing.generation.accuracy"
 
@@ -36,8 +33,6 @@ from pathlib import Path
 from core.db import connect
 from clients.embed_client import EmbedClient, DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from clients.llm_client import LLMClient, DEFAULT_BASE_URL as DEFAULT_LLM_URL
-from step_02_chunk_retrieval.retrieve_vector import RetrievedChunk
-from step_01_build_context import build_context
 from step_02_llm_generation import generate_answer
 from log.log_generation_accuracy_testing import log_generation_accuracy_testing
 from log.log_testing import log_generation_run
@@ -89,6 +84,15 @@ def _parse_judge(response: str) -> tuple[int | None, str | None]:
     return score, reasoning
 
 
+def _build_context(body_cleaned: str | None, structured_md: str | None) -> str:
+    parts = []
+    if body_cleaned:
+        parts.append(f"[EMAIL]\n{body_cleaned}")
+    if structured_md:
+        parts.append(f"[ATTACHMENT]\n{structured_md}")
+    return "\n\n".join(parts)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Generation accuracy test")
     p.add_argument("--embed-url", default=DEFAULT_EMBED_URL,
@@ -103,48 +107,17 @@ def main() -> None:
 
     with connect() as conn:
         rows = conn.execute("""
-            SELECT gt.question_id, gt.question, gt.answer AS ground_truth_answer,
-                   gt.voyage_key,
-                   c.chunk_id::text, c.source_type, c.source_id, c.strategy,
-                   c.chunk_index, c.text
-            FROM ground_truth_v3 gt
-            JOIN chunks c
-              ON c.source_type = gt.source_type
-             AND c.source_id   = gt.source_id
-             AND c.strategy    = gt.strategy
-             AND (gt.chunk_index IS NULL OR c.chunk_index = gt.chunk_index)
-            ORDER BY gt.question_id, c.chunk_index
+            SELECT question_id::text, question, category, answer,
+                   voyage_key, body_cleaned, structured_md
+            FROM ground_truth
+            ORDER BY question_id
         """).fetchall()
 
     if not rows:
-        print("No ground_truth_v3 rows joined to chunks. Is the table populated?")
+        print("No ground_truth rows found. Is the table populated?")
         return
 
-    # Group rows by question_id — each email row matches multiple chunks
-    # (chunk_index IS NULL in gt), each attachment row matches one.
-    grouped: dict[str, dict] = {}
-    for (question_id, question, ground_truth_answer, voyage_key,
-         chunk_id, source_type, source_id, strategy,
-         chunk_index, chunk_text) in rows:
-        entry = grouped.setdefault(question_id, {
-            "question": question,
-            "ground_truth_answer": ground_truth_answer,
-            "voyage_key": voyage_key,
-            "chunks": [],
-        })
-        entry["chunks"].append(RetrievedChunk(
-            chunk_id=chunk_id,
-            source_type=source_type,
-            source_id=source_id,
-            strategy=strategy,
-            voyage_key=voyage_key,
-            chunk_index=chunk_index,
-            text=chunk_text,
-            similarity=1.0,
-        ))
-
-    questions = list(grouped.items())
-    print(f"Questions: {len(questions)} | embed: {args.embed_url} | llm: {args.llm_url}")
+    print(f"Questions: {len(rows)} | embed: {args.embed_url} | llm: {args.llm_url}")
 
     embed_client = EmbedClient(base_url=args.embed_url)
     llm_client = LLMClient(base_url=args.llm_url)
@@ -154,13 +127,10 @@ def main() -> None:
     judge_scores: list[int] = []
 
     with connect() as conn:
-        for i, (question_id, entry) in enumerate(questions, 1):
-            question = entry["question"]
-            ground_truth_answer = entry["ground_truth_answer"]
-            voyage_key = entry["voyage_key"]
-            chunks = entry["chunks"]
+        for i, (question_id, question, category, ground_truth_answer,
+                voyage_key, body_cleaned, structured_md) in enumerate(rows, 1):
 
-            context = build_context(conn, chunks, [voyage_key])
+            context = _build_context(body_cleaned, structured_md)
 
             t_gen = time.monotonic()
             generated_answer, _, _ = generate_answer(
@@ -200,9 +170,9 @@ def main() -> None:
             if i % 10 == 0:
                 avg_cos = cosine_sum / i
                 avg_judge = sum(judge_scores) / len(judge_scores) if judge_scores else 0.0
-                print(f"  {i}/{len(questions)} — avg cosine: {avg_cos:.4f} | avg judge: {avg_judge:.2f}")
+                print(f"  {i}/{len(rows)} — avg cosine: {avg_cos:.4f} | avg judge: {avg_judge:.2f}")
 
-    total = len(questions)
+    total = len(rows)
     avg_cosine = cosine_sum / total if total else 0.0
     avg_judge = sum(judge_scores) / len(judge_scores) if judge_scores else 0.0
     high_quality = sum(1 for s in judge_scores if s >= 4)
