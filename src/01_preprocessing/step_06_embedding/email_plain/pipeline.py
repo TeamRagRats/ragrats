@@ -2,7 +2,9 @@ from __future__ import annotations
 
 # Per-email orchestrator for plain chunking:
 #   1. fetch emails with body_cleaned not yet plain-chunked
-#   2. for each email: embed body_cleaned -> upsert chunk row + log
+#   2. for each email: split body_cleaned into fixed windows (shared
+#      general_chunker), embed each chunk -> upsert chunk rows + log
+#   Short emails (<= TARGET_CHARS) yield a single chunk == the whole body.
 
 import logging
 from datetime import datetime, timezone
@@ -12,6 +14,7 @@ import psycopg
 
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 
+from step_05_chunking.emails.chunker import chunk_email_body
 from step_06_embedding.email_context import embedder
 
 from . import db
@@ -31,6 +34,10 @@ def _process_email(
 ) -> int:
     email_id = email["email_id"]
     body = email["body_cleaned"]
+    chunks = chunk_email_body(body)
+    if not chunks:
+        logger.warning("email %s produced no chunks — skipping", email_id)
+        return 0
 
     started = datetime.now(timezone.utc)
     log_chunking_pending(
@@ -43,23 +50,35 @@ def _process_email(
     )
 
     try:
-        vec, n_tokens, truncated = embedder.embed_text(
-            embed_model, tokenizer, body, device, MAX_LENGTH
-        )
+        rows: list[dict] = []
+        total_tokens = 0
+        any_truncated = False
 
-        row = {
-            "source_type": "email",
-            "source_id": str(email_id),
-            "voyage_key": email["voyage_key"],
-            "thread_id": str(email["thread_id"]) if email["thread_id"] else None,
-            "chunk_index": 0,
-            "text": body,
-            "embedding": embedder.format_halfvec(vec),
-            "char_count": len(body),
-            "strategy": "plain",
-            "model": MODEL_NAME,
-        }
-        db.upsert_chunks(conn, [row])
+        for chunk in chunks:
+            vec, n_tokens, truncated = embedder.embed_text(
+                embed_model, tokenizer, chunk.text, device, MAX_LENGTH
+            )
+            total_tokens += n_tokens
+            if truncated:
+                any_truncated = True
+                logger.warning(
+                    "email %s chunk %d hit max length (%d tokens)",
+                    email_id, chunk.chunk_index, n_tokens,
+                )
+            rows.append({
+                "source_type": "email",
+                "source_id": str(email_id),
+                "voyage_key": email["voyage_key"],
+                "thread_id": str(email["thread_id"]) if email["thread_id"] else None,
+                "chunk_index": chunk.chunk_index,
+                "text": chunk.text,
+                "embedding": embedder.format_halfvec(vec),
+                "char_count": chunk.char_count,
+                "strategy": "plain",
+                "model": MODEL_NAME,
+            })
+
+        db.upsert_chunks(conn, rows)
 
         finished = datetime.now(timezone.utc)
         duration_ms = int((finished - started).total_seconds() * 1000)
@@ -70,21 +89,16 @@ def _process_email(
             finished_at=finished,
             duration_ms=duration_ms,
             status="ok",
-            n_chunks=1,
+            n_chunks=len(rows),
             char_count=len(body),
-            total_tokens=n_tokens,
-            truncated=truncated,
+            total_tokens=total_tokens,
+            truncated=any_truncated,
         )
-        if truncated:
-            logger.warning(
-                "email %s hit max length (%d tokens); body truncated",
-                email_id, n_tokens,
-            )
         logger.info(
-            "email %s -> 1 chunk (%d tokens%s)",
-            email_id, n_tokens, ", truncated" if truncated else "",
+            "email %s -> %d chunks (%d tokens%s)",
+            email_id, len(rows), total_tokens, ", truncated" if any_truncated else "",
         )
-        return 1
+        return len(rows)
 
     except Exception as exc:
         conn.rollback()
