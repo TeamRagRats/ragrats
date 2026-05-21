@@ -7,7 +7,7 @@
    docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
    ```
 
-2. **Enough disk space** — first startup downloads `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4` (~30B parameters) into `~/.cache/huggingface`. Make sure the drive has space before starting.
+2. **Enough disk space** — first startup downloads `nvidia/Llama-3.1-Nemotron-Nano-8B-v1` into `~/.cache/huggingface`. Make sure the drive has space before starting.
 
 ## Persistent caches
 
