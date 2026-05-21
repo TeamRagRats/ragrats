@@ -53,6 +53,7 @@ def _run_for_type(
     rank_threshold: int | None,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    flags: dict,
     llm: LLMClient | None = None,
     ef_search: int | None = None,
 ) -> tuple[int, int]:
@@ -60,10 +61,10 @@ def _run_for_type(
     for i, (question_id, question, expected_key) in enumerate(rows, 1):
         q = reformulate_query(llm, question) if llm else question
         embedding = client.embed([q])[0]
-        winning_keys, vote_counts = find_winning_voyage_keys(
+        winning_keys, vote_counts, candidates = find_winning_voyage_keys(
             conn, embedding, top_k=top_k,
             source_types=source_types, strategies=strategies,
-            ef_search=ef_search,
+            ef_search=ef_search, return_candidates=True,
         )
 
         rank = _compute_rank(expected_key, vote_counts)
@@ -78,12 +79,15 @@ def _run_for_type(
             conn,
             run_id=run_id,
             question_id=question_id,
-            top_k=top_k,
+            category=question_type,
+            question=question,
             expected_key=expected_key,
             returned_keys=winning_keys,
             hit=hit,
             winner_rank=rank,
             vote_counts=vote_counts,
+            chunks=candidates,
+            flags=flags,
         )
 
         if i % 50 == 0:
@@ -134,7 +138,17 @@ def main() -> None:
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
     threshold_str = f" | rank<= {args.rank_threshold}" if args.rank_threshold else ""
     ef = args.ef_search if args.ef_search is not None else args.top_k
-    print(f"{summary} | top_k: {args.top_k} | ef_search: {ef}{threshold_str}")
+    strategy_str = ",".join(strategies) if strategies else "all"
+    print(f"{summary} | top_k: {args.top_k} | ef_search: {ef} | strategy: {strategy_str}{threshold_str}")
+
+    flags = {
+        "top_k": args.top_k,
+        "ef_search": ef,
+        "strategy": strategies if strategies is not None else "all",
+        "source_types": source_types if source_types is not None else "all",
+        "rank_threshold": args.rank_threshold,
+        "reformulator": args.reformulate,
+    }
 
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
@@ -146,6 +160,7 @@ def main() -> None:
             hits, total = _run_for_type(
                 conn, client, rows, run_id, args.top_k, category, args.rank_threshold,
                 source_types=source_types, strategies=strategies,
+                flags=flags,
                 llm=llm,
                 ef_search=args.ef_search,
             )
@@ -163,14 +178,14 @@ def main() -> None:
                 total=total,
                 hits=hits,
                 recall=recall,
-                strategy=",".join(strategies),
+                strategy=strategy_str,
                 bm25=False,
                 reranker=False,
                 reformulator=llm is not None,
-                ef=args.ef_search if args.ef_search is not None else args.top_k,
+                ef=ef,
             )
 
-    print(f"\nDone. run_id={run_id}")
+    print(f"\nDone. run_id={run_id} | strategy: {strategy_str}")
     metric_label = (f"recall@{args.top_k} (rank<= {args.rank_threshold})"
                     if args.rank_threshold else f"recall@{args.top_k}")
     for category, (hits, total) in sorted(results.items()):

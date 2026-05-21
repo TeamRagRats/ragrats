@@ -50,7 +50,8 @@ class LLMClient:
         self.base_url = base_url or os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL)
         resolved_key  = api_key  or os.environ.get("LLM_API_KEY",  DEFAULT_API_KEY)
 
-        self.client = OpenAI(base_url=self.base_url, api_key=resolved_key)
+        # max_retries=0: chat() has its own retry loop; models.list() must fail fast
+        self.client = OpenAI(base_url=self.base_url, api_key=resolved_key, max_retries=0)
 
         self.model = (
             model
@@ -59,7 +60,13 @@ class LLMClient:
         )
 
     def _detect_model(self) -> str:
-        models = self.client.models.list()
+        try:
+            models = self.client.models.list(timeout=10.0)
+        except Exception as e:
+            raise RuntimeError(
+                f"LLM server på {self.base_url} er ikke tilgængelig: {e}\n"
+                "Start serveren eller sæt LLM_MODEL env var."
+            ) from e
         available = [m.id for m in models.data]
         if not available:
             raise RuntimeError(
