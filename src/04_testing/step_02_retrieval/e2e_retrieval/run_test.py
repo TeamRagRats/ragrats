@@ -48,6 +48,7 @@ from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
 from source_match import (
+    canonical_email,
     canonical_thread,
     compute_email_rank,
     compute_thread_rank,
@@ -143,19 +144,27 @@ def _run_for_category(
             email_hits += 1
             email_mrr_sum += 1.0 / email_rank
 
-        expected_log = (
-            f"email_thread:{expected_thread_id}"
-            if expected_source_type == "email"
-            else f"{expected_source_type}:{expected_source_id}"
-        )
+        returned_email_ids = [
+            canonical_email(c.source_type, c.source_id, c.strategy, attach_email_map)
+            for c in anchor_chunks
+        ]
+        returned_thread_ids = [
+            canonical_thread(
+                c.source_type, c.source_id, c.strategy,
+                email_thread_map, attach_email_map,
+            )
+            for c in anchor_chunks
+        ]
         log_chunk_retrieval_testing(
             conn,
             run_id=run_id,
             question_id=question_id,
             category=category,
             question=question,
-            expected_source=expected_log,
-            returned_source_ids=[c.source_id for c in anchor_chunks],
+            expected_email=expected_email_id,
+            expected_thread=expected_thread_id,
+            returned_email_ids=returned_email_ids,
+            returned_thread_ids=returned_thread_ids,
             thread_hit=thread_hit,
             thread_rank=thread_rank,
             email_hit=email_hit,
