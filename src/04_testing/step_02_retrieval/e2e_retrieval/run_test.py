@@ -3,10 +3,12 @@ End-to-end retrieval recall test — full pipeline (step 1 → step 2).
 
 For every ground_truth row, embeds the question, runs the production
 pipeline (find_winning_voyage_keys → retrieve_chunks) and checks:
-  - voyage key recall:  expected_key in winning_keys (vote winners)
-  - chunk recall:       source-level for attachments, thread-level for emails
-                        (any chunk in the same thread counts, since emails
-                        are embedded with full thread context)
+  - voyage key recall : expected_key in winning_keys (vote winners)
+  - thread recall     : a retrieved chunk lands in the same email thread as
+                        the ground-truth email (loose; the previous "source
+                        recall")
+  - email  recall     : the retrieved chunk's parent email == ground-truth
+                        source_id (strict; email_hit always implies thread_hit)
 
 Categories: fact_single / summary / reasoning / unanswerable. Voyage key and
 chunk results are logged separately to test_retrieval_run_logging under the
@@ -26,8 +28,10 @@ if __name__ == "__main__" and __package__ in (None, ""):
     _here = _Path(__file__).resolve().parent
     _repo_root = _here.parents[3]
     _retrieval = _repo_root / "src" / "02_retrieval"
+    _step02_testing = _here.parent
     sys.path.insert(0, str(_repo_root))
     sys.path.insert(0, str(_retrieval))
+    sys.path.insert(0, str(_step02_testing))
     __package__ = "src.testing.retrieval.e2e"
 
 import argparse
@@ -43,69 +47,14 @@ from filter_args import resolve_source_types, resolve_strategies
 from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
-
-def _load_email_thread_map(conn) -> dict[str, str]:
-    """email_id (text) → thread_id (text). Used so emails match at thread level."""
-    rows = conn.execute("SELECT email_id::text, thread_id::text FROM emails").fetchall()
-    return {email_id: thread_id for email_id, thread_id in rows}
-
-
-def _load_attachment_email_map(conn) -> dict[str, str]:
-    """attachment.sha256 → email_id (text)."""
-    rows = conn.execute(
-        "SELECT sha256, email_id::text FROM attachments WHERE sha256 IS NOT NULL"
-    ).fetchall()
-    return {sha: eid for sha, eid in rows}
-
-
-def _canonical_thread(
-    source_type: str,
-    source_id: str,
-    strategy: str,
-    email_thread_map: dict[str, str],
-    attach_email_map: dict[str, str],
-) -> str | None:
-    """Cross-strategy thread key. Same email thread = same source, regardless of strategy."""
-    if source_type == "email":
-        return email_thread_map.get(source_id)
-    if strategy == "summary":
-        return email_thread_map.get(source_id)
-    email_id = attach_email_map.get(source_id)
-    return email_thread_map.get(email_id) if email_id else None
-
-
-def _serialize_chunks(chunks: list) -> list[dict]:
-    """Retrieved-chunk metadata for logging (no text; look up by chunk_id)."""
-    return [
-        {
-            "rank": i,
-            "chunk_id": c.chunk_id,
-            "source_id": c.source_id,
-            "source_type": c.source_type,
-            "strategy": c.strategy,
-            "voyage_key": c.voyage_key,
-            "similarity": round(float(c.similarity), 6),
-        }
-        for i, c in enumerate(chunks, 1)
-    ]
-
-
-def _compute_source_rank(
-    chunks: list,
-    expected_thread: str | None,
-    email_thread_map: dict[str, str],
-    attach_email_map: dict[str, str],
-) -> int | None:
-    if not expected_thread:
-        return None
-    for i, chunk in enumerate(chunks, 1):
-        thread = _canonical_thread(
-            chunk.source_type, chunk.source_id, chunk.strategy,
-            email_thread_map, attach_email_map,
-        )
-        if thread == expected_thread:
-            return i
-    return None
+from source_match import (
+    canonical_thread,
+    compute_email_rank,
+    compute_thread_rank,
+    load_attachment_email_map,
+    load_email_thread_map,
+    serialize_chunks,
+)
 
 
 def _run_for_category(
@@ -128,10 +77,12 @@ def _run_for_category(
     rerank_pool: int | None = None,
     ef_search_1: int | None = None,
     ef_search_2: int | None = None,
-) -> tuple[int, int, int, float]:
+) -> dict:
     key_hits = 0
-    src_hits = 0
-    src_mrr_sum = 0.0
+    thread_hits = 0
+    thread_mrr_sum = 0.0
+    email_hits = 0
+    email_mrr_sum = 0.0
     total = len(rows)
 
     for i, (question_id, question, expected_key, expected_source_type,
@@ -171,20 +122,26 @@ def _run_for_category(
         if reranker is not None:
             anchor_chunks = rerank_chunks(reranker, question, anchor_chunks, top_k=top_k_2)
 
+        expected_email_id = expected_source_id if expected_source_type == "email" else None
         expected_thread_id = (
             email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
         )
-        expected_canonical = _canonical_thread(
+        expected_canonical = canonical_thread(
             expected_source_type, expected_source_id, expected_strategy,
             email_thread_map, attach_email_map,
         )
-        src_rank = _compute_source_rank(
+        thread_rank = compute_thread_rank(
             anchor_chunks, expected_canonical, email_thread_map, attach_email_map,
         )
-        src_hit = src_rank is not None
-        if src_hit:
-            src_hits += 1
-            src_mrr_sum += 1.0 / src_rank
+        email_rank = compute_email_rank(anchor_chunks, expected_email_id, attach_email_map)
+        thread_hit = thread_rank is not None
+        email_hit = email_rank is not None
+        if thread_hit:
+            thread_hits += 1
+            thread_mrr_sum += 1.0 / thread_rank
+        if email_hit:
+            email_hits += 1
+            email_mrr_sum += 1.0 / email_rank
 
         expected_log = (
             f"email_thread:{expected_thread_id}"
@@ -199,20 +156,30 @@ def _run_for_category(
             question=question,
             expected_source=expected_log,
             returned_source_ids=[c.source_id for c in anchor_chunks],
-            hit=src_hit,
-            source_rank=src_rank,
-            chunks=_serialize_chunks(anchor_chunks),
+            thread_hit=thread_hit,
+            thread_rank=thread_rank,
+            email_hit=email_hit,
+            email_rank=email_rank,
+            chunks=serialize_chunks(anchor_chunks),
             flags=flags,
         )
 
         if i % 50 == 0:
             print(
                 f"  [{category}] {i}/{total} — "
-                f"key: {key_hits/i:.1%} | source: {src_hits/i:.1%}"
+                f"key: {key_hits/i:.1%} | thread: {thread_hits/i:.1%} | email: {email_hits/i:.1%}"
             )
 
-    src_mrr = src_mrr_sum / total if total else 0.0
-    return key_hits, src_hits, total, src_mrr
+    thread_mrr = thread_mrr_sum / total if total else 0.0
+    email_mrr = email_mrr_sum / total if total else 0.0
+    return {
+        "total": total,
+        "key_hits": key_hits,
+        "thread_hits": thread_hits,
+        "thread_mrr": thread_mrr,
+        "email_hits": email_hits,
+        "email_mrr": email_mrr,
+    }
 
 
 def main() -> None:
@@ -301,12 +268,12 @@ def main() -> None:
         "rerank_pool": rerank_pool if reranker is not None else None,
     }
 
-    results: dict[str, tuple[int, int, int, float]] = {}
+    results: dict[str, dict] = {}
     with connect() as conn:
-        email_thread_map = _load_email_thread_map(conn)
-        attach_email_map = _load_attachment_email_map(conn)
+        email_thread_map = load_email_thread_map(conn)
+        attach_email_map = load_attachment_email_map(conn)
         for category, rows in sorted(rows_by_category.items()):
-            key_hits, src_hits, total, src_mrr = _run_for_category(
+            results[category] = _run_for_category(
                 conn, client, rows, run_id,
                 args.top_k_1, args.top_k_2, category,
                 source_types=source_types, strategies=strategies,
@@ -321,12 +288,13 @@ def main() -> None:
                 ef_search_1=args.ef_search_1,
                 ef_search_2=args.ef_search_2,
             )
-            results[category] = (key_hits, src_hits, total, src_mrr)
 
     with connect() as conn:
-        for category, (key_hits, src_hits, total, _) in results.items():
-            key_recall = key_hits / total if total else 0.0
-            src_recall = src_hits / total if total else 0.0
+        for category, r in results.items():
+            total = r["total"]
+            key_recall = r["key_hits"] / total if total else 0.0
+            thread_recall = r["thread_hits"] / total if total else 0.0
+            email_recall = r["email_hits"] / total if total else 0.0
             log_retrieval_run(
                 conn,
                 run_id=run_id,
@@ -334,8 +302,8 @@ def main() -> None:
                 question_type=category,
                 top_k=args.top_k_1,
                 total=total,
-                hits=key_hits,
-                recall=key_recall,
+                thread_hits=r["key_hits"],
+                thread_recall=key_recall,
                 strategy=strategy_str,
                 bm25=hybrid_mode is not None,
                 reranker=reranker is not None,
@@ -349,8 +317,10 @@ def main() -> None:
                 question_type=category,
                 top_k=args.top_k_2,
                 total=total,
-                hits=src_hits,
-                recall=src_recall,
+                thread_hits=r["thread_hits"],
+                thread_recall=thread_recall,
+                email_hits=r["email_hits"],
+                email_recall=email_recall,
                 strategy=strategy_str,
                 bm25=hybrid_mode is not None,
                 reranker=reranker is not None,
@@ -359,13 +329,16 @@ def main() -> None:
             )
 
     print(f"\nDone. run_id={run_id} | strategy: {strategy_str}")
-    for category, (key_hits, src_hits, total, src_mrr) in sorted(results.items()):
-        key_recall = key_hits / total if total else 0.0
-        src_recall = src_hits / total if total else 0.0
+    for category, r in sorted(results.items()):
+        total = r["total"]
+        key_recall = r["key_hits"] / total if total else 0.0
+        thread_recall = r["thread_hits"] / total if total else 0.0
+        email_recall = r["email_hits"] / total if total else 0.0
         print(
             f"{category} ({total}): "
             f"key recall: {key_recall:.1%} || "
-            f"source recall: {src_recall:.1%} | src MRR: {src_mrr:.4f}"
+            f"thread recall: {thread_recall:.1%} MRR {r['thread_mrr']:.4f} | "
+            f"email recall: {email_recall:.1%} MRR {r['email_mrr']:.4f}"
         )
 
 
