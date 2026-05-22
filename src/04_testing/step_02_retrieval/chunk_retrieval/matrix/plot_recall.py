@@ -60,10 +60,11 @@ def load_curve(ef: int) -> dict[str, dict[str, list]]:
     curves: dict[str, dict[str, list]] = {}
     for strategy, pts in by_strategy.items():
         pts.sort(key=lambda r: r[0])
+        # Anchor each curve at the origin: k=0 retrieves nothing, so recall=0.
         curves[strategy] = {
-            "k": [p[0] for p in pts],
-            "thread": [p[1] for p in pts],
-            "email": [p[2] for p in pts],
+            "k": [0] + [p[0] for p in pts],
+            "thread": [0.0] + [p[1] for p in pts],
+            "email": [0.0] + [p[2] for p in pts],
         }
     return curves
 
@@ -81,6 +82,7 @@ def plot(curves: dict[str, dict[str, list]], ef: int, out: Path) -> None:
     for ax, title in ((ax_thread, "Thread recall"), (ax_email, "Email recall")):
         ax.set_title(f"{title} vs top-k")
         ax.set_xlabel("top-k")
+        ax.set_xlim(left=0)
         ax.set_ylim(0, 1)
         ax.grid(True, alpha=0.3)
         ax.legend(title="strategy")
