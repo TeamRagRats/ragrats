@@ -93,7 +93,7 @@ def compute_email_rank(
 
 
 def serialize_chunks(chunks: list) -> list[dict]:
-    """Retrieved-chunk metadata for logging (no text; look up by chunk_id)."""
+    """Retrieved-chunk metadata + text for logging."""
     return [
         {
             "rank": i,
@@ -103,6 +103,7 @@ def serialize_chunks(chunks: list) -> list[dict]:
             "strategy": c.strategy,
             "voyage_key": c.voyage_key,
             "similarity": round(float(c.similarity), 6),
+            "text": c.text,
         }
         for i, c in enumerate(chunks, 1)
     ]
