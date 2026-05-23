@@ -30,8 +30,8 @@ def log_chunk_retrieval_testing(
     email_hit always implies thread_hit. returned_email_ids and
     returned_thread_ids parallel the chunks list and may contain NULL
     elements for chunks we can't resolve. chunks: retrieved-chunk metadata
-    (no text). flags: the CLI flags the run used. Both stored as JSONB so
-    the run is self-describing.
+    plus the chunk text. flags: the CLI flags the run used. Both stored as
+    JSONB so the run is self-describing.
     """
     with conn.cursor() as cur:
         cur.execute(
