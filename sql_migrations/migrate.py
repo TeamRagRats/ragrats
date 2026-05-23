@@ -28,6 +28,66 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 """
 
 
+_DOLLAR_TAG = re.compile(r"\$[A-Za-z_][A-Za-z_0-9]*\$|\$\$")
+
+
+def _split_statements(sql: str) -> list[str]:
+    """Split SQL on top-level semicolons, respecting dollar-quoted blocks
+    (e.g. ``DO $$ ... $$;``) and single-quoted string literals so we don't
+    chop a multi-statement PL/pgSQL block in half."""
+    statements: list[str] = []
+    buf: list[str] = []
+    i = 0
+    dollar_tag: str | None = None
+    in_single = False
+    while i < len(sql):
+        ch = sql[i]
+        if dollar_tag is not None:
+            if sql.startswith(dollar_tag, i):
+                buf.append(dollar_tag)
+                i += len(dollar_tag)
+                dollar_tag = None
+                continue
+            buf.append(ch)
+            i += 1
+            continue
+        if in_single:
+            buf.append(ch)
+            i += 1
+            if ch == "'":
+                if i < len(sql) and sql[i] == "'":
+                    buf.append("'")
+                    i += 1
+                else:
+                    in_single = False
+            continue
+        if ch == "'":
+            in_single = True
+            buf.append(ch)
+            i += 1
+            continue
+        if ch == "$":
+            m = _DOLLAR_TAG.match(sql, i)
+            if m:
+                dollar_tag = m.group(0)
+                buf.append(dollar_tag)
+                i += len(dollar_tag)
+                continue
+        if ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
 def main() -> None:
     files = sorted(_DIR.glob("*.sql"))
     with connect() as conn:
@@ -45,7 +105,7 @@ def main() -> None:
 
             print(f"[apply] {f.name}")
             sql = re.sub(r"--[^\n]*", "", f.read_text())
-            statements = [s.strip() for s in sql.split(";") if s.strip()]
+            statements = _split_statements(sql)
             with conn.cursor() as cur:
                 for stmt in statements:
                     cur.execute(stmt)
