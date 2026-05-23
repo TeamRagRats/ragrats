@@ -174,15 +174,10 @@ def main() -> None:
                 run_id=run_id,
                 test_type="voyage_key_retrieval",
                 question_type=category,
-                top_k=args.top_k,
                 total=total,
                 thread_hits=hits,
                 thread_recall=recall,
-                strategy=strategy_str,
-                lexical=None,
-                reranker=False,
-                reformulator=llm is not None,
-                ef=ef,
+                flags=flags,
             )
 
     print(f"\nDone. run_id={run_id} | strategy: {strategy_str}")

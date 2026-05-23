@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import psycopg
 
 
@@ -9,30 +11,24 @@ def log_retrieval_run(
     run_id: str,
     test_type: str,
     question_type: str,
-    top_k: int,
     total: int,
     thread_hits: int,
     thread_recall: float,
     email_hits: int | None = None,
     email_recall: float | None = None,
-    strategy: str | None = None,
-    lexical: str | None = None,
-    reranker: bool = False,
-    reformulator: bool = False,
-    ef: int | None = None,
+    flags: dict,
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO test_retrieval_run_logging
-                (run_id, test_type, question_type, top_k, total,
-                 thread_hits, thread_recall, email_hits, email_recall,
-                 strategy, lexical, reranker, reformulator, ef)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (run_id, test_type, question_type, total,
+                 thread_hits, thread_recall, email_hits, email_recall, flags)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (run_id, test_type, question_type, top_k, total,
+            (run_id, test_type, question_type, total,
              thread_hits, thread_recall, email_hits, email_recall,
-             strategy, lexical, reranker, reformulator, ef),
+             json.dumps(flags)),
         )
     conn.commit()
 

@@ -210,17 +210,12 @@ def main() -> None:
                 run_id=run_id,
                 test_type="chunk_retrieval",
                 question_type=category,
-                top_k=args.top_k,
                 total=total,
                 thread_hits=r["thread_hits"],
                 thread_recall=thread_recall,
                 email_hits=r["email_hits"],
                 email_recall=email_recall,
-                strategy=config["strategy_str"],
-                lexical=config["lexical"],
-                reranker=reranker is not None,
-                reformulator=llm is not None,
-                ef=config["ef"],
+                flags=config["flags"],
             )
 
     print(f"\nDone. run_id={run_id} | strategy: {config['strategy_str']}")
