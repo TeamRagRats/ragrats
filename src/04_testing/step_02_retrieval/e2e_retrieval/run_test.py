@@ -73,6 +73,7 @@ def _run_for_category(
     email_thread_map: dict[str, str],
     attach_email_map: dict[str, str],
     hybrid_mode: str | None = None,
+    lexical: str = "bm25",
     rrf_k: int = 60,
     reranker: RerankClient | None = None,
     rerank_pool: int | None = None,
@@ -108,7 +109,7 @@ def _run_for_category(
                 voyage_keys=winning_keys if winning_keys else None,
                 top_k=step2_top_k,
                 source_types=source_types, strategies=strategies,
-                rrf_k=rrf_k, mode=hybrid_mode,
+                rrf_k=rrf_k, mode=hybrid_mode, lexical=lexical,
                 ef_search=ef_search_2,
             )
         else:
@@ -208,9 +209,13 @@ def main() -> None:
     p.add_argument("--voyage", type=str, default=None,
                    help="Run only on this voyage_key (default: all voyages in ground_truth)")
     p.add_argument("--hybrid", action="store_true",
-                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+                   help="Hybrid step 2: fuse vector + lexical (BM25 by default) via RRF")
+    p.add_argument("--lexical", choices=["tsrank", "bm25"], default="bm25",
+                   help="Lexical retriever for --hybrid: 'tsrank' (legacy) or 'bm25' (default).")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
-                   help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
+                   help="Step 2 uses real BM25 only via pg_search (diagnostic).")
+    p.add_argument("--tsrank-only", action="store_true", dest="tsrank_only",
+                   help="Step 2 uses legacy ts_rank only (diagnostic).")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
     p.add_argument("--rerank", action="store_true",
@@ -254,7 +259,20 @@ def main() -> None:
           f"ef_search_1: {ef1} | ef_search_2: {ef2} | strategy: {strategy_str}")
 
     client = EmbedClient(base_url=args.embed_url)
-    hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
+    if args.bm25_only and args.tsrank_only:
+        raise SystemExit("--bm25-only and --tsrank-only are mutually exclusive")
+    if args.bm25_only:
+        hybrid_mode = "bm25_only"
+        lexical_choice = "bm25"
+    elif args.tsrank_only:
+        hybrid_mode = "tsrank_only"
+        lexical_choice = "tsrank"
+    elif args.hybrid:
+        hybrid_mode = "hybrid"
+        lexical_choice = args.lexical
+    else:
+        hybrid_mode = None
+        lexical_choice = None
     reranker = RerankClient(base_url=args.rerank_url) if args.rerank else None
     rerank_pool = (
         args.rerank_pool
@@ -272,6 +290,7 @@ def main() -> None:
         "source_types": source_types if source_types is not None else "all",
         "skip_voyage_key": args.no_voyage_key,
         "hybrid": hybrid_mode,
+        "lexical": lexical_choice,
         "rrf_k": args.rrf_k if hybrid_mode is not None else None,
         "reranker": reranker is not None,
         "rerank_pool": rerank_pool if reranker is not None else None,
@@ -291,6 +310,7 @@ def main() -> None:
                 email_thread_map=email_thread_map,
                 attach_email_map=attach_email_map,
                 hybrid_mode=hybrid_mode,
+                lexical=lexical_choice or "bm25",
                 rrf_k=args.rrf_k,
                 reranker=reranker,
                 rerank_pool=rerank_pool,
@@ -314,7 +334,7 @@ def main() -> None:
                 thread_hits=r["key_hits"],
                 thread_recall=key_recall,
                 strategy=strategy_str,
-                bm25=hybrid_mode is not None,
+                lexical=lexical_choice,
                 reranker=reranker is not None,
                 reformulator=False,
                 ef=ef1,
@@ -331,7 +351,7 @@ def main() -> None:
                 email_hits=r["email_hits"],
                 email_recall=email_recall,
                 strategy=strategy_str,
-                bm25=hybrid_mode is not None,
+                lexical=lexical_choice,
                 reranker=reranker is not None,
                 reformulator=False,
                 ef=ef2,

@@ -28,9 +28,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate questions with LLM before embedding")
     p.add_argument("--hybrid", action="store_true",
-                   help="Hybrid retrieval: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+                   help="Hybrid retrieval: fuse vector + lexical (BM25 by default) via RRF")
+    p.add_argument("--lexical", choices=["tsrank", "bm25"], default="bm25",
+                   help="Lexical retriever for hybrid mode: 'tsrank' (legacy ts_rank) or 'bm25' "
+                        "(real BM25 via pg_search, default).")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
-                   help="BM25-only retrieval (diagnostic). Implies hybrid retriever path.")
+                   help="BM25-only retrieval via pg_search (diagnostic). Implies hybrid retriever path.")
+    p.add_argument("--tsrank-only", action="store_true", dest="tsrank_only",
+                   help="ts_rank-only retrieval (legacy lexical diagnostic). Implies hybrid retriever path.")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
     p.add_argument("--rerank", action="store_true",
@@ -48,7 +53,29 @@ def parse_args() -> argparse.Namespace:
 def resolve_config(args: argparse.Namespace) -> dict:
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
-    hybrid_mode = "bm25_only" if args.bm25_only else ("hybrid" if args.hybrid else None)
+    if args.bm25_only and args.tsrank_only:
+        raise SystemExit("--bm25-only and --tsrank-only are mutually exclusive")
+    if args.bm25_only:
+        hybrid_mode = "bm25_only"
+    elif args.tsrank_only:
+        hybrid_mode = "tsrank_only"
+    elif args.hybrid:
+        hybrid_mode = "hybrid"
+    else:
+        hybrid_mode = None
+
+    # Which lexical retriever was used (for logging). For *_only modes the
+    # lexical is implicit in the mode; for 'hybrid' it comes from --lexical;
+    # for pure vector it's None.
+    if hybrid_mode == "bm25_only":
+        lexical = "bm25"
+    elif hybrid_mode == "tsrank_only":
+        lexical = "tsrank"
+    elif hybrid_mode == "hybrid":
+        lexical = args.lexical
+    else:
+        lexical = None
+
     rerank_pool = (
         args.rerank_pool
         if args.rerank_pool is not None
@@ -62,6 +89,7 @@ def resolve_config(args: argparse.Namespace) -> dict:
         "strategy": strategies if strategies is not None else "all",
         "source_types": source_types if source_types is not None else "all",
         "hybrid": hybrid_mode,
+        "lexical": lexical,
         "rrf_k": args.rrf_k if hybrid_mode is not None else None,
         "reranker": args.rerank,
         "rerank_pool": rerank_pool if args.rerank else None,
@@ -71,6 +99,7 @@ def resolve_config(args: argparse.Namespace) -> dict:
         "source_types": source_types,
         "strategies": strategies,
         "hybrid_mode": hybrid_mode,
+        "lexical": lexical,
         "rerank_pool": rerank_pool,
         "ef": ef,
         "strategy_str": strategy_str,

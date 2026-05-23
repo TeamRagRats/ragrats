@@ -16,7 +16,7 @@ def log_retrieval_run(
     email_hits: int | None = None,
     email_recall: float | None = None,
     strategy: str | None = None,
-    bm25: bool = False,
+    lexical: str | None = None,
     reranker: bool = False,
     reformulator: bool = False,
     ef: int | None = None,
@@ -27,12 +27,12 @@ def log_retrieval_run(
             INSERT INTO test_retrieval_run_logging
                 (run_id, test_type, question_type, top_k, total,
                  thread_hits, thread_recall, email_hits, email_recall,
-                 strategy, bm25, reranker, reformulator, ef)
+                 strategy, lexical, reranker, reformulator, ef)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (run_id, test_type, question_type, top_k, total,
              thread_hits, thread_recall, email_hits, email_recall,
-             strategy, bm25, reranker, reformulator, ef),
+             strategy, lexical, reranker, reformulator, ef),
         )
     conn.commit()
 

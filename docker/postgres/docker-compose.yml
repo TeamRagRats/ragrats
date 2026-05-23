@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: paradedb/paradedb:latest
     container_name: ragrats_database
     restart: unless-stopped
     env_file: ../../.env

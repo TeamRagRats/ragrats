@@ -35,7 +35,7 @@ from distribution import (
 )
 from random_baseline import report_random_baseline
 from leakage import report_source_chunk_leakage, report_verbatim_sample
-from bm25_baseline import report_bm25_baseline
+from tsrank_baseline import report_tsrank_baseline
 from anonymized import report_anonymized_recall
 
 
@@ -49,7 +49,7 @@ def main() -> None:
     p.add_argument("--sample", type=int, default=50,
                    help="Stikprøve-størrelse til leakage-tjek (default: 50)")
     p.add_argument("--ks", type=int, nargs="+", default=[1, 10, 18, 30],
-                   help="k-værdier til random- og BM25-baseline + anonymiseret")
+                   help="k-værdier til random- og ts_rank-baseline + anonymiseret")
     args = p.parse_args()
 
     with connect() as conn:
@@ -57,7 +57,7 @@ def main() -> None:
         report_ground_truth_distribution(conn)
         report_key_coverage_in_chunks(conn)
         report_random_baseline(conn, args.ks)
-        report_bm25_baseline(conn, args.ks)
+        report_tsrank_baseline(conn, args.ks)
         report_verbatim_sample(conn, n=15)
 
     if not args.no_embed:

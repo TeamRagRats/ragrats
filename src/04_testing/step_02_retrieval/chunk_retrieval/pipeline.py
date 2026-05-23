@@ -1,6 +1,6 @@
 """Per-question retrieval pipeline for the chunk retrieval test.
 
-reformulate (optional) -> embed -> retrieve (vector | hybrid | bm25-only)
+reformulate (optional) -> embed -> retrieve (vector | hybrid | tsrank-only | bm25-only)
 -> rerank (optional). Returns the final chunk list.
 """
 from __future__ import annotations
@@ -24,6 +24,7 @@ def retrieve_for_question(
     top_k: int,
     rerank_pool: int,
     hybrid_mode: str | None,
+    lexical: str,
     rrf_k: int,
     source_types: list[str] | None,
     strategies: list[str] | None,
@@ -38,7 +39,7 @@ def retrieve_for_question(
             conn, query_text=question, query_embedding=embedding,
             voyage_keys=[expected_key], top_k=step2_top_k,
             source_types=source_types, strategies=strategies,
-            rrf_k=rrf_k, mode=hybrid_mode,
+            rrf_k=rrf_k, mode=hybrid_mode, lexical=lexical,
             ef_search=ef_search,
         )
     else:

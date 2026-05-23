@@ -4,8 +4,6 @@ import psycopg
 
 from ..retrieve_vector import RetrievedChunk
 
-from .tokenize_query import tokenize_query
-
 
 _ALL_BM25_STRATEGIES = ("context", "plain", "late", "summary")
 
@@ -18,31 +16,29 @@ def bm25_retrieve(
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
 ) -> list[RetrievedChunk]:
-    """Lexical retrieval against chunks via Postgres ts_rank.
+    """Real BM25 lexical retrieval via ParadeDB's pg_search extension.
 
-    Queries all strategies that have a populated text_tsv (context, plain,
-    late, summary — backed by migration 0086). Pass `strategies` to restrict
-    to a subset. Returns RetrievedChunk rows with `similarity` set to the raw
-    ts_rank score; ranking for fusion uses position, not score.
+    Uses the @@@ operator to match `text` against the query and
+    `paradedb.score(chunk_id)` to retrieve the true BM25 score (with IDF and
+    document-length normalization; Tantivy defaults k1=1.2, b=0.75). Backed
+    by the chunks_bm25_idx index from migration 0096.
+
+    pg_search tokenizes the query internally, so the raw query_text is passed
+    through without any pre-tokenization.
     """
-    normalized = tokenize_query(query_text)
-    if not normalized:
+    if not query_text or not query_text.strip():
         return []
-
-    # Build an OR tsquery so any matching term scores a hit. plainto_tsquery
-    # AND-s all words, making full-sentence queries match nothing.
-    tokens = [t for t in normalized.split() if len(t) > 1]
-    if not tokens:
-        return []
-    tsquery_str = " | ".join(tokens)
 
     effective_strategies = list(strategies) if strategies is not None else list(_ALL_BM25_STRATEGIES)
 
+    # The @@@ predicate on `text` carries the BM25 match; the remaining
+    # predicates (strategy/voyage_key/source_type) are pushed down into the
+    # BM25 index because we included those columns in chunks_bm25_idx.
     where_parts: list[str] = [
+        "text @@@ %s",
         "strategy = ANY(%s)",
-        "text_tsv @@ to_tsquery('simple', %s)",
     ]
-    where_params: list = [effective_strategies, tsquery_str]
+    where_params: list = [query_text, effective_strategies]
     if voyage_keys is not None:
         where_parts.append("voyage_key = ANY(%s)")
         where_params.append(voyage_keys)
@@ -52,13 +48,13 @@ def bm25_retrieve(
 
     sql = f"""
         SELECT chunk_id::text, source_type, source_id, strategy, voyage_key, chunk_index, text,
-               ts_rank(text_tsv, to_tsquery('simple', %s)) AS score
+               paradedb.score(chunk_id) AS score
         FROM chunks
         WHERE {" AND ".join(where_parts)}
         ORDER BY score DESC
         LIMIT %s
     """
-    params = [tsquery_str] + where_params + [top_k]
+    params = where_params + [top_k]
     rows = conn.execute(sql, params).fetchall()
     return [
         RetrievedChunk(

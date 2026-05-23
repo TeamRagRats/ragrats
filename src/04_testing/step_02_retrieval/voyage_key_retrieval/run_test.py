@@ -179,7 +179,7 @@ def main() -> None:
                 thread_hits=hits,
                 thread_recall=recall,
                 strategy=strategy_str,
-                bm25=False,
+                lexical=None,
                 reranker=False,
                 reformulator=llm is not None,
                 ef=ef,

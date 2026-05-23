@@ -19,7 +19,8 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Dev\\\\RagRats-new\\\\ragrats\\\\src\\\\01_preprocessing\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(Sort-Object Name)",
-      "PowerShell($env:PGPASSWORD = \"ragrats\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -h localhost -p 5433 -U teamragrats -d ragrats -c \"\\\\d llm_structured\" 2>&1)"
+      "PowerShell($env:PGPASSWORD = \"ragrats\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -h localhost -p 5433 -U teamragrats -d ragrats -c \"\\\\d llm_structured\" 2>&1)",
+      "Bash(xargs grep -l \"late.*chunk\\\\|chunk.*strategy\")"
     ]
   }
 }

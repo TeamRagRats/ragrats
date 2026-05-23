@@ -53,7 +53,7 @@ Adds four columns to `retrieval_logging`:
 
 When `reranked = TRUE`, the `similarity` field inside each chunk in the
 existing `chunks` JSONB column is the rerank score — same overload pattern
-as BM25 → `ts_rank`.
+the lexical retrievers use for their ts_rank / BM25 score.
 
 ### CLI flags
 
@@ -73,9 +73,9 @@ scores all of them, and the final list is truncated back to `top_k_2`.
 ### Query routing
 
 Original (non-reformulated) query is sent to the reranker — same reasoning as
-BM25: the cross-encoder benefits from the user's exact intent and proper
-nouns. The vector side still receives the reformulated query's embedding
-when `--reformulate` is set.
+for the lexical retrievers: the cross-encoder benefits from the user's exact
+intent and proper nouns. The vector side still receives the reformulated
+query's embedding when `--reformulate` is set.
 
 ---
 

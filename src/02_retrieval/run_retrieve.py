@@ -53,9 +53,13 @@ def main() -> None:
     p.add_argument("--reformulate", action="store_true",
                    help="Reformulate query with LLM before embedding")
     p.add_argument("--hybrid", action="store_true",
-                   help="Hybrid step 2: fuse vector + BM25 via RRF (BM25 against strategy='context' only)")
+                   help="Hybrid step 2: fuse vector + lexical (BM25 by default) via RRF")
+    p.add_argument("--lexical", choices=["tsrank", "bm25"], default="bm25",
+                   help="Lexical retriever for --hybrid: 'tsrank' (legacy) or 'bm25' (default).")
     p.add_argument("--bm25-only", action="store_true", dest="bm25_only",
-                   help="Step 2 uses BM25 only (diagnostic). Implies hybrid retriever path.")
+                   help="Step 2 uses real BM25 only via pg_search (diagnostic).")
+    p.add_argument("--tsrank-only", action="store_true", dest="tsrank_only",
+                   help="Step 2 uses legacy ts_rank only (diagnostic).")
     p.add_argument("--rrf-k", type=int, default=60, dest="rrf_k",
                    help="RRF constant for hybrid fusion (default: 60)")
     p.add_argument("--rerank", action="store_true",
@@ -118,9 +122,16 @@ def main() -> None:
         step2_top_k = rerank_pool if args.rerank else args.top_k_2
 
         t2 = time.monotonic()
-        use_hybrid = args.hybrid or args.bm25_only
+        if args.bm25_only and args.tsrank_only:
+            raise SystemExit("--bm25-only and --tsrank-only are mutually exclusive")
+        use_hybrid = args.hybrid or args.bm25_only or args.tsrank_only
         if use_hybrid:
-            mode = "bm25_only" if args.bm25_only else "hybrid"
+            if args.bm25_only:
+                mode = "bm25_only"
+            elif args.tsrank_only:
+                mode = "tsrank_only"
+            else:
+                mode = "hybrid"
             chunks = hybrid_retrieve_chunks(
                 conn,
                 query_text=args.query,
@@ -131,6 +142,7 @@ def main() -> None:
                 strategies=strategies,
                 rrf_k=args.rrf_k,
                 mode=mode,
+                lexical=args.lexical,
                 ef_search=args.ef_search_2,
             )
         else:

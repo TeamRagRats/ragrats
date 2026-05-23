@@ -25,8 +25,8 @@ def rerank_chunks(
 
     The reranker receives the ORIGINAL user query (no LLM reformulation) and
     every chunk's `text`. Returned chunks carry `similarity = rerank_score`
-    (same overload pattern as BM25 -> ts_rank); indices not returned by the
-    reranker are dropped.
+    (same overload pattern as the lexical retrievers overload `similarity`
+    with ts_rank / BM25); indices not returned by the reranker are dropped.
     """
     if not chunks:
         return []
