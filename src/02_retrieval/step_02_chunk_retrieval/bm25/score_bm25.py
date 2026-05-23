@@ -18,24 +18,28 @@ def bm25_retrieve(
 ) -> list[RetrievedChunk]:
     """Real BM25 lexical retrieval via ParadeDB's pg_search extension.
 
-    Uses the @@@ operator to match `text` against the query and
+    Uses paradedb.match() to match `text` against the query and
     `paradedb.score(chunk_id)` to retrieve the true BM25 score (with IDF and
     document-length normalization; Tantivy defaults k1=1.2, b=0.75). Backed
     by the chunks_bm25_idx index from migration 0096.
 
-    pg_search tokenizes the query internally, so the raw query_text is passed
-    through without any pre-tokenization.
+    paradedb.match() tokenizes the natural-language query internally — the
+    raw `text @@@ %s` form treats the right-hand side as Tantivy query syntax
+    (column:term pairs) and chokes on parens / special characters that
+    appear in real user questions.
     """
     if not query_text or not query_text.strip():
         return []
 
     effective_strategies = list(strategies) if strategies is not None else list(_ALL_BM25_STRATEGIES)
 
-    # The @@@ predicate on `text` carries the BM25 match; the remaining
-    # predicates (strategy/voyage_key/source_type) are pushed down into the
-    # BM25 index because we included those columns in chunks_bm25_idx.
+    # paradedb.match() carries the BM25 match on `text`. The remaining
+    # predicates (strategy/voyage_key/source_type) are post-filters on the
+    # heap; pushdown into chunks_bm25_idx would require composing them via
+    # paradedb.boolean() / paradedb.term(), which we can layer in later if
+    # the filter cost becomes a problem.
     where_parts: list[str] = [
-        "text @@@ %s",
+        "chunk_id @@@ paradedb.match('text', %s)",
         "strategy = ANY(%s)",
     ]
     where_params: list = [query_text, effective_strategies]
