@@ -81,15 +81,15 @@ def _find_with_candidates(
     candidate chunks and aggregates vote_counts in Python so the candidates
     can be logged. Used only by the test harness (return_candidates=True)."""
     filters: list[str] = []
-    params: list = []
+    filter_params: list = []
     if source_types is not None:
         filters.append("source_type = ANY(%s)")
-        params.append(source_types)
+        filter_params.append(source_types)
     if strategies is not None:
         filters.append("strategy = ANY(%s)")
-        params.append(strategies)
+        filter_params.append(strategies)
     where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
-    params += [query_embedding, query_embedding, top_k]
+    params = [query_embedding] + filter_params + [query_embedding, top_k]
 
     sql = f"""
         SELECT chunk_id::text, source_type, source_id::text, strategy, voyage_key,

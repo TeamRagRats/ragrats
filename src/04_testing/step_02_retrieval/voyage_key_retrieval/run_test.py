@@ -3,7 +3,8 @@ Voyage key retrieval recall test.
 
 For every ground_truth row, embeds the question, runs find_winning_voyage_keys,
 and logs the result to test_retrieval_vk_logging and test_retrieval_run_logging.
-Results are logged separately per category (fact_single / summary / reasoning / unanswerable).
+Unanswerable questions are skipped. Results are logged per answerable category
+(fact_single / summary / reasoning) plus an aggregate 'total' row.
 
 Run on SPARK where both postgres and the embed server are reachable:
     python run_test.py
@@ -133,6 +134,8 @@ def main() -> None:
 
     rows_by_category: dict[str, list] = {}
     for question_id, question, voyage_key, category in all_rows:
+        if category == "unanswerable":
+            continue
         rows_by_category.setdefault(category, []).append((question_id, question, voyage_key))
 
     summary = " | ".join(f"{cat}: {len(rows)}" for cat, rows in sorted(rows_by_category.items()))
@@ -166,6 +169,9 @@ def main() -> None:
             )
             results[category] = (hits, total)
 
+    total_hits = sum(hits for hits, _ in results.values())
+    total_questions = sum(total for _, total in results.values())
+
     with connect() as conn:
         for category, (hits, total) in results.items():
             recall = hits / total if total else 0.0
@@ -180,12 +186,26 @@ def main() -> None:
                 flags=flags,
             )
 
+        total_recall = total_hits / total_questions if total_questions else 0.0
+        log_retrieval_run(
+            conn,
+            run_id=run_id,
+            test_type="voyage_key_retrieval",
+            question_type="total",
+            total=total_questions,
+            thread_hits=total_hits,
+            thread_recall=total_recall,
+            flags=flags,
+        )
+
     print(f"\nDone. run_id={run_id} | strategy: {strategy_str}")
     metric_label = (f"recall@{args.top_k} (rank<= {args.rank_threshold})"
                     if args.rank_threshold else f"recall@{args.top_k}")
     for category, (hits, total) in sorted(results.items()):
         recall = hits / total if total else 0.0
         print(f"{category} ({total}): {metric_label}: {hits}/{total} ({recall:.1%})")
+    total_recall = total_hits / total_questions if total_questions else 0.0
+    print(f"total ({total_questions}): {metric_label}: {total_hits}/{total_questions} ({total_recall:.1%})")
 
 
 if __name__ == "__main__":
