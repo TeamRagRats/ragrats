@@ -26,10 +26,30 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator
 
 from loader import latest_matrix_id, metric_label, load_total
 
 STRATEGIES = ["plain", "late", "context", "summary"]
+
+# Brudt x-akse: k=0–20 strækkes ud (1 enhed pr. k), k>20 komprimeres så hvert
+# 25. k fylder lige så meget som et 2-spring i lav-området. Ticks følger samme
+# logik: hvert 2. op til 20, derefter hvert 25.
+KNEE = 20.0
+HI_COMPRESS = 2.0 / 25.0  # 25 k i høj-området = 2 enheder (= et lav-tick-spring)
+XTICKS = list(range(0, 21, 2)) + list(range(45, 501, 25))
+
+
+def _fwd(k):
+    import numpy as np
+    k = np.asarray(k, dtype=float)
+    return np.where(k <= KNEE, k, KNEE + (k - KNEE) * HI_COMPRESS)
+
+
+def _inv(p):
+    import numpy as np
+    p = np.asarray(p, dtype=float)
+    return np.where(p <= KNEE, p, KNEE + (p - KNEE) / HI_COMPRESS)
 
 
 def _ordered(keys, preferred):
@@ -37,7 +57,7 @@ def _ordered(keys, preferred):
 
 
 def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: Path) -> None:
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
     for strategy in _ordered(curves.keys(), STRATEGIES):
         c = curves[strategy]
         ax.plot(c["k"], c["recall"], marker="o", markersize=3, label=strategy)
@@ -45,9 +65,12 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
     ax.set_title(f"Voyage-key — {metric} vs top-k (alle kategorier samlet)")
     ax.set_xlabel("top-k")
     ax.set_ylabel(metric)
-    ax.set_xlim(left=0)
+    ax.set_xscale("function", functions=(_fwd, _inv))
+    ax.set_xlim(0, 500)
+    ax.xaxis.set_major_locator(FixedLocator(XTICKS))
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3)
+    ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
     ax.legend(title="strategi")
 
     fig.text(0.01, 0.01, f"matrix_id={matrix_id}", fontsize=6, color="gray")
