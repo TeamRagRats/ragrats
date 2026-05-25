@@ -73,13 +73,14 @@ def _run_cell(
     attach_email_map, reranker, top_k, reformulate, rerank, rerank_pool,
 ) -> dict[str, dict]:
     results: dict[str, dict] = {}
+    cell_reranker = reranker if rerank else None
     for category, rows in sorted(rows_by_category.items()):
         thread_hits = email_hits = 0
         for (question_id, question, expected_key, expected_source_type,
              expected_source_id, expected_strategy) in rows:
             chunks = retrieve_for_question(
                 conn,
-                client=None, llm=None, reranker=reranker,
+                client=None, llm=None, reranker=cell_reranker,
                 question=question, expected_key=expected_key,
                 top_k=top_k, rerank_pool=rerank_pool,
                 hybrid_mode="hybrid", lexical=LEXICAL, rrf_k=RRF_K,
