@@ -38,7 +38,7 @@ CATEGORIES = ["fact_single", "summary", "reasoning"]
 # logik: hvert 2. op til 20, derefter hvert 25.
 KNEE = 20.0
 HI_COMPRESS = 2.0 / 25.0  # 25 k i høj-området = 2 enheder (= et lav-tick-spring)
-XTICKS = list(range(0, 21, 2)) + list(range(45, 501, 25))
+XTICKS = [1] + list(range(2, 21, 2)) + list(range(45, 501, 25))
 
 
 def _fwd(k):
@@ -73,7 +73,7 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
         ax.set_title(f"{strategy} — {metric}")
         ax.set_ylabel(metric)
         ax.set_xscale("function", functions=(_fwd, _inv))
-        ax.set_xlim(0, 500)
+        ax.set_xlim(1, 500)
         ax.xaxis.set_major_locator(FixedLocator(XTICKS))
         ax.set_ylim(0, 1)
         ax.grid(True, alpha=0.3)
@@ -106,7 +106,7 @@ def main() -> None:
 
     metric = metric_label(matrix_id)
     for strategy, by_cat in curves.items():
-        cats = ", ".join(f"{c}({len(v['k']) - 1})" for c, v in by_cat.items())
+        cats = ", ".join(f"{c}({len(v['k'])})" for c, v in by_cat.items())
         print(f"{strategy}: {cats}")
     plot(curves, metric, matrix_id, args.out)
 

@@ -38,7 +38,7 @@ def metric_label(matrix_id: str) -> str:
 
 
 def load_total(matrix_id: str) -> dict[str, dict[str, list]]:
-    """{strategy: {'k': [...], 'recall': [...]}}, hver forankret i k=0."""
+    """{strategy: {'k': [...], 'recall': [...]}}, startende ved første k (k=1)."""
     with connect() as conn:
         rows = conn.execute("""
             SELECT flags->'strategy'->>0 AS strategy,
@@ -59,14 +59,14 @@ def load_total(matrix_id: str) -> dict[str, dict[str, list]]:
     for strategy, pts in by_strategy.items():
         pts.sort(key=lambda r: r[0])
         curves[strategy] = {
-            "k": [0] + [p[0] for p in pts],
-            "recall": [0.0] + [p[1] for p in pts],
+            "k": [p[0] for p in pts],
+            "recall": [p[1] for p in pts],
         }
     return curves
 
 
 def load_by_category(matrix_id: str) -> dict[str, dict[str, dict[str, list]]]:
-    """{strategy: {category: {'k': [...], 'recall': [...]}}}, forankret i k=0."""
+    """{strategy: {category: {'k': [...], 'recall': [...]}}}, startende ved første k (k=1)."""
     with connect() as conn:
         rows = conn.execute("""
             SELECT flags->'strategy'->>0 AS strategy,
@@ -90,7 +90,7 @@ def load_by_category(matrix_id: str) -> dict[str, dict[str, dict[str, list]]]:
         for category, pts in by_cat.items():
             pts.sort(key=lambda r: r[0])
             curves[strategy][category] = {
-                "k": [0] + [p[0] for p in pts],
-                "recall": [0.0] + [p[1] for p in pts],
+                "k": [p[0] for p in pts],
+                "recall": [p[1] for p in pts],
             }
     return curves
