@@ -40,11 +40,17 @@ def plot(curves: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
     series = [c for c in ORDER if curves.get(c)] + [c for c in curves if c not in ORDER]
     fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
     for name in series:
-        style = {"linewidth": 3, "color": "black"} if name == "overall" else {"marker": "o"}
+        is_total = name == "overall"
+        style = (
+            {"linewidth": 1.5, "linestyle": ":", "color": "black"}
+            if is_total
+            else {"marker": "o"}
+        )
+        label = "total score" if is_total else name
         tx, ty = as_xy(curves[name], "thread")
         ex, ey = as_xy(curves[name], "email")
-        ax_thread.plot(tx, ty, label=name, **style)
-        ax_email.plot(ex, ey, label=name, **style)
+        ax_thread.plot(tx, ty, label=label, **style)
+        ax_email.plot(ex, ey, label=label, **style)
 
     for ax, title in ((ax_thread, "Thread recall"), (ax_email, "Email recall")):
         ax.set_title(f"{title} vs top-k")
