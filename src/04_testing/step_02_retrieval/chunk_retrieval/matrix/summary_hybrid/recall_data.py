@@ -30,7 +30,7 @@ _HYBRID_QUERY = """
 _CONFIG_QUERY = """
     SELECT DISTINCT ON (hybrid, reformulate, rerank, top_k, question_type)
            (flags->>'top_k')::int                            AS top_k,
-           (flags->>'hybrid' = 'hybrid')                     AS hybrid,
+           COALESCE(flags->>'hybrid' = 'hybrid', false)      AS hybrid,
            COALESCE((flags->>'reformulator')::bool, false)   AS reformulate,
            COALESCE((flags->>'reranker')::bool, false)       AS rerank,
            question_type, total, thread_hits, email_hits
