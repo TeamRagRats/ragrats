@@ -7,15 +7,15 @@ columns isolate one feature each:
     rerank       : hybrid       vs  hybrid + rerank
     reformulate  : hybrid       vs  hybrid + reformulate
 
-The rerank/reformulate columns need the full sweep (summary_hybrid_test.py with
+The rerank/reformulate columns need the full sweep (summary_hybrid/sweep.py with
 no --skip flags); the hybrid column also needs the vector-only summary curve
-(recall_i5_test.py). Pass --sweep-id to pin one hybrid sweep; otherwise the most
+(recall/sweep.py). Pass --sweep-id to pin one hybrid sweep; otherwise the most
 recent matching row per (top_k, config, category) is used.
 
 Run on SPARK (needs postgres):
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python plots/plot_summary_hybrid.py
-    python plots/plot_summary_hybrid.py --sweep-id <uuid> --out plots/summary_hybrid.png
+    python summary_hybrid/plot_overview.py
+    python summary_hybrid/plot_overview.py --sweep-id <uuid> --out plots_png/summary_hybrid.png
 """
 
 from __future__ import annotations
@@ -84,8 +84,8 @@ def main() -> None:
     p.add_argument("--sweep-id", default=None,
                    help="Pin one hybrid sweep by sweep_id (default: most recent matching rows)")
     p.add_argument("--out", type=Path,
-                   default=Path(__file__).resolve().parent / "summary_hybrid.png",
-                   help="Output PNG path (default: ./summary_hybrid.png)")
+                   default=Path(__file__).resolve().parent.parent / "plots_png" / "summary_hybrid.png",
+                   help="Output PNG path (default: ../plots_png/summary_hybrid.png)")
     args = p.parse_args()
 
     with connect() as conn:

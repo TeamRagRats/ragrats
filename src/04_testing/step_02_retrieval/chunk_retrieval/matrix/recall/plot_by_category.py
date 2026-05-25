@@ -1,7 +1,7 @@
 """
 Plot recall-vs-k broken down by question category, one plot per strategy.
 
-Same vector-only sweep as plot_recall.py, but instead of the aggregate 'total'
+Same vector-only sweep as recall/sweep.py, but instead of the aggregate 'total'
 row this reads the per-category rows (fact_single / summary / reasoning) that
 run_test.py already logs. The figure is a grid: one row per strategy, two
 columns (thread recall, email recall); each subplot draws one line per
@@ -9,8 +9,8 @@ question category so you can see where a strategy struggles as k rises.
 
 Run on SPARK (needs postgres):
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python plot_recall_by_category.py
-    python plot_recall_by_category.py --ef 200 --out recall_by_category.png
+    python recall/plot_by_category.py
+    python recall/plot_by_category.py --ef 200 --out plots_png/recall_by_category.png
 """
 
 from __future__ import annotations
@@ -112,8 +112,8 @@ def main() -> None:
     p.add_argument("--ef", type=int, default=200,
                    help="ef_search the sweep was run with (default: 200)")
     p.add_argument("--out", type=Path,
-                   default=Path(__file__).resolve().parent / "recall_by_category.png",
-                   help="Output PNG path (default: ./recall_by_category.png)")
+                   default=Path(__file__).resolve().parent.parent / "plots_png" / "recall_by_category.png",
+                   help="Output PNG path (default: ../plots_png/recall_by_category.png)")
     args = p.parse_args()
 
     curves = load_curves(args.ef)

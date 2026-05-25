@@ -10,9 +10,9 @@ Run on SPARK where postgres + the embed server (8003) are reachable. Add
 reformulate (8002) and rerank (8004) servers only if you keep those dimensions:
 
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python summary_hybrid_test.py
-    python summary_hybrid_test.py --skip-reformulate --skip-rerank
-    python summary_hybrid_test.py --dry-run
+    python summary_hybrid/sweep.py
+    python summary_hybrid/sweep.py --skip-reformulate --skip-rerank
+    python summary_hybrid/sweep.py --dry-run
 """
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    _chunk = _here.parent
-    _step02_testing = _chunk.parent
-    _repo_root = _here.parents[4]
+    _chunk = _here.parents[1]
+    _step02_testing = _here.parents[2]
+    _repo_root = _here.parents[5]
     _retrieval = _repo_root / "src" / "02_retrieval"
     for _p in (_repo_root, _retrieval, _step02_testing, _chunk, _here):
         sys.path.insert(0, str(_p))

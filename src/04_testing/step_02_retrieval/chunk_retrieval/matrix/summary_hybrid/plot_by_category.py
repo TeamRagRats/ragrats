@@ -10,8 +10,8 @@ one sweep; otherwise the most recent matching rows are used.
 
 Run on SPARK (needs postgres):
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python plots/plot_category_summary_hybrid.py
-    python plots/plot_category_summary_hybrid.py --sweep-id <uuid>
+    python summary_hybrid/plot_by_category.py
+    python summary_hybrid/plot_by_category.py --sweep-id <uuid>
 """
 
 from __future__ import annotations
@@ -66,8 +66,8 @@ def main() -> None:
     p.add_argument("--sweep-id", default=None,
                    help="Pin one sweep by sweep_id (default: most recent matching rows)")
     p.add_argument("--out", type=Path,
-                   default=Path(__file__).resolve().parent / "category_summary_hybrid.png",
-                   help="Output PNG path (default: ./category_summary_hybrid.png)")
+                   default=Path(__file__).resolve().parent.parent / "plots_png" / "category_summary_hybrid.png",
+                   help="Output PNG path (default: ../plots_png/category_summary_hybrid.png)")
     args = p.parse_args()
 
     with connect() as conn:

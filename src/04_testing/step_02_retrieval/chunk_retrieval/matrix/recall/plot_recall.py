@@ -1,5 +1,5 @@
 """
-Plot the recall-vs-k curve produced by recall_i5_test.py.
+Plot the recall-vs-k curve produced by recall/sweep.py.
 
 Reads the question_type='total' rows from test_retrieval_run_logging for the
 vector-only sweep (no hybrid / rerank / reformulate) at the pinned ef_search,
@@ -8,8 +8,8 @@ strategy for both thread and email recall.
 
 Run on SPARK (needs postgres):
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python plot_recall.py
-    python plot_recall.py --ef 200 --out recall_curve.png
+    python recall/plot_recall.py
+    python recall/plot_recall.py --ef 200 --out plots_png/recall_curve.png
 """
 
 from __future__ import annotations
@@ -98,8 +98,9 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Plot recall-vs-k from the recall sweep")
     p.add_argument("--ef", type=int, default=200,
                    help="ef_search the sweep was run with (default: 200)")
-    p.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "recall_curve.png",
-                   help="Output PNG path (default: ./recall_curve.png)")
+    p.add_argument("--out", type=Path,
+                   default=Path(__file__).resolve().parent.parent / "plots_png" / "recall_curve.png",
+                   help="Output PNG path (default: ../plots_png/recall_curve.png)")
     args = p.parse_args()
 
     curves = load_curve(args.ef)
