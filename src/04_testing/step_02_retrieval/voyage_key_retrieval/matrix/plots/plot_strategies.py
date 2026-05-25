@@ -71,7 +71,7 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
     ax.set_ylim(0, 1)
     ax.grid(True, alpha=0.3)
     ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax.legend(title="strategi")
+    ax.legend(title="strategi", loc="lower right")
 
     fig.text(0.01, 0.01, f"matrix_id={matrix_id}", fontsize=6, color="gray")
     fig.tight_layout()

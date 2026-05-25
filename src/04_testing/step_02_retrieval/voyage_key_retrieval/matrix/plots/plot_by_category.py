@@ -78,7 +78,7 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
         ax.set_ylim(0, 1)
         ax.grid(True, alpha=0.3)
         ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-        ax.legend(title="kategori", fontsize="small")
+        ax.legend(title="kategori", fontsize="small", loc="lower right")
         if row == len(strategies) - 1:
             ax.set_xlabel("top-k")
 
