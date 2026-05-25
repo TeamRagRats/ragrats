@@ -1,21 +1,21 @@
 """
-Recall-vs-k for the summary strategy: hybrid / rerank / reformulate side by side.
+Recall-vs-k for the summary strategy: the four configs side by side.
 
-One figure, 6 panels — top row thread recall, bottom row email recall; the three
-columns isolate one feature each:
-    hybrid       : vector-only  vs  hybrid
-    rerank       : hybrid       vs  hybrid + rerank
-    reformulate  : hybrid       vs  hybrid + reformulate
+One figure, 2 panels — thread recall (left), email recall (right). Each panel
+draws one line per config, with each feature isolated on the vector base:
+    base         : vector-only
+    hybrid       : vector + lexical (BM25) fused via RRF
+    reformulate  : vector + LLM query reformulation
+    rerank       : vector + reranker
 
-The rerank/reformulate columns need the full sweep (summary_hybrid/sweep.py with
-no --skip flags); the hybrid column also needs the vector-only summary curve
-(recall/sweep.py). Pass --sweep-id to pin one hybrid sweep; otherwise the most
-recent matching row per (top_k, config, category) is used.
+Recall is summed over the answerable categories. The most recent matching row
+per (config, top_k, category) is used. A config with no matching rows is simply
+omitted.
 
 Run on SPARK (needs postgres):
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
     python summary_hybrid/plot_overview.py
-    python summary_hybrid/plot_overview.py --sweep-id <uuid> --out plots_png/summary_hybrid.png
+    python summary_hybrid/plot_overview.py --out plots_png/summary_hybrid.png
 """
 
 from __future__ import annotations
@@ -35,70 +35,57 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from core.db import connect
-from recall_data import as_xy, hybrid_aggregated, vector_summary
+from recall_data import as_xy, four_configs
 
-BASE = (False, False)
-RERANK = (False, True)
-REFORMULATE = (True, False)
-
-
-def _draw(ax, baseline, feature, base_label, feat_label, metric, title):
-    if baseline:
-        bx, by = as_xy(baseline, metric)
-        ax.plot(bx, by, marker="o", label=base_label)
-    if feature:
-        fx, fy = as_xy(feature, metric)
-        ax.plot(fx, fy, marker="o", label=feat_label)
-    ax.set_title(title)
-    ax.set_xlim(left=0)
-    ax.set_ylim(0, 1)
-    ax.grid(True, alpha=0.3)
-    ax.legend(fontsize="small")
+ORDER = ["base", "hybrid", "reformulate", "rerank"]
+LABELS = {
+    "base": "base (vector)",
+    "hybrid": "hybrid",
+    "reformulate": "reformulator",
+    "rerank": "reranker",
+}
 
 
-def plot(vector, hybrid, out: Path) -> None:
-    base = hybrid.get(BASE)
-    columns = [
-        ("hybrid", vector, base, "vector", "hybrid"),
-        ("rerank", base, hybrid.get(RERANK), "hybrid", "hybrid + rerank"),
-        ("reformulate", base, hybrid.get(REFORMULATE), "hybrid", "hybrid + reformulate"),
-    ]
-    fig, axes = plt.subplots(2, 3, figsize=(18, 9), sharex=True, sharey=True)
-    for row, metric in enumerate(("thread", "email")):
-        for col, (name, baseline, feature, base_label, feat_label) in enumerate(columns):
-            _draw(axes[row][col], baseline, feature, base_label, feat_label,
-                  metric, f"{metric} — {name}")
-            if col == 0:
-                axes[row][col].set_ylabel("recall")
-            if row == 1:
-                axes[row][col].set_xlabel("top-k")
+def plot(configs: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
+    series = [c for c in ORDER if configs.get(c)]
+    fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+    for name in series:
+        tx, ty = as_xy(configs[name], "thread")
+        ex, ey = as_xy(configs[name], "email")
+        ax_thread.plot(tx, ty, marker="o", label=LABELS[name])
+        ax_email.plot(ex, ey, marker="o", label=LABELS[name])
 
-    fig.suptitle("Summary strategy: recall-vs-k (excl. unanswerable)")
+    for ax, title in ((ax_thread, "Thread recall"), (ax_email, "Email recall")):
+        ax.set_title(f"{title} vs top-k")
+        ax.set_xlabel("top-k")
+        ax.set_xlim(left=0)
+        ax.set_ylim(0, 1)
+        ax.grid(True, alpha=0.3)
+        ax.legend(title="config")
+    ax_thread.set_ylabel("recall")
+
+    fig.suptitle("Summary strategy: base / hybrid / reformulator / reranker")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     print(f"Saved {out}")
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Recall-vs-k for summary: hybrid/rerank/reformulate")
-    p.add_argument("--sweep-id", default=None,
-                   help="Pin one hybrid sweep by sweep_id (default: most recent matching rows)")
+    p = argparse.ArgumentParser(description="Recall-vs-k for summary: base/hybrid/reformulator/reranker")
     p.add_argument("--out", type=Path,
                    default=Path(__file__).resolve().parent.parent / "plots_png" / "summary_hybrid.png",
                    help="Output PNG path (default: ../plots_png/summary_hybrid.png)")
     args = p.parse_args()
 
     with connect() as conn:
-        vector = vector_summary(conn)
-        hybrid = hybrid_aggregated(conn, args.sweep_id)
+        configs = four_configs(conn)
 
-    if not hybrid:
-        raise SystemExit("No summary+hybrid rows. Run summary_hybrid_test.py first.")
-    for combo, name in ((BASE, "hybrid"), (RERANK, "+rerank"), (REFORMULATE, "+reformulate")):
-        c = hybrid.get(combo)
+    if not configs:
+        raise SystemExit("No summary rows. Run the matrix / recall sweep first.")
+    for name in ORDER:
+        c = configs.get(name)
         print(f"{name}: {len(c)} top_k points" if c else f"{name}: (no data yet)")
-    print(f"vector baseline: {len(vector)} top_k points" if vector else "vector baseline: (none)")
-    plot(vector, hybrid, args.out)
+    plot(configs, args.out)
 
 
 if __name__ == "__main__":

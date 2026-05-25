@@ -3,7 +3,7 @@ Recall-vs-k by question category for the summary + hybrid pipeline (our best).
 
 One figure, 2 panels (thread / email); each draws one line per answerable
 category (fact_single / summary / reasoning) plus an 'overall' line aggregated
-across them. Unanswerable is excluded.
+across them.
 
 Uses the plain hybrid config (no rerank, no reformulate). Pass --sweep-id to pin
 one sweep; otherwise the most recent matching rows are used.
@@ -55,7 +55,7 @@ def plot(curves: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
         ax.legend(title="category")
     ax_thread.set_ylabel("recall")
 
-    fig.suptitle("Summary + hybrid: recall by category (excl. unanswerable)")
+    fig.suptitle("Summary + hybrid: recall by category")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     print(f"Saved {out}")

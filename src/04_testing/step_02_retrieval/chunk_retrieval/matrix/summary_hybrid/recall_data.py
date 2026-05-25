@@ -3,7 +3,7 @@
 All dimensions are read from the flags JSONB (top_k / reformulator / reranker /
 hybrid / strategy), so these work regardless of whether the legacy per-knob
 columns still exist. Recall is aggregated over the answerable categories
-(fact_single + summary + reasoning); unanswerable is excluded.
+(fact_single + summary + reasoning).
 """
 from __future__ import annotations
 
@@ -24,19 +24,32 @@ _HYBRID_QUERY = """
     ORDER BY top_k, reformulate, rerank, question_type, run_at DESC
 """
 
-_VECTOR_QUERY = """
-    SELECT DISTINCT ON (top_k, question_type)
-           (flags->>'top_k')::int AS top_k,
+# One row per (config dimensions, top_k, category): every summary-strategy run
+# whose retrieval mode is vector or hybrid. Buckets into the four configs in
+# Python (see CONFIG_KEYS). Most-recent row per dimension wins.
+_CONFIG_QUERY = """
+    SELECT DISTINCT ON (hybrid, reformulate, rerank, top_k, question_type)
+           (flags->>'top_k')::int                            AS top_k,
+           (flags->>'hybrid' = 'hybrid')                     AS hybrid,
+           COALESCE((flags->>'reformulator')::bool, false)   AS reformulate,
+           COALESCE((flags->>'reranker')::bool, false)       AS rerank,
            question_type, total, thread_hits, email_hits
     FROM test_retrieval_run_logging
     WHERE test_type = 'chunk_retrieval'
-      AND flags->>'hybrid' IS NULL
       AND flags->'strategy' ? 'summary'
-      AND COALESCE((flags->>'reranker')::bool, false) = false
-      AND COALESCE((flags->>'reformulator')::bool, false) = false
+      AND (flags->>'hybrid' IS NULL OR flags->>'hybrid' = 'hybrid')
       AND question_type = ANY(%(cats)s)
-    ORDER BY top_k, question_type, run_at DESC
+    ORDER BY hybrid, reformulate, rerank, top_k, question_type, run_at DESC
 """
+
+# Each feature isolated on top of the vector base (one knob at a time).
+# (hybrid, reformulate, rerank)
+CONFIG_KEYS = {
+    "base":        (False, False, False),
+    "hybrid":      (True,  False, False),
+    "reformulate": (False, True,  False),
+    "rerank":      (False, False, True),
+}
 
 
 def _recall_by_k(acc: dict[int, list[int]]) -> dict[int, tuple[float, float]]:
@@ -45,21 +58,6 @@ def _recall_by_k(acc: dict[int, list[int]]) -> dict[int, tuple[float, float]]:
     for top_k, (total, t_hits, e_hits) in acc.items():
         out[top_k] = (t_hits / total if total else 0.0, e_hits / total if total else 0.0)
     return out
-
-
-def hybrid_aggregated(conn, sweep_id: str | None) -> dict[tuple[bool, bool], dict[int, tuple[float, float]]]:
-    """{(reformulate, rerank): {top_k: (thread_recall, email_recall)}}, summed over categories."""
-    with conn.cursor() as cur:
-        cur.execute(_HYBRID_QUERY, {"cats": list(CATEGORIES), "sweep_id": sweep_id})
-        rows = cur.fetchall()
-    acc: dict[tuple[bool, bool], dict[int, list[int]]] = {}
-    for top_k, reformulate, rerank, _qt, total, t_hits, e_hits in rows:
-        per_k = acc.setdefault((reformulate, rerank), {})
-        slot = per_k.setdefault(top_k, [0, 0, 0])
-        slot[0] += total
-        slot[1] += t_hits
-        slot[2] += e_hits or 0
-    return {combo: _recall_by_k(per_k) for combo, per_k in acc.items()}
 
 
 def hybrid_by_category(
@@ -85,18 +83,24 @@ def hybrid_by_category(
     return out
 
 
-def vector_summary(conn) -> dict[int, tuple[float, float]]:
-    """{top_k: (thread_recall, email_recall)} for summary vector-only, summed over categories."""
+def four_configs(conn) -> dict[str, dict[int, tuple[float, float]]]:
+    """{config: {top_k: (thread_recall, email_recall)}} for base / hybrid /
+    reformulate / rerank — each isolated on the vector base, summed over the
+    answerable categories. Missing configs are simply absent from the result."""
     with conn.cursor() as cur:
-        cur.execute(_VECTOR_QUERY, {"cats": list(CATEGORIES)})
+        cur.execute(_CONFIG_QUERY, {"cats": list(CATEGORIES)})
         rows = cur.fetchall()
-    acc: dict[int, list[int]] = {}
-    for top_k, _qt, total, t_hits, e_hits in rows:
-        slot = acc.setdefault(top_k, [0, 0, 0])
+    by_dims = {dims: name for name, dims in CONFIG_KEYS.items()}
+    acc: dict[str, dict[int, list[int]]] = {}
+    for top_k, hybrid, reformulate, rerank, _qt, total, t_hits, e_hits in rows:
+        name = by_dims.get((hybrid, reformulate, rerank))
+        if name is None:
+            continue
+        slot = acc.setdefault(name, {}).setdefault(top_k, [0, 0, 0])
         slot[0] += total
         slot[1] += t_hits
         slot[2] += e_hits or 0
-    return _recall_by_k(acc)
+    return {name: _recall_by_k(per_k) for name, per_k in acc.items()}
 
 
 def as_xy(curve: dict[int, tuple[float, float]], metric: str) -> tuple[list[int], list[float]]:
