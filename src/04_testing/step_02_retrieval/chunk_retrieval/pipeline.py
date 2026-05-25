@@ -29,9 +29,13 @@ def retrieve_for_question(
     source_types: list[str] | None,
     strategies: list[str] | None,
     ef_search: int | None,
+    query_embedding: list[float] | None = None,
 ) -> list:
-    q = reformulate_query(llm, question) if llm else question
-    embedding = client.embed([q])[0]
+    if query_embedding is not None:
+        embedding = query_embedding
+    else:
+        q = reformulate_query(llm, question) if llm else question
+        embedding = client.embed([q])[0]
 
     step2_top_k = rerank_pool if reranker is not None else top_k
     if hybrid_mode is not None:

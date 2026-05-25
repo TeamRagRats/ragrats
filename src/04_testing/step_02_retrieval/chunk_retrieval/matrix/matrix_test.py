@@ -24,17 +24,17 @@ Run three rounds (top_k = 20, 40, 60) => 432 runs. Each run covers all four
 categories. This is a multi-hour job; run it yourself rather than backgrounding:
 
     cd src/04_testing/step_02_retrieval/chunk_retrieval
-    python matrix_test.py
+    python matrix/matrix_test.py
 
 Drop a dimension to shrink the matrix (and skip the server it needs):
 
-    python matrix_test.py --skip-reformulate   # no LLM server needed
-    python matrix_test.py --skip-rerank         # no reranker server needed
-    python matrix_test.py --skip-tsrank        # drop the legacy ts_rank lexical variants
+    python matrix/matrix_test.py --skip-reformulate   # no LLM server needed
+    python matrix/matrix_test.py --skip-rerank         # no reranker server needed
+    python matrix/matrix_test.py --skip-tsrank        # drop the legacy ts_rank lexical variants
 
 Preview the plan without running anything:
 
-    python matrix_test.py --dry-run
+    python matrix/matrix_test.py --dry-run
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ import time
 from pathlib import Path
 
 STRATEGIES = ["plain", "late", "context", "summary"]
-RUN_TEST = Path(__file__).resolve().parent / "run_test.py"
+RUN_TEST = Path(__file__).resolve().parent.parent / "run_test.py"
 
 
 def _mode_variants(

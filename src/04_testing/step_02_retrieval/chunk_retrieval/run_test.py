@@ -45,17 +45,13 @@ from log.log_chunk_retrieval_testing import log_chunk_retrieval_testing
 from log.log_testing import log_retrieval_run
 
 from source_match import (
-    canonical_email,
-    canonical_thread,
-    compute_email_rank,
-    compute_thread_rank,
     load_attachment_email_map,
     load_email_thread_map,
-    serialize_chunks,
 )
 from cli import parse_args, resolve_config
 from data import load_ground_truth
 from pipeline import retrieve_for_question
+from scoring import score_and_log_question
 
 
 def _run_for_category(
@@ -97,56 +93,23 @@ def _run_for_category(
             ef_search=ef_search,
         )
 
-        expected_email_id = expected_source_id if expected_source_type == "email" else None
-        expected_thread_id = (
-            email_thread_map.get(expected_source_id) if expected_source_type == "email" else None
-        )
-        expected_canonical = canonical_thread(
-            expected_source_type, expected_source_id, expected_strategy,
-            email_thread_map, attach_email_map,
-        )
-
-        thread_rank = compute_thread_rank(
-            chunks, expected_canonical, email_thread_map, attach_email_map,
-        )
-        email_rank = compute_email_rank(chunks, expected_email_id, attach_email_map)
-        thread_hit = thread_rank is not None
-        email_hit = email_rank is not None
-        if thread_hit:
-            thread_hits += 1
-            thread_mrr_sum += 1.0 / thread_rank
-        if email_hit:
-            email_hits += 1
-            email_mrr_sum += 1.0 / email_rank
-
-        returned_email_ids = [
-            canonical_email(c.source_type, c.source_id, c.strategy, attach_email_map)
-            for c in chunks
-        ]
-        returned_thread_ids = [
-            canonical_thread(
-                c.source_type, c.source_id, c.strategy,
-                email_thread_map, attach_email_map,
-            )
-            for c in chunks
-        ]
-        log_chunk_retrieval_testing(
+        thread_rank, email_rank = score_and_log_question(
             conn,
-            run_id=run_id,
-            question_id=question_id,
-            category=category,
-            question=question,
-            expected_email=expected_email_id,
-            expected_thread=expected_thread_id,
-            returned_email_ids=returned_email_ids,
-            returned_thread_ids=returned_thread_ids,
-            thread_hit=thread_hit,
-            thread_rank=thread_rank,
-            email_hit=email_hit,
-            email_rank=email_rank,
-            chunks=serialize_chunks(chunks),
+            run_id=run_id, category=category,
+            question_id=question_id, question=question, chunks=chunks,
+            expected_source_type=expected_source_type,
+            expected_source_id=expected_source_id,
+            expected_strategy=expected_strategy,
+            email_thread_map=email_thread_map,
+            attach_email_map=attach_email_map,
             flags=flags,
         )
+        if thread_rank is not None:
+            thread_hits += 1
+            thread_mrr_sum += 1.0 / thread_rank
+        if email_rank is not None:
+            email_hits += 1
+            email_mrr_sum += 1.0 / email_rank
 
         if i % 50 == 0:
             print(

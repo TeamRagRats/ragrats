@@ -20,11 +20,11 @@ its top_k, strategy, ef and recall — plot_recall.py reads those rows.
 This is a multi-hour job; run it yourself rather than backgrounding:
 
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python recall_i5_test.py
+    python recall/sweep.py
 
 Preview the plan without running anything:
 
-    python recall_i5_test.py --dry-run
+    python recall/sweep.py --dry-run
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ import time
 from pathlib import Path
 
 STRATEGIES = ["plain", "late", "context", "summary"]
-RUN_TEST = Path(__file__).resolve().parent.parent / "run_test.py"
+RUN_TEST = Path(__file__).resolve().parents[2] / "run_test.py"
 
 
 def build_runs(top_ks: list[int], ef_search: int) -> list[tuple[str, list[str]]]:
