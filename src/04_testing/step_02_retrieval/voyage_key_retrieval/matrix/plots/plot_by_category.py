@@ -71,7 +71,7 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
             c = by_cat[category]
             ax.plot(c["k"], c["recall"], marker="o", markersize=3, label=category)
         ax.set_title(f"{strategy} — {metric}")
-        ax.set_ylabel(metric)
+        ax.set_ylabel("hit rate")
         ax.set_xscale("function", functions=(_fwd, _inv))
         ax.set_xlim(1, 500)
         ax.xaxis.set_major_locator(FixedLocator(XTICKS))

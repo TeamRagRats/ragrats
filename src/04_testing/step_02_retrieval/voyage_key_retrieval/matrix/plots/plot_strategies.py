@@ -64,7 +64,7 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
 
     ax.set_title(f"Voyage-key — {metric} vs top-k (alle kategorier samlet)")
     ax.set_xlabel("top-k")
-    ax.set_ylabel(metric)
+    ax.set_ylabel("hit rate")
     ax.set_xscale("function", functions=(_fwd, _inv))
     ax.set_xlim(1, 500)
     ax.xaxis.set_major_locator(FixedLocator(XTICKS))
