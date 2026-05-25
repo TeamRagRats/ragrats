@@ -2,8 +2,12 @@
 
 Each question is embedded once per reformulate variant and reused across every
 top_k/rerank cell. This mirrors the matrix test's trick of pre-generating all
-document embeddings up front: the heavy, repeated work (the embed/LLM round
-trips) happens once instead of once per sweep cell.
+document embeddings up front: the heavy, repeated embed work happens once
+instead of once per sweep cell.
+
+Reformulated text is read from ground_truth.question_reformulated (populated up
+front by step_00_query_reformulation/populate_ground_truth.py), so the sweep
+never calls the LLM itself.
 
 BM25 text is always the raw question (the pipeline never feeds reformulated text
 to the lexical side), so only the vector embedding depends on the reformulate
@@ -12,8 +16,6 @@ flag.
 from __future__ import annotations
 
 from clients.embed_client import EmbedClient
-from clients.llm_client import LLMClient
-from step_00_query_reformulation import reformulate_query
 
 _EMBED_BATCH = 128
 
@@ -36,20 +38,29 @@ def _embed_batched(client: EmbedClient, texts: list[str]) -> list[list[float]]:
 
 def build_query_embedding_cache(
     client: EmbedClient,
-    llm: LLMClient | None,
+    reformulated_by_id: dict[str, str],
     rows_by_category: dict[str, list],
     reformulate_opts: list[bool],
 ) -> dict[tuple[bool, str], list[float]]:
-    """Returns {(reformulate, question_id): embedding} for every needed variant."""
+    """Returns {(reformulate, question_id): embedding} for every needed variant.
+
+    reformulated_by_id maps question_id -> stored reformulation (from
+    ground_truth.question_reformulated). When reformulate=True is swept, every
+    question must have an entry; a missing one means populate_ground_truth.py
+    has not been run (or not with --force after a prompt change)."""
     questions = _all_questions(rows_by_category)
     cache: dict[tuple[bool, str], list[float]] = {}
 
     for reformulate in reformulate_opts:
         if reformulate:
-            if llm is None:
-                raise SystemExit("reformulate=True requires an LLM client (server on 8002)")
-            print(f"  reformulating {len(questions)} questions ...")
-            texts = [reformulate_query(llm, q) for _, q in questions]
+            missing = [qid for qid, _ in questions if qid not in reformulated_by_id]
+            if missing:
+                raise SystemExit(
+                    f"reformulate=True needs ground_truth.question_reformulated for "
+                    f"all questions, but {len(missing)} are missing. Run "
+                    "step_00_query_reformulation/populate_ground_truth.py first."
+                )
+            texts = [reformulated_by_id[qid] for qid, _ in questions]
         else:
             texts = [q for _, q in questions]
         print(f"  embedding {len(texts)} queries (reformulate={reformulate}) ...")

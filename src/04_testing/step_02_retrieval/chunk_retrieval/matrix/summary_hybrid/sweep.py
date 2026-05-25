@@ -6,8 +6,10 @@ once up front and cached (see query_cache), so each sweep cell only pays for DB
 retrieval (+ optional rerank) — the same idea that made the matrix test fast by
 pre-generating all document embeddings.
 
-Run on SPARK where postgres + the embed server (8003) are reachable. Add
-reformulate (8002) and rerank (8004) servers only if you keep those dimensions:
+Run on SPARK where postgres + the embed server (8003) are reachable. The
+reformulate dimension reads ground_truth.question_reformulated (run
+step_00_query_reformulation/populate_ground_truth.py once first); only the
+rerank dimension needs a live server (8004):
 
     cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
     python summary_hybrid/sweep.py
@@ -33,14 +35,13 @@ import uuid
 
 from core.db import connect
 from clients.embed_client import EmbedClient
-from clients.llm_client import LLMClient
 from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERANK_URL
 from clients.embed_client import DEFAULT_BASE_URL as DEFAULT_EMBED_URL
 from step_03_rerank import DEFAULT_RERANK_OVERSAMPLE
 from log.log_testing import log_retrieval_run
 
 from source_match import load_attachment_email_map, load_email_thread_map
-from data import load_ground_truth
+from data import load_ground_truth, load_reformulated
 from pipeline import retrieve_for_question
 from scoring import score_and_log_question
 from query_cache import build_query_embedding_cache
@@ -129,11 +130,11 @@ def main() -> None:
         return
 
     client = EmbedClient(base_url=args.embed_url)
-    llm = LLMClient() if True in reformulate_opts else None
     reranker = RerankClient(base_url=args.rerank_url) if True in rerank_opts else None
 
     with connect() as conn:
         rows_by_category = load_ground_truth(conn)
+        reformulated_by_id = load_reformulated(conn) if True in reformulate_opts else {}
         email_thread_map = load_email_thread_map(conn)
         attach_email_map = load_attachment_email_map(conn)
 
@@ -146,7 +147,9 @@ def main() -> None:
     print(f"questions (excl. unanswerable): {total_qs} | {counts}")
 
     print("Building query-embedding cache ...")
-    cache = build_query_embedding_cache(client, llm, rows_by_category, reformulate_opts)
+    cache = build_query_embedding_cache(
+        client, reformulated_by_id, rows_by_category, reformulate_opts
+    )
 
     sweep_id = str(uuid.uuid4())
     print(f"sweep_id={sweep_id}")

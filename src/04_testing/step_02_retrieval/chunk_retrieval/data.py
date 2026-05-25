@@ -24,3 +24,17 @@ def load_ground_truth(conn, voyage: str | None = None) -> dict[str, list[tuple]]
             (question_id, question, voyage_key, source_type, source_id, strategy)
         )
     return rows_by_category
+
+
+def load_reformulated(conn) -> dict[str, str]:
+    """{question_id: question_reformulated} for rows that have been populated.
+
+    Filled once by step_00_query_reformulation/populate_ground_truth.py. Rows
+    without a stored reformulation are omitted, so callers can detect a missing
+    one by a key lookup miss."""
+    rows = conn.execute("""
+        SELECT question_id::text, question_reformulated
+        FROM ground_truth
+        WHERE question_reformulated IS NOT NULL
+    """).fetchall()
+    return {question_id: reformulated for question_id, reformulated in rows}
