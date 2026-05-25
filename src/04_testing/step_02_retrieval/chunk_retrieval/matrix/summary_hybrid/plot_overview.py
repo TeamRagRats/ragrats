@@ -72,13 +72,15 @@ def plot(configs: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Recall-vs-k for summary: base/hybrid/reformulator/reranker")
+    p.add_argument("--sweep-id", default=None,
+                   help="Pin one sweep by sweep_id (default: most recent matching rows)")
     p.add_argument("--out", type=Path,
                    default=Path(__file__).resolve().parent.parent / "plots_png" / "summary_hybrid.png",
                    help="Output PNG path (default: ../plots_png/summary_hybrid.png)")
     args = p.parse_args()
 
     with connect() as conn:
-        configs = four_configs(conn)
+        configs = four_configs(conn, args.sweep_id)
 
     if not configs:
         raise SystemExit("No summary rows. Run the matrix / recall sweep first.")

@@ -39,6 +39,7 @@ _CONFIG_QUERY = """
       AND flags->'strategy' ? 'summary'
       AND (flags->>'hybrid' IS NULL OR flags->>'hybrid' = 'hybrid')
       AND question_type = ANY(%(cats)s)
+      AND (%(sweep_id)s::text IS NULL OR flags->>'sweep_id' = %(sweep_id)s::text)
     ORDER BY hybrid, reformulate, rerank, top_k, question_type, run_at DESC
 """
 
@@ -83,12 +84,13 @@ def hybrid_by_category(
     return out
 
 
-def four_configs(conn) -> dict[str, dict[int, tuple[float, float]]]:
+def four_configs(conn, sweep_id: str | None = None) -> dict[str, dict[int, tuple[float, float]]]:
     """{config: {top_k: (thread_recall, email_recall)}} for base / hybrid /
     reformulate / rerank — each isolated on the vector base, summed over the
-    answerable categories. Missing configs are simply absent from the result."""
+    answerable categories. Missing configs are simply absent from the result.
+    Pass sweep_id to pin one sweep; otherwise the most recent matching rows win."""
     with conn.cursor() as cur:
-        cur.execute(_CONFIG_QUERY, {"cats": list(CATEGORIES)})
+        cur.execute(_CONFIG_QUERY, {"cats": list(CATEGORIES), "sweep_id": sweep_id})
         rows = cur.fetchall()
     by_dims = {dims: name for name, dims in CONFIG_KEYS.items()}
     acc: dict[str, dict[int, list[int]]] = {}
