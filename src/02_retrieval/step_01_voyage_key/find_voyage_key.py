@@ -34,19 +34,22 @@ def find_winning_voyage_keys(
         )
 
     filters: list[str] = []
-    params: list = []
+    filter_params: list = []
     if source_types is not None:
         filters.append("source_type = ANY(%s)")
-        params.append(source_types)
+        filter_params.append(source_types)
     if strategies is not None:
         filters.append("strategy = ANY(%s)")
-        params.append(strategies)
+        filter_params.append(strategies)
     where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
-    params += [query_embedding, top_k]
+    params = [query_embedding] + filter_params + [query_embedding, top_k]
 
+    # Ties (samme stemmetal) brydes på similaritet — den key hvis bedste chunk
+    # ligger nærmest query'en vinder (MIN(dist)). Matcher matrix-harnessens
+    # tiebreak; tidligere brød vi alfabetisk på voyage_key, hvilket var vilkårligt.
     sql = f"""
         WITH ranked AS (
-            SELECT voyage_key
+            SELECT voyage_key, embedding <=> %s::halfvec AS dist
             FROM chunks
             {where_clause}
             ORDER BY embedding <=> %s::halfvec
@@ -55,7 +58,7 @@ def find_winning_voyage_keys(
         SELECT voyage_key, COUNT(*)::int AS cnt
         FROM ranked
         GROUP BY voyage_key
-        ORDER BY cnt DESC, voyage_key
+        ORDER BY cnt DESC, MIN(dist) ASC
     """
     effective_ef = int(ef_search) if ef_search is not None else int(top_k)
     conn.execute(f"SET LOCAL hnsw.ef_search = {effective_ef}")
@@ -120,7 +123,10 @@ def _find_with_candidates(
     if not counts:
         return [], {}, []
 
-    all_counts = dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+    # counts er bygget i similaritets-orden (rows sorteret på dist), og sorted er
+    # stabil — så ties bevarer similaritets-orden i stedet for at bryde alfabetisk
+    # på voyage_key. Matcher find_winning_voyage_keys og matrix-harnessen.
+    all_counts = dict(sorted(counts.items(), key=lambda kv: -kv[1]))
     max_cnt = max(all_counts.values())
     winning_keys = [k for k, c in all_counts.items() if c == max_cnt]
     return winning_keys, all_counts, candidates
