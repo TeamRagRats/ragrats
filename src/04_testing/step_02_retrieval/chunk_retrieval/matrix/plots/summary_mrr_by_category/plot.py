@@ -10,9 +10,9 @@ Uses the plain hybrid config (no rerank, no reformulate). Reads per-question
 ranks from test_retrieval_chunk_logging; pass --sweep-id to pin one sweep.
 
 Run on SPARK (needs postgres):
-    cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python summary_hybrid/plot_mrr_by_category.py
-    python summary_hybrid/plot_mrr_by_category.py --sweep-id <uuid>
+    cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix/plots
+    python summary_mrr_by_category/plot.py
+    python summary_mrr_by_category/plot.py --sweep-id <uuid>
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ from __future__ import annotations
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
-    sys.path.insert(0, str(_Path(__file__).resolve().parents[6]))
-    sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[7]))
+    sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "_shared"))
 
 import argparse
 from pathlib import Path
@@ -74,8 +74,8 @@ def main() -> None:
     p.add_argument("--sweep-id", default=None,
                    help="Pin one sweep by sweep_id (default: most recent matching rows)")
     p.add_argument("--out", type=Path,
-                   default=Path(__file__).resolve().parent.parent / "plots_png" / "category_summary_hybrid_mrr.png",
-                   help="Output PNG path (default: ../plots_png/category_summary_hybrid_mrr.png)")
+                   default=Path(__file__).resolve().parent / "summary_mrr_by_category.png",
+                   help="Output PNG path (default: ./summary_mrr_by_category.png)")
     args = p.parse_args()
 
     with connect() as conn:

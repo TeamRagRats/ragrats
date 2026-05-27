@@ -6,8 +6,8 @@ voting hit-rate afhængigt af hvad matrixen blev kørt med.
 
 Kør på SPARK (kræver postgres):
     cd src/04_testing/step_02_retrieval/voyage_key_retrieval/matrix/plots
-    python plot_strategies.py
-    python plot_strategies.py --matrix-id <uuid> --out strategies.png
+    python strategies/plot.py
+    python strategies/plot.py --matrix-id <uuid>
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    sys.path.insert(0, str(_here))
-    sys.path.insert(0, str(_here.parents[5]))
+    sys.path.insert(0, str(_here.parents[6]))
+    sys.path.insert(0, str(_here.parent / "_shared"))
 
 import argparse
 from pathlib import Path
@@ -62,16 +62,15 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
         c = curves[strategy]
         ax.plot(c["k"], c["recall"], marker="o", markersize=3, label=strategy)
 
-    ax.set_title(f"Voyage-key — {metric} vs top-k (alle kategorier samlet)")
-    ax.set_xlabel("top-k")
-    ax.set_ylabel("hit rate")
+    ax.set_xlabel("Top-k", fontsize=16)
+    ax.set_ylabel("Recall", fontsize=16)
     ax.set_xscale("function", functions=(_fwd, _inv))
     ax.set_xlim(1, 500)
     ax.xaxis.set_major_locator(FixedLocator(XTICKS))
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.6, 1)
     ax.grid(True, alpha=0.3)
     ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax.legend(title="strategi", loc="lower right")
+    ax.legend(title="strategi", loc="upper right")
 
     fig.text(0.01, 0.01, f"matrix_id={matrix_id}", fontsize=6, color="gray")
     fig.tight_layout()
