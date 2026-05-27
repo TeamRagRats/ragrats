@@ -6,8 +6,8 @@ så man kan se hvor en strategi kæmper når k stiger.
 
 Kør på SPARK (kræver postgres):
     cd src/04_testing/step_02_retrieval/voyage_key_retrieval/matrix/plots
-    python plot_by_category.py
-    python plot_by_category.py --matrix-id <uuid> --out by_category.png
+    python by_category/plot.py
+    python by_category/plot.py --matrix-id <uuid>
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
     _here = _Path(__file__).resolve().parent
-    sys.path.insert(0, str(_here))
-    sys.path.insert(0, str(_here.parents[5]))
+    sys.path.insert(0, str(_here.parents[6]))
+    sys.path.insert(0, str(_here.parent / "_shared"))
 
 import argparse
 from pathlib import Path
@@ -75,10 +75,10 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
         ax.set_xscale("function", functions=(_fwd, _inv))
         ax.set_xlim(1, 500)
         ax.xaxis.set_major_locator(FixedLocator(XTICKS))
-        ax.set_ylim(0, 1)
+        ax.set_ylim(0.6, 1)
         ax.grid(True, alpha=0.3)
         ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-        ax.legend(title="kategori", fontsize="small", loc="lower right")
+        ax.legend(title="kategori", fontsize="small", loc="upper right")
         if row == len(strategies) - 1:
             ax.set_xlabel("top-k")
 

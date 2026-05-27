@@ -1,21 +1,21 @@
 """
-Recall-vs-k for the summary strategy: the four configs side by side.
+MRR-vs-k for the summary strategy: the four configs side by side.
 
-One figure, 2 panels — thread recall (left), email recall (right). Each panel
-draws one line per config, with each feature isolated on the vector base:
+Mirror of plot_overview.py but for MRR (mean reciprocal rank) instead of recall.
+One figure, 2 panels — thread MRR (left), email MRR (right). Each panel draws
+one line per config, with each feature isolated on the vector base:
     base         : vector-only
-    hybrid       : vector + lexical (BM25) fused via RRF
+    hybrid       : vector + BM25 fused via RRF
     reformulate  : vector + LLM query reformulation
     rerank       : vector + reranker
 
-Recall is summed over the answerable categories. The most recent matching row
-per (config, top_k, category) is used. A config with no matching rows is simply
-omitted.
+MRR is averaged over the answerable categories. Reads per-question ranks from
+test_retrieval_chunk_logging; pass --sweep-id to pin one sweep.
 
 Run on SPARK (needs postgres):
-    cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix
-    python summary_hybrid/plot_overview.py
-    python summary_hybrid/plot_overview.py --out plots_png/summary_hybrid.png
+    cd src/04_testing/step_02_retrieval/chunk_retrieval/matrix/plots
+    python summary_mrr_overview/plot.py
+    python summary_mrr_overview/plot.py --sweep-id <uuid>
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ from __future__ import annotations
 if __name__ == "__main__" and __package__ in (None, ""):
     import sys
     from pathlib import Path as _Path
-    sys.path.insert(0, str(_Path(__file__).resolve().parents[6]))
-    sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[7]))
+    sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "_shared"))
 
 import argparse
 from pathlib import Path
@@ -35,7 +35,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from core.db import connect
-from recall_data import as_xy, four_configs
+from mrr_data import four_configs
+from recall_data import as_xy
 
 ORDER = ["base", "hybrid", "reformulate", "rerank"]
 LABELS = {
@@ -55,28 +56,28 @@ def plot(configs: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
         ax_thread.plot(tx, ty, marker="o", label=LABELS[name])
         ax_email.plot(ex, ey, marker="o", label=LABELS[name])
 
-    for ax, title in ((ax_thread, "Thread recall"), (ax_email, "Email recall")):
+    for ax, title in ((ax_thread, "Thread MRR"), (ax_email, "Email MRR")):
         ax.set_title(f"{title} vs top-k")
         ax.set_xlabel("top-k")
         ax.set_xlim(left=0)
         ax.set_ylim(0, 1)
         ax.grid(True, alpha=0.3)
         ax.legend(title="config")
-    ax_thread.set_ylabel("recall")
+    ax_thread.set_ylabel("MRR")
 
-    fig.suptitle("Summary strategy: base / hybrid / reformulator / reranker")
+    fig.suptitle("Summary strategy: base / hybrid / reformulator / reranker — MRR")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     print(f"Saved {out}")
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Recall-vs-k for summary: base/hybrid/reformulator/reranker")
+    p = argparse.ArgumentParser(description="MRR-vs-k for summary: base/hybrid/reformulator/reranker")
     p.add_argument("--sweep-id", default=None,
                    help="Pin one sweep by sweep_id (default: most recent matching rows)")
     p.add_argument("--out", type=Path,
-                   default=Path(__file__).resolve().parent.parent / "plots_png" / "summary_hybrid.png",
-                   help="Output PNG path (default: ../plots_png/summary_hybrid.png)")
+                   default=Path(__file__).resolve().parent / "summary_mrr_overview.png",
+                   help="Output PNG path (default: ./summary_mrr_overview.png)")
     args = p.parse_args()
 
     with connect() as conn:
