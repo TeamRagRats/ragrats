@@ -1,21 +1,17 @@
 # Test: step_03_generation
 
-Tester generationskvalitet isoleret fra retrieval — ground_truth-kilder sendes direkte til LLM'en.
+Tester generationskvalitet med realistisk kontekst fra retrieval-systemet.
 
-## Test-forslag
+Joiner `ground_truth` med `test_retrieval_chunk_logging` og tager kun spørgsmål hvor `hit=true` (korrekte chunks blev returneret). Grupperer per K-værdi og evaluerer generation for hvert K separat. Scorer hvert svar med cosine similarity + LLM-as-judge (1–5). Rapporterer per K og per kategori: `fact_single`, `summary`, `reasoning`.
 
-**Generation accuracy (bypassed retrieval):**
-Feed `correct_sources` fra ground_truth direkte til `build_context` + `generate_answer` — ingen retrieval.
-Sammenlign output med `correct_answer` via LLM-as-judge eller semantisk lighed.
-
-```python
-context = build_context(conn, [chunk], [chunk.voyage_key])
-answer, _ = generate_answer(llm, query, context, ...)
-score = judge(answer, ground_truth_answer)  # 1–5
+```bash
+# Kræver at chunk-retrieval testen er kørt først
+python run_test.py --retrieval-run-id <UUID>
 ```
 
-**End-to-end vs. isolated:**
-Kør samme query med og uden retrieval-bypass — stor forskel indikerer retrieval-fejl, ikke generations-fejl.
-
-**Prompt-sensitivitet:**
-Test samme query med forskellige system prompts eller temperaturer og mål konsistens i score.
+**Flags:**
+- `--retrieval-run-id` (påkrævet) — UUID fra en kørsel i `test_retrieval_chunk_logging`; sikrer at generation kun evalueres på én strategi/konfiguration ad gangen
+- `--embed-url` — embed-server base URL (default: `http://localhost:8003/v1`)
+- `--llm-url` — LLM-server base URL (default: `http://localhost:8002/v1`)
+- `--temperature` — generations-temperatur (default: `0.3`)
+- `--max-tokens` — max tokens i svar (default: `2500`)

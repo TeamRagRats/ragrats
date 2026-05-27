@@ -41,14 +41,17 @@ def log_generation_run(
     judge_hits: int,
     avg_cosine: float,
     avg_judge_score: float,
+    category: str = "all",
+    flags: dict | None = None,
 ) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO test_generation_run_logging
-                (run_id, total, judge_hits, avg_cosine, avg_judge_score)
-            VALUES (%s, %s, %s, %s, %s)
+                (run_id, total, judge_hits, avg_cosine, avg_judge_score, category, flags)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
-            (run_id, total, judge_hits, avg_cosine, avg_judge_score),
+            (run_id, total, judge_hits, avg_cosine, avg_judge_score, category,
+             json.dumps(flags) if flags is not None else None),
         )
     conn.commit()
