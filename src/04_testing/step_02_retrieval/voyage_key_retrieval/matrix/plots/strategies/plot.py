@@ -67,7 +67,7 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
     ax.set_xscale("function", functions=(_fwd, _inv))
     ax.set_xlim(1, 500)
     ax.xaxis.set_major_locator(FixedLocator(XTICKS))
-    ax.set_ylim(0.6, 1)
+    ax.set_ylim(0.6, 0.9)
     ax.grid(True, alpha=0.3)
     ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
     ax.legend(title="strategi", loc="upper right")
