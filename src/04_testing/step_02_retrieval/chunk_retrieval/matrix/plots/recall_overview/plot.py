@@ -30,6 +30,9 @@ import matplotlib.pyplot as plt
 from core.db import connect
 
 STRATEGIES = ["plain", "late", "context", "summary"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle, diamond.
+MARKERS = ["o", "s", "^", "D"]
 
 # Dimensions (strategy / top_k / ef_search) live in the flags JSONB, and
 # run_test.py logs one row per answerable category — there is no 'total' row.
@@ -91,14 +94,15 @@ def plot(curves: dict[str, dict[str, list]], ef: int, out: Path) -> None:
     max_k = max(c["k"][-1] for c in curves.values())
 
     fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
-    for ax, metric, ylabel in (
-        (ax_thread, "thread", "Hit Rate"),
-        (ax_email, "email", "Recall"),
+    for ax, metric, ylabel, title in (
+        (ax_thread, "thread", "Hit Rate", "Threads"),
+        (ax_email, "email", "Recall", "Emails"),
     ):
-        for strategy in order:
+        for i, strategy in enumerate(order):
             c = curves[strategy]
-            ax.plot(c["k"], c[metric], marker="o", label=strategy)
-        ax.set_xlabel("top-k", fontsize=22)
+            ax.plot(c["k"], c[metric], marker=MARKERS[i % len(MARKERS)], label=strategy)
+        ax.set_title(title, fontsize=22)
+        ax.set_xlabel("Top-k", fontsize=22)
         ax.set_ylabel(ylabel, fontsize=22)
         ax.set_xlim(min_k, max_k)
         ax.set_ylim(0.2, 1.0)

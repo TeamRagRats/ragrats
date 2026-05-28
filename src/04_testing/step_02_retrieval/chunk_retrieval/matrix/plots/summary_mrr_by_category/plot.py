@@ -36,34 +36,43 @@ from mrr_data import hybrid_by_category
 from recall_data import as_xy
 
 ORDER = ["fact_single", "summary", "reasoning", "overall"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle. The dotted 'total score'
+# line stays dotted (no marker) — it is already distinguishable.
+MARKERS = ["o", "s", "^", "D"]
 
 
 def plot(curves: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
     series = [c for c in ORDER if curves.get(c)] + [c for c in curves if c not in ORDER]
+    # Span the x-axis over the measured k-range (drop the synthetic k=0 origin)
+    # so the curves start at the smallest measured k (k=1) with no empty gap.
+    all_k = [k for name in series for k in curves[name]]
+    min_k, max_k = min(all_k), max(all_k)
     fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+    marker_i = 0
     for name in series:
         is_total = name == "overall"
-        style = (
-            {"linewidth": 1.5, "linestyle": ":", "color": "black"}
-            if is_total
-            else {"marker": "o"}
-        )
+        if is_total:
+            style = {"linewidth": 1.5, "linestyle": ":", "color": "black"}
+        else:
+            style = {"marker": MARKERS[marker_i % len(MARKERS)]}
+            marker_i += 1
         label = "total score" if is_total else name
+        # Drop the synthetic (k=0, 0.0) origin so the curves start at k=1.
         tx, ty = as_xy(curves[name], "thread")
         ex, ey = as_xy(curves[name], "email")
-        ax_thread.plot(tx, ty, label=label, **style)
-        ax_email.plot(ex, ey, label=label, **style)
+        ax_thread.plot(tx[1:], ty[1:], label=label, **style)
+        ax_email.plot(ex[1:], ey[1:], label=label, **style)
 
-    for ax, title in ((ax_thread, "Thread MRR"), (ax_email, "Email MRR")):
-        ax.set_title(f"{title} vs top-k")
+    for ax, title in ((ax_thread, "Threads"), (ax_email, "Emails")):
+        ax.set_title(title)
         ax.set_xlabel("top-k")
-        ax.set_xlim(left=0)
-        ax.set_ylim(0, 1)
+        ax.set_xlim(min_k, max_k)
+        ax.set_ylim(0, 0.5)
         ax.grid(True, alpha=0.3)
         ax.legend(title="category")
     ax_thread.set_ylabel("MRR")
 
-    fig.suptitle("Summary + hybrid: MRR by category")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     print(f"Saved {out}")

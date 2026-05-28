@@ -34,6 +34,10 @@ from core.db import connect
 from recall_data import as_xy, hybrid_by_category
 
 ORDER = ["fact_single", "summary", "reasoning", "overall"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle. The dotted 'total score'
+# line stays dotted (no marker) — it is already distinguishable.
+MARKERS = ["o", "s", "^", "D"]
 
 
 def plot(curves: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
@@ -43,13 +47,14 @@ def plot(curves: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
     all_k = [k for name in series for k in curves[name]]
     min_k, max_k = min(all_k), max(all_k)
     fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+    marker_i = 0
     for name in series:
         is_total = name == "overall"
-        style = (
-            {"linewidth": 1.5, "linestyle": ":", "color": "black"}
-            if is_total
-            else {"marker": "o"}
-        )
+        if is_total:
+            style = {"linewidth": 1.5, "linestyle": ":", "color": "black"}
+        else:
+            style = {"marker": MARKERS[marker_i % len(MARKERS)]}
+            marker_i += 1
         label = "total score" if is_total else name
         # Drop the synthetic (k=0, 0.0) origin so the curves start at the
         # smallest measured k (k=1).
@@ -58,11 +63,12 @@ def plot(curves: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
         ax_thread.plot(tx[1:], ty[1:], label=label, **style)
         ax_email.plot(ex[1:], ey[1:], label=label, **style)
 
-    for ax, ylabel in ((ax_thread, "Hit Rate"), (ax_email, "Recall")):
-        ax.set_xlabel("top-k", fontsize=22)
+    for ax, ylabel, title in ((ax_thread, "Hit Rate", "Threads"), (ax_email, "Recall", "Emails")):
+        ax.set_title(title, fontsize=22)
+        ax.set_xlabel("Top-k", fontsize=22)
         ax.set_ylabel(ylabel, fontsize=22)
         ax.set_xlim(min_k, max_k)
-        ax.set_ylim(0.0, 1.0)
+        ax.set_ylim(0.2, 1.0)
         ax.tick_params(labelsize=14)
         ax.grid(True, alpha=0.3)
         ax.legend(title="category", fontsize=12, title_fontsize=13, loc="lower right")

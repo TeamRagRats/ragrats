@@ -39,6 +39,9 @@ from mrr_data import four_configs
 from recall_data import as_xy
 
 ORDER = ["base", "hybrid", "reformulate", "rerank"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle, diamond.
+MARKERS = ["o", "s", "^", "D"]
 LABELS = {
     "base": "base (vector)",
     "hybrid": "hybrid",
@@ -49,23 +52,28 @@ LABELS = {
 
 def plot(configs: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
     series = [c for c in ORDER if configs.get(c)]
+    # Span the x-axis over the measured k-range (drop the synthetic k=0 origin)
+    # so the curves start at the smallest measured k (k=1) with no empty gap.
+    all_k = [k for name in series for k in configs[name]]
+    min_k, max_k = min(all_k), max(all_k)
     fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
-    for name in series:
+    for i, name in enumerate(series):
         tx, ty = as_xy(configs[name], "thread")
         ex, ey = as_xy(configs[name], "email")
-        ax_thread.plot(tx, ty, marker="o", label=LABELS[name])
-        ax_email.plot(ex, ey, marker="o", label=LABELS[name])
+        marker = MARKERS[i % len(MARKERS)]
+        # Drop the synthetic (k=0, 0.0) origin so the curves start at k=1.
+        ax_thread.plot(tx[1:], ty[1:], marker=marker, label=LABELS[name])
+        ax_email.plot(ex[1:], ey[1:], marker=marker, label=LABELS[name])
 
-    for ax, title in ((ax_thread, "Thread MRR"), (ax_email, "Email MRR")):
-        ax.set_title(f"{title} vs top-k")
-        ax.set_xlabel("top-k")
-        ax.set_xlim(left=0)
-        ax.set_ylim(0, 1)
+    for ax, title in ((ax_thread, "Threads"), (ax_email, "Emails")):
+        ax.set_title(title)
+        ax.set_xlabel("Top-k")
+        ax.set_xlim(min_k, max_k)
+        ax.set_ylim(0, 0.38)
         ax.grid(True, alpha=0.3)
         ax.legend(title="config")
     ax_thread.set_ylabel("MRR")
 
-    fig.suptitle("Summary strategy: base / hybrid / reformulator / reranker — MRR")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     print(f"Saved {out}")

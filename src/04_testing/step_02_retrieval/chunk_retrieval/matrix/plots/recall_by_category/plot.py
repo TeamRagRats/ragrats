@@ -32,6 +32,9 @@ from core.db import connect
 
 STRATEGIES = ["plain", "late", "context", "summary"]
 CATEGORIES = ["fact_single", "summary", "reasoning"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle, diamond.
+MARKERS = ["o", "s", "^", "D"]
 
 # Strategy / top_k / ef_search live in the flags JSONB (no flat columns), so we
 # read the per-category recall *rates* straight from thread_recall/email_recall.
@@ -100,9 +103,9 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], ef: int, out: Path) -> N
         categories = _ordered(by_cat.keys(), CATEGORIES)
         for col, metric in enumerate(("thread", "email")):
             ax = axes[row][col]
-            for category in categories:
+            for i, category in enumerate(categories):
                 c = by_cat[category]
-                ax.plot(c["k"], c[metric], marker="o", label=category)
+                ax.plot(c["k"], c[metric], marker=MARKERS[i % len(MARKERS)], label=category)
             # Column headers only, on the top row: Threads (left) / Emails (right).
             if row == 0:
                 ax.set_title("Threads" if col == 0 else "Emails", fontsize=22)
@@ -114,7 +117,7 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], ef: int, out: Path) -> N
             # Hit Rate on every left-column y-axis, Recall on every right one.
             ax.set_ylabel("Hit Rate" if col == 0 else "Recall", fontsize=22)
             if row == len(strategies) - 1:
-                ax.set_xlabel("top-k", fontsize=22)
+                ax.set_xlabel("Top-k", fontsize=22)
 
     fig.tight_layout()
     fig.savefig(out, dpi=150)

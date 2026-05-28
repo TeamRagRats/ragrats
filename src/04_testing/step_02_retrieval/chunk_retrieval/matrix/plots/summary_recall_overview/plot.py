@@ -38,6 +38,9 @@ from core.db import connect
 from recall_data import as_xy, four_configs
 
 ORDER = ["base", "hybrid", "reformulate", "rerank"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle, diamond.
+MARKERS = ["o", "s", "^", "D"]
 LABELS = {
     "base": "base (vector)",
     "hybrid": "hybrid",
@@ -53,16 +56,18 @@ def plot(configs: dict[str, dict[int, tuple[float, float]]], out: Path) -> None:
     all_k = [k for name in series for k in configs[name]]
     min_k, max_k = min(all_k), max(all_k)
     fig, (ax_thread, ax_email) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
-    for name in series:
+    for i, name in enumerate(series):
         # Drop the synthetic (k=0, 0.0) origin so the curves start at the
         # smallest measured k (k=1).
         tx, ty = as_xy(configs[name], "thread")
         ex, ey = as_xy(configs[name], "email")
-        ax_thread.plot(tx[1:], ty[1:], marker="o", label=LABELS[name])
-        ax_email.plot(ex[1:], ey[1:], marker="o", label=LABELS[name])
+        marker = MARKERS[i % len(MARKERS)]
+        ax_thread.plot(tx[1:], ty[1:], marker=marker, label=LABELS[name])
+        ax_email.plot(ex[1:], ey[1:], marker=marker, label=LABELS[name])
 
-    for ax, ylabel in ((ax_thread, "Hit Rate"), (ax_email, "Recall")):
-        ax.set_xlabel("top-k", fontsize=22)
+    for ax, ylabel, title in ((ax_thread, "Hit Rate", "Threads"), (ax_email, "Recall", "Emails")):
+        ax.set_title(title, fontsize=22)
+        ax.set_xlabel("Top-k", fontsize=22)
         ax.set_ylabel(ylabel, fontsize=22)
         ax.set_xlim(min_k, max_k)
         ax.set_ylim(0.0, 1.0)
