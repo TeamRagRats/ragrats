@@ -26,7 +26,7 @@ from clients.rerank_client import RerankClient, DEFAULT_BASE_URL as DEFAULT_RERA
 
 from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
-from step_02_chunk_retrieval import retrieve_chunks
+from step_02_chunk_retrieval import retrieve_chunks, hybrid_retrieve_chunks
 from step_03_rerank import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
 from step_01_build_context import build_context
 from step_02_llm_generation import generate_answer
@@ -49,6 +49,7 @@ def run_query(
     max_tokens: int = 2500,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    hybrid: bool = False,
     skip_voyage_key: bool = False,
     system_prompt: str | None = None,
     rerank: bool = False,
@@ -92,14 +93,26 @@ def run_query(
         step2_top_k = effective_rerank_pool if rerank else top_k_2
 
         t2 = time.monotonic()
-        chunks = retrieve_chunks(
-            conn, embedding,
-            voyage_keys=winning_keys if winning_keys else None,
-            top_k=step2_top_k,
-            source_types=source_types,
-            strategies=strategies,
-            ef_search=ef_search_2,
-        )
+        if hybrid:
+            chunks = hybrid_retrieve_chunks(
+                conn,
+                query_text=query,
+                query_embedding=embedding,
+                voyage_keys=winning_keys if winning_keys else None,
+                top_k=step2_top_k,
+                source_types=source_types,
+                strategies=strategies,
+                ef_search=ef_search_2,
+            )
+        else:
+            chunks = retrieve_chunks(
+                conn, embedding,
+                voyage_keys=winning_keys if winning_keys else None,
+                top_k=step2_top_k,
+                source_types=source_types,
+                strategies=strategies,
+                ef_search=ef_search_2,
+            )
         step2_ms = int((time.monotonic() - t2) * 1000)
 
         rerank_ms: int | None = None
