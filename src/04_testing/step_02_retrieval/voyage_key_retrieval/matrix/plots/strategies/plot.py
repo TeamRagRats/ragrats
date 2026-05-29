@@ -37,7 +37,7 @@ STRATEGIES = ["plain", "late", "context", "summary"]
 # logik: hvert 2. op til 20, derefter hvert 25.
 KNEE = 20.0
 HI_COMPRESS = 2.0 / 25.0  # 25 k i høj-området = 2 enheder (= et lav-tick-spring)
-XTICKS = [1] + list(range(2, 21, 2)) + list(range(45, 501, 25))
+XTICKS = [1] + list(range(2, 21, 2)) + list(range(50, 501, 25))
 
 
 def _fwd(k):
