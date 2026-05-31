@@ -1,3 +1,0 @@
-ALTER TABLE users DROP CONSTRAINT users_pkey;
-ALTER TABLE users DROP COLUMN user_id;
-ALTER TABLE users ADD PRIMARY KEY (username);

@@ -7,9 +7,9 @@
    docker compose -f docker/postgres/docker-compose.yml up -d
    ```
 
-2. **Migrationer er kørt** (inkl. `0008_drop_docling_document_column.sql`):
+2. **Skemaet er oprettet** fra `sql/db.sql`:
    ```bash
-   python src/preprocessing/sql_migrations/migrate.py
+   python sql/init_db.py
    ```
 
 3. **Attachments er importeret** (step 01–06 via `run_ingest.py`), så `docling_load_queue`-viewet har rækker.
