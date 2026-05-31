@@ -13,7 +13,7 @@ import psycopg
 
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 from step_05_chunking.attachments.chunker import chunk_structured_md
-from step_06_embedding.email_context.embedder import embed_text, format_halfvec
+from step_06_embedding._shared.embedder import embed_text, format_halfvec
 from step_06_embedding.attachment_context.db import (
     get_pending_sha256s,
     get_attachment_data,

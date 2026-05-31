@@ -4,7 +4,7 @@ from typing import Any
 
 import psycopg
 
-from step_06_embedding.email_context.db import upsert_chunks  # noqa: F401
+from step_06_embedding._shared.db import upsert_chunks  # noqa: F401
 
 
 def get_pending(

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 # Single-text embedder: forward pass -> last-token (EOS) hidden state ->
-# L2-normalize. Used by email_context chunking, where the input is
-# (prior-thread summary + email body) and we want one vector per email.
-# Qwen3-Embedding is trained with contrastive loss on the EOS hidden state,
-# so last-token pooling is the recipe that matches the training objective.
+# L2-normalize. Produces one vector per text (prior-thread summary + body, or a
+# bare chunk). Qwen3-Embedding is trained with contrastive loss on the EOS
+# hidden state, so last-token pooling is the recipe that matches the training
+# objective. Shared by the context/summary/plain embedding pipelines.
 
 import math
 

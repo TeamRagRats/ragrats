@@ -27,7 +27,7 @@ from transformers import AutoTokenizer
 
 from core.db import connect
 from log.log_run import finish_run, start_run
-from step_06_embedding.email_late import model as M
+from step_06_embedding._shared import model as M
 from step_06_embedding.attachment_late import pipeline
 
 MAX_RETRIES = 10

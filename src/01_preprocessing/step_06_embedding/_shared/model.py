@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # Local model loading and per-token embedding extraction for late chunking.
 # Loads Qwen3-Embedding-4B directly via HuggingFace — no embedding server needed.
+# Shared embedding model loader used by every email/attachment embedding runner.
 
 import torch
 from transformers import AutoModel

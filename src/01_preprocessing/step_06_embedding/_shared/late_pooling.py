@@ -1,32 +1,8 @@
 from __future__ import annotations
 
-# Thread concatenation, char->token span mapping, and per-span mean pooling
-# for late chunking of email threads.
-
-from typing import Sequence
-
-SEPARATOR = "\n\n---\n\n"
-
-
-def build_thread_text(emails: Sequence[dict]) -> tuple[str, list[tuple[int, int]]]:
-    """Concatenate body_cleaned of each email with SEPARATOR.
-
-    Returns (full_text, char_spans) where char_spans[i] is the (start, end)
-    character offset of email[i]'s body inside full_text.
-    """
-    parts: list[str] = []
-    spans: list[tuple[int, int]] = []
-    cursor = 0
-    for i, email in enumerate(emails):
-        body = email["body_cleaned"] or ""
-        if i > 0:
-            parts.append(SEPARATOR)
-            cursor += len(SEPARATOR)
-        start = cursor
-        parts.append(body)
-        cursor += len(body)
-        spans.append((start, cursor))
-    return "".join(parts), spans
+# Token-span pooling for late chunking: map a chunk's char span onto the token
+# grid returned by model.get_token_embeddings, then mean-pool those token
+# vectors into one chunk embedding. Used by the late-embedding pipeline.
 
 
 def char_spans_to_token_spans(
@@ -87,8 +63,3 @@ def mean_pool(token_vectors: list[list[float]], span: tuple[int, int]) -> list[f
         for j in range(hidden):
             acc[j] += row[j]
     return [v / n for v in acc]
-
-
-def format_halfvec(vec: list[float]) -> str:
-    """Format a float vector as Postgres halfvec literal: '[v1,v2,...]'."""
-    return "[" + ",".join(f"{v:.7g}" for v in vec) + "]"

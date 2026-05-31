@@ -13,7 +13,7 @@ import psycopg
 
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 
-from step_06_embedding.email_context.embedder import embed_text, format_halfvec
+from step_06_embedding._shared.embedder import embed_text, format_halfvec
 from . import db
 
 MAX_LENGTH = 32768

@@ -13,12 +13,9 @@ import psycopg
 
 from log.log_chunking import log_chunking_pending, log_chunking_finished
 from step_05_chunking.attachments.chunker import chunk_structured_md
-from step_05_chunking.email_late.chunker import (
-    char_spans_to_token_spans,
-    format_halfvec,
-    mean_pool,
-)
-from step_06_embedding.email_late import model as M
+from step_06_embedding._shared import model as M
+from step_06_embedding._shared.embedder import format_halfvec
+from step_06_embedding._shared.late_pooling import char_spans_to_token_spans, mean_pool
 
 from . import db
 
@@ -47,7 +44,7 @@ def _get_chunk_char_spans(
     """Return each chunk's (start, end) char offsets in structured_md.
 
     The chunker emits start_offset / end_offset directly, so this is a thin
-    accessor — kept for symmetry with email_late.
+    accessor — kept for symmetry with the late email-thread chunking helpers.
     """
     return [(c.start_offset, c.end_offset) for c in chunks]
 
