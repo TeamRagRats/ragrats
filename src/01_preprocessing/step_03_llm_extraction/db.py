@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional
 from uuid import UUID
 
 import psycopg
@@ -124,27 +124,3 @@ def reset_errors(conn: psycopg.Connection, sha256_filter: Optional[set[str]] = N
         deleted = cur.rowcount
     conn.commit()
     return deleted
-
-
-def queue_stats(conn: psycopg.Connection, voyage: Optional[str] = None) -> dict[str, Any]:
-    """Returns queue and processing statistics for LLM extraction."""
-    params: tuple = (voyage,) if voyage else ()
-    with conn.cursor() as cur:
-        if voyage:
-            cur.execute("SELECT COUNT(*) FROM llm_load_queue WHERE voyage_key = %s", params)
-        else:
-            cur.execute("SELECT COUNT(*) FROM llm_load_queue")
-        row = cur.fetchone()
-        total = row[0] if row else 0
-
-        if voyage:
-            cur.execute(
-                "SELECT status, COUNT(*) FROM llm_logging l "
-                "JOIN llm_load_queue q ON q.sha256 = l.sha256 "
-                "WHERE q.voyage_key = %s GROUP BY status",
-                params,
-            )
-        else:
-            cur.execute("SELECT status, COUNT(*) FROM llm_logging GROUP BY status")
-        by_status = dict(cur.fetchall())
-    return {"queue_total": total, "logging_by_status": by_status}

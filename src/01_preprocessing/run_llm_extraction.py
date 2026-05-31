@@ -30,7 +30,6 @@ from log.log_run import finish_run, start_run, step
 from log.log_llm_extraction import (
     log_extraction_pending,
     log_extraction_finished,
-    reset_extraction_errors,
 )
 from clients.llm_client import DEFAULT_BASE_URL, LLMClient, wait_for_server
 from step_02_docling.resources import (
