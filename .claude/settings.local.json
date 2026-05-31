@@ -21,7 +21,9 @@
       "Bash(Sort-Object Name)",
       "PowerShell($env:PGPASSWORD = \"ragrats\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -h localhost -p 5433 -U teamragrats -d ragrats -c \"\\\\d llm_structured\" 2>&1)",
       "Bash(xargs grep -l \"late.*chunk\\\\|chunk.*strategy\")",
-      "Bash(python -m py_compile src/01_preprocessing/run_llm_extraction.py src/01_preprocessing/step_03_llm_extraction/*.py)"
+      "Bash(python -m py_compile src/01_preprocessing/run_llm_extraction.py src/01_preprocessing/step_03_llm_extraction/*.py)",
+      "Bash(python -m py_compile src/01_preprocessing/step_02_docling/*.py src/01_preprocessing/run_docling.py)",
+      "Bash(python src/01_preprocessing/run_docling.py --help)"
     ]
   }
 }

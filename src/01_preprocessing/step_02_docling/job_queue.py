@@ -10,7 +10,7 @@ from typing import Optional
 
 import psycopg
 
-from step_02_docling.constants import ATTACHMENT_PATTERN, INPUT_ROOT
+from step_02_docling.constants import INPUT_ROOT
 
 
 @dataclass
@@ -21,8 +21,6 @@ class QueueItem:
     file_path: str         # original (repo-relative) path as stored in DB
     file_type: str         # extension incl. dot, e.g. ".pdf"
     container_path: Path   # resolved path inside the container (/input/...)
-    email_ref: str = ""    # e.g. "IN_270925-16344927"
-    attachment_num: int = 0
 
 
 def _to_container_path(db_path: str) -> Path:
@@ -34,13 +32,6 @@ def _to_container_path(db_path: str) -> Path:
             return Path(INPUT_ROOT) / p[len(prefix):]
     # Fallback: assume the path is already relative to the attachments root.
     return Path(INPUT_ROOT) / p.lstrip("/")
-
-
-def _parse_email_ref(filename: str) -> tuple[str, int]:
-    m = ATTACHMENT_PATTERN.match(filename)
-    if m:
-        return m.group(1), int(m.group(2))
-    return "", 0
 
 
 def fetch_queue(
@@ -78,7 +69,6 @@ def fetch_queue(
         cur.execute(pgsql.Composed(parts), params)
         for sha, email_id, voyage_key, file_path, file_type in cur.fetchall():
             cpath = _to_container_path(file_path)
-            ref, num = _parse_email_ref(cpath.name)
             # file_type in DB is MIME (application/pdf); docling/legacy logic needs
             # the filename extension, so prefer suffix and fall back to the stored value.
             ext = cpath.suffix.lower() or (file_type or "").lower()
@@ -89,8 +79,6 @@ def fetch_queue(
                 file_path=file_path,
                 file_type=ext,
                 container_path=cpath,
-                email_ref=ref,
-                attachment_num=num,
             ))
     return items
 
