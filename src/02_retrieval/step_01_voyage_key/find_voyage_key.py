@@ -44,9 +44,9 @@ def find_winning_voyage_keys(
     where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
     params = [query_embedding] + filter_params + [query_embedding, top_k]
 
-    # Ties (samme stemmetal) brydes på similaritet — den key hvis bedste chunk
-    # ligger nærmest query'en vinder (MIN(dist)). Matcher matrix-harnessens
-    # tiebreak; tidligere brød vi alfabetisk på voyage_key, hvilket var vilkårligt.
+    # Ties (same vote count) are broken by similarity — the key whose best chunk
+    # lies nearest the query wins (MIN(dist)). Matches the matrix harness's
+    # tiebreak; previously we broke alphabetically on voyage_key, which was arbitrary.
     sql = f"""
         WITH ranked AS (
             SELECT voyage_key, embedding <=> %s::halfvec AS dist
@@ -123,9 +123,9 @@ def _find_with_candidates(
     if not counts:
         return [], {}, []
 
-    # counts er bygget i similaritets-orden (rows sorteret på dist), og sorted er
-    # stabil — så ties bevarer similaritets-orden i stedet for at bryde alfabetisk
-    # på voyage_key. Matcher find_winning_voyage_keys og matrix-harnessen.
+    # counts is built in similarity order (rows sorted by dist), and sorted is
+    # stable — so ties preserve similarity order instead of breaking alphabetically
+    # on voyage_key. Matches find_winning_voyage_keys and the matrix harness.
     all_counts = dict(sorted(counts.items(), key=lambda kv: -kv[1]))
     max_cnt = max(all_counts.values())
     winning_keys = [k for k, c in all_counts.items() if c == max_cnt]

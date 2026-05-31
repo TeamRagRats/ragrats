@@ -140,7 +140,7 @@ def run(
         timer.rows_in = len(pending)
 
         if not pending:
-            log.info("[step1] Ingen emails at behandle — alt er up to date.")
+            log.info("[step1] No emails to process — everything is up to date.")
             return 0
 
         batches = [pending[i:i + BATCH_SIZE] for i in range(0, len(pending), BATCH_SIZE)]
@@ -188,7 +188,7 @@ def run(
                         attach_info = f" (+{r['attach_count']} attach)" if r["attach_count"] else ""
                         log.info(f"  [step1 {done}/{len(pending)}] {r['email_id']}{attach_info} OK ({r['secs']:.1f}s)")
                     else:
-                        log.error(f"  [step1 {done}/{len(pending)}] {r['email_id']} → FEJL: {r['error']}")
+                        log.error(f"  [step1 {done}/{len(pending)}] {r['email_id']} → ERROR: {r['error']}")
 
             ok_count = 0
             err_count = 0
@@ -246,5 +246,5 @@ def run(
         timer.rows_out = generated
         timer.errors = done - generated
 
-    log.info(f"[step1] Færdig: {generated}/{len(pending)} summaries genereret.")
+    log.info(f"[step1] Finished: {generated}/{len(pending)} summaries generated.")
     return generated

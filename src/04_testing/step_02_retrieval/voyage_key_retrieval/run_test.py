@@ -108,9 +108,9 @@ def main() -> None:
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
                    help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
     p.add_argument("--rank-threshold", type=int, default=None, dest="rank_threshold",
-                   help="Strammere hit-definition: expected_key skal ligge i top-N "
-                        "efter stemmetal blandt top_k chunks (fx --rank-threshold 3). "
-                        "Default: ingen threshold = ægte recall@k.")
+                   help="Stricter hit definition: expected_key must be in the top-N "
+                        "by vote count among the top_k chunks (e.g. --rank-threshold 3). "
+                        "Default: no threshold = true recall@k.")
     p.add_argument("--voyage", type=str, default=None,
                    help="Run only on this voyage_key (default: all voyages in ground_truth)")
     p.add_argument("--reformulate", action="store_true",

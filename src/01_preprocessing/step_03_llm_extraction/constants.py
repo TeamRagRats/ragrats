@@ -24,7 +24,7 @@ WORKERS_BY_TIER: dict[str, int] = {
     "huge":   1,
 }
 
-# Default char-grænse hvor FULL mode skiftes til CLASSIFY mode.
+# Default char limit where FULL mode switches to CLASSIFY mode.
 # Matches LARGE_MAX_CHARS by default; can be overridden via --classify-threshold.
 DEFAULT_CLASSIFY_THRESHOLD = LARGE_MAX_CHARS
 

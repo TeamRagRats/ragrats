@@ -65,18 +65,18 @@ def _run_pipeline(args: argparse.Namespace, llm: LLMClient, logger: logging.Logg
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fixture Summaries Pipeline")
     parser.add_argument("--voyage-key", type=str, default=None, metavar="KEY",
-                        help="Kør kun for én specifik voyage (springer get_pending_fixtures over)")
+                        help="Run only for one specific voyage (skips get_pending_fixtures)")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
-                        help="Behandl kun de første N fixtures (til test)")
+                        help="Process only the first N fixtures (for testing)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
     logger = _setup_logging(verbose=args.verbose)
 
     base_url = os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL)
-    logger.info(f"Venter på LLM server: {base_url} ...")
+    logger.info(f"Waiting for LLM server: {base_url} ...")
     if not wait_for_server(base_url, timeout_s=60):
-        logger.error(f"LLM server ikke tilgængelig: {base_url}")
+        logger.error(f"LLM server not available: {base_url}")
         sys.exit(1)
 
     llm = LLMClient(base_url=base_url)
@@ -84,22 +84,22 @@ def main() -> None:
 
     for attempt in range(1, MAX_RETRIES + 1):
         if attempt > 1:
-            logger.warning(f"Genstart {attempt}/{MAX_RETRIES} om {RETRY_DELAY}s ...")
+            logger.warning(f"Restart {attempt}/{MAX_RETRIES} in {RETRY_DELAY}s ...")
             time.sleep(RETRY_DELAY)
             if not wait_for_server(base_url, timeout_s=60):
-                logger.error("LLM server nede ved genstart — afventer ...")
+                logger.error("LLM server down at restart — waiting ...")
                 continue
 
         try:
             t0 = time.monotonic()
-            logger.info(f"Starter pipeline (forsøg {attempt}/{MAX_RETRIES})")
+            logger.info(f"Starting pipeline (attempt {attempt}/{MAX_RETRIES})")
             _run_pipeline(args, llm, logger)
-            logger.info(f"Pipeline færdig. Total wall-time: {time.monotonic() - t0:.1f}s")
+            logger.info(f"Pipeline finished. Total wall-time: {time.monotonic() - t0:.1f}s")
             return
         except Exception as exc:
-            logger.error(f"Pipeline crashede: {exc}", exc_info=True)
+            logger.error(f"Pipeline crashed: {exc}", exc_info=True)
             if attempt == MAX_RETRIES:
-                logger.error("Max genstarter nået — stopper.")
+                logger.error("Max restarts reached — stopping.")
                 sys.exit(1)
 
 

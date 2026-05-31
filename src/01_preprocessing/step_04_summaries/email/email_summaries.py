@@ -158,7 +158,7 @@ def run(
         timer.rows_in = len(pending)
 
         if not pending:
-            log.info("[email] Ingen emails at behandle — alt er up to date.")
+            log.info("[email] No emails to process — everything is up to date.")
             return 0
 
         log.info(f"[email] {len(pending)} email(s) | {workers} workers")
@@ -207,10 +207,10 @@ def run(
                         finished_at=finished_at, duration_ms=duration_ms, status="error",
                         error_message=r.get("error"),
                     )
-                    log.error(f"  [email {i}/{len(pending)}] {r['email_id']} FEJL: {r['error']}")
+                    log.error(f"  [email {i}/{len(pending)}] {r['email_id']} ERROR: {r['error']}")
                     timer.errors += 1
 
         timer.rows_out = generated
 
-    log.info(f"[email] Færdig: {generated} email(s) genereret.")
+    log.info(f"[email] Finished: {generated} email(s) generated.")
     return generated
