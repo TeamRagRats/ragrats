@@ -32,6 +32,9 @@ from loader import latest_matrix_id, metric_label, load_by_category
 
 STRATEGIES = ["plain", "late", "context", "summary"]
 CATEGORIES = ["fact_single", "summary", "reasoning"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle, diamond.
+MARKERS = ["o", "s", "^", "D"]
 
 # Brudt x-akse: k=0–20 strækkes ud (1 enhed pr. k), k>20 komprimeres så hvert
 # 25. k fylder lige så meget som et 2-spring i lav-området. Ticks følger samme
@@ -67,9 +70,10 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
     for row, strategy in enumerate(strategies):
         ax = axes[row][0]
         by_cat = curves[strategy]
-        for category in _ordered(by_cat.keys(), CATEGORIES):
+        for i, category in enumerate(_ordered(by_cat.keys(), CATEGORIES)):
             c = by_cat[category]
-            ax.plot(c["k"], c["recall"], marker="o", markersize=3, label=category)
+            ax.plot(c["k"], c["recall"], marker=MARKERS[i % len(MARKERS)],
+                    markersize=3, label=category)
         ax.set_title(f"{strategy} — {metric}")
         ax.set_ylabel("hit rate")
         ax.set_xscale("function", functions=(_fwd, _inv))

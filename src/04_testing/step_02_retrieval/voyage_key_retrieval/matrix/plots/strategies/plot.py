@@ -31,6 +31,9 @@ from matplotlib.ticker import FixedLocator
 from loader import latest_matrix_id, metric_label, load_total
 
 STRATEGIES = ["plain", "late", "context", "summary"]
+# Distinct marker per line so the series are legible without relying on colour
+# (colour-blind friendly): circle, square, triangle, diamond.
+MARKERS = ["o", "s", "^", "D"]
 
 # Brudt x-akse: k=0–20 strækkes ud (1 enhed pr. k), k>20 komprimeres så hvert
 # 25. k fylder lige så meget som et 2-spring i lav-området. Ticks følger samme
@@ -58,9 +61,10 @@ def _ordered(keys, preferred):
 
 def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: Path) -> None:
     fig, ax = plt.subplots(figsize=(12, 6))
-    for strategy in _ordered(curves.keys(), STRATEGIES):
+    for i, strategy in enumerate(_ordered(curves.keys(), STRATEGIES)):
         c = curves[strategy]
-        ax.plot(c["k"], c["recall"], marker="o", markersize=3, label=strategy)
+        ax.plot(c["k"], c["recall"], marker=MARKERS[i % len(MARKERS)],
+                markersize=3, label=strategy)
 
     ax.set_xlabel("Top-k", fontsize=16)
     ax.set_ylabel("Recall", fontsize=16)
@@ -70,9 +74,10 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
     ax.set_ylim(0.6, 0.9)
     ax.grid(True, alpha=0.3)
     ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax.legend(title="strategi", loc="upper right")
+    ax.legend(title="strategi", loc="upper right", fontsize=12)
 
-    fig.text(0.01, 0.01, f"matrix_id={matrix_id}", fontsize=6, color="gray")
+
+    fig.text(0.01, 0.01, f"matrix_id={matrix_id}", fontsize=0, color="gray")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     print(f"Saved {out}")
