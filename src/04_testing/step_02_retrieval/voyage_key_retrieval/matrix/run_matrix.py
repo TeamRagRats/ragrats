@@ -1,16 +1,16 @@
-"""Voyage-key recall-matrix: strategi × k × kategori.
+"""Voyage-key recall matrix: strategy × k × category.
 
-Faste flags (source-type, evt. reformulering) holdes konstant; vi itererer over
-embedding-strategier og over en k-skala (1..20 ét ad gangen, derefter +10 op til
-500 — ~68 k-værdier). For hver (strategi, k) logges recall pr. besvarbar kategori
-(fact_single / summary / reasoning) plus en aggregeret 'total'-række til
-test_retrieval_run_logging. Unanswerable køres ikke.
+Fixed flags (source-type, optional reformulation) are held constant; we iterate
+over embedding strategies and over a k scale (1..20 one at a time, then +10 up to
+500 — ~68 k values). For each (strategy, k) we log recall per answerable category
+(fact_single / summary / reasoning) plus an aggregated 'total' row to
+test_retrieval_run_logging. Unanswerable is not run.
 
-Effektivitet: hvert spørgsmål embeddes én gang, og pr. (spørgsmål, strategi)
-hentes top-`pool` kandidater én gang (ef_search=pool); recall@k udregnes ved at
-slæbe listen i stedet for at køre en HNSW-søgning pr. k.
+Efficiency: each question is embedded once, and per (question, strategy) the
+top-`pool` candidates are fetched once (ef_search=pool); recall@k is computed by
+slicing the list instead of running an HNSW search per k.
 
-Kør på SPARK hvor både postgres og embed-serveren er tilgængelige:
+Run on SPARK where both postgres and the embed server are available:
     python run_matrix.py
     python run_matrix.py --strategy late --strategy plain
 """
@@ -44,7 +44,7 @@ EMBED_BATCH = 64
 
 
 def _embed_questions(client, rows, llm) -> dict[str, list[float]]:
-    """Embed hvert spørgsmål én gang (uafhængigt af strategi og k)."""
+    """Embed each question once (independent of strategy and k)."""
     cache: dict[str, list[float]] = {}
     pending_ids: list[str] = []
     pending_text: list[str] = []
@@ -64,7 +64,7 @@ def _embed_questions(client, rows, llm) -> dict[str, list[float]]:
 
 
 def _collect_for_strategy(conn, rows, cache, pool, source_types, strategy):
-    """{kategori: [(expected_key, ranked_keys), ...]} for én strategi."""
+    """{category: [(expected_key, ranked_keys), ...]} for one strategy."""
     by_cat: dict[str, list[tuple[str, list[str]]]] = {}
     for i, (question_id, _question, expected_key, category) in enumerate(rows, 1):
         ranked = ranked_voyage_keys(conn, cache[question_id], pool, source_types, strategy)
@@ -111,23 +111,23 @@ def _log_strategy(conn, by_cat, k_values, pool, source_types, strategy,
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Voyage-key recall-matrix (strategi × k × kategori)")
+    p = argparse.ArgumentParser(description="Voyage-key recall matrix (strategy × k × category)")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
                    help=f"Embed server base URL (default: {DEFAULT_BASE_URL})")
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Strategier der itereres over (repeatable; default: plain, late, context, summary)")
+                   help="Strategies to iterate over (repeatable; default: plain, late, context, summary)")
     p.add_argument("--pool", type=int, default=500,
-                   help="Kandidat-pool / max k (default: 500). Skal være >= største k.")
+                   help="Candidate pool / max k (default: 500). Must be >= the largest k.")
     p.add_argument("--voyage", type=str, default=None,
-                   help="Kør kun på denne voyage_key (default: alle i ground_truth)")
+                   help="Run only on this voyage_key (default: all in ground_truth)")
     p.add_argument("--reformulate", action="store_true",
-                   help="Reformulér spørgsmål med LLM før embedding")
+                   help="Reformulate questions with the LLM before embedding")
     p.add_argument("--rank-threshold", type=int, default=None, dest="rank_threshold",
-                   help="Test votingen: hit kun hvis expected_key er blandt de N "
-                        "mest-stemte keys i top-k (fx --rank-threshold 1 = den "
-                        "vindende key). Default: ingen = ren recall@k.")
+                   help="Test the voting: hit only if expected_key is among the N "
+                        "most-voted keys in top-k (e.g. --rank-threshold 1 = the "
+                        "winning key). Default: none = plain recall@k.")
     args = p.parse_args()
 
     source_types = resolve_source_types(args.source_types)
@@ -140,7 +140,7 @@ def main() -> None:
 
     k_values = build_k_values(coarse_max=args.pool)
     if max(k_values) > args.pool:
-        raise SystemExit(f"--pool ({args.pool}) skal være >= største k ({max(k_values)})")
+        raise SystemExit(f"--pool ({args.pool}) must be >= the largest k ({max(k_values)})")
 
     voyage_filter_sql = "WHERE voyage_key = %(voyage)s" if args.voyage else ""
     voyage_params = {"voyage": args.voyage} if args.voyage else {}
@@ -159,25 +159,25 @@ def main() -> None:
 
     matrix_id = str(uuid.uuid4())
     print(f"matrix_id={matrix_id}")
-    print(f"kategorier: " + " | ".join(f"{c}: {n}" for c, n in sorted(cat_counts.items())))
+    print(f"categories: " + " | ".join(f"{c}: {n}" for c, n in sorted(cat_counts.items())))
     metric = f"rank<= {args.rank_threshold} (voting)" if args.rank_threshold else "recall@k"
-    print(f"strategier: {strategies} | k-værdier: {len(k_values)} (1..{max(k_values)}) | pool: {args.pool} | metrik: {metric}")
-    print(f"runs i alt: {len(strategies)} × {len(k_values)} = {len(strategies) * len(k_values)} pr. kategori")
+    print(f"strategies: {strategies} | k values: {len(k_values)} (1..{max(k_values)}) | pool: {args.pool} | metric: {metric}")
+    print(f"runs total: {len(strategies)} × {len(k_values)} = {len(strategies) * len(k_values)} per category")
 
     client = EmbedClient(base_url=args.embed_url)
     llm = LLMClient() if args.reformulate else None
 
-    print("Embedder spørgsmål (én gang)...")
+    print("Embedding questions (once)...")
     cache = _embed_questions(client, rows, llm)
 
     for strategy in strategies:
-        print(f"Strategi: {strategy}")
+        print(f"Strategy: {strategy}")
         with connect() as conn:
             by_cat = _collect_for_strategy(conn, rows, cache, args.pool, source_types, strategy)
             _log_strategy(conn, by_cat, k_values, args.pool, source_types,
                           strategy, args.reformulate, args.rank_threshold, matrix_id)
 
-    print(f"\nFærdig. matrix_id={matrix_id}")
+    print(f"\nDone. matrix_id={matrix_id}")
 
 
 if __name__ == "__main__":

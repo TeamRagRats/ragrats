@@ -1,133 +1,133 @@
 # Step 9 — LLM Extraction
 
-Sender Docling-genereret Markdown gennem en lokal vLLM-server (Nemotron-3-Nano-30B-A3B-NVFP4) og skriver et struktureret resultat til Postgres.
+Sends Docling-generated Markdown through a local vLLM server (Nemotron-3-Nano-30B-A3B-NVFP4) and writes a structured result to Postgres.
 
-Bygger oven på `docling.markdown` (skrevet af Step 8).
+Builds on top of `docling.markdown` (written by Step 8).
 
 ---
 
-## Hvad scriptet gør
+## What the script does
 
-For hver `sha256` i `llm_load_queue`:
+For each `sha256` in `llm_load_queue`:
 
-1. Kategoriserer dokumentet ud fra `char_count`:
+1. Categorizes the document based on `char_count`:
    - `small`  ≤ 30 000 chars  (3 workers, FULL mode)
    - `medium` ≤ 95 000 chars  (2 workers, FULL mode)
    - `large`  ≤ 300 000 chars (1 worker, FULL mode)
-   - `huge`   > 300 000 chars (1 worker, CLASSIFY mode med truncation til 25 000 chars)
-2. Pre-flight token-budget check mod `--max-model-len 131072` — dokumenter der ville overskride loftet sættes til `skipped`.
-3. Kalder vLLM:
+   - `huge`   > 300 000 chars (1 worker, CLASSIFY mode with truncation to 25 000 chars)
+2. Pre-flight token-budget check against `--max-model-len 131072` — documents that would exceed the ceiling are set to `skipped`.
+3. Calls vLLM:
    - **FULL** → `document_restructuring.md` system prompt, `max_tokens=8196`
    - **CLASSIFY** → `document_classification.md` system prompt, `max_tokens=512`
-4. Skriver resultat til `llm_structured` og status til `llm_logging`.
+4. Writes the result to `llm_structured` and the status to `llm_logging`.
 
-Tiers processeres sekventielt (small → medium → large → huge); inden for hver tier kører dokumenterne parallelt via `ThreadPoolExecutor`. Workers er thread-safe — kun main thread skriver til Postgres.
+Tiers are processed sequentially (small → medium → large → huge); within each tier the documents run in parallel via `ThreadPoolExecutor`. Workers are thread-safe — only the main thread writes to Postgres.
 
 ---
 
-## Kør steppet
+## Running the step
 
-### 1. Start vLLM-serveren
+### 1. Start the vLLM server
 
 ```bash
 docker compose -f docker/vllm/docker-compose.yml up -d
 ```
 
-Første start downloader modellen (~15 GB NVFP4-quantized). Caches persisteres på tværs af genstarter (HF + vLLM + TorchInductor + Triton). Se `docker/vllm/RUN_VLLM.md` for detaljer.
+The first start downloads the model (~15 GB NVFP4-quantized). Caches are persisted across restarts (HF + vLLM + TorchInductor + Triton). See `docker/vllm/RUN_VLLM.md` for details.
 
-Verificer:
+Verify:
 ```bash
 curl http://localhost:8002/v1/models
 ```
 
-### 2. Sørg for at migrationen er kørt
+### 2. Make sure the migration has run
 
 ```bash
 python3 sql_migrations/migrate.py
 ```
 
-Migration `0011_llm_structured.sql` opretter `llm_load_queue` (VIEW), `llm_structured` og `llm_logging`.
+Migration `0011_llm_structured.sql` creates `llm_load_queue` (VIEW), `llm_structured` and `llm_logging`.
 
-### 3. Pre-flight (uden LLM-kald)
+### 3. Pre-flight (without LLM calls)
 
 ```bash
 python3 -m preprocessing.run_llm_extraction --dry-run
 ```
 
-Viser fordeling pr. tier + GPU/RAM-status uden at sende noget til vLLM.
+Shows the distribution per tier + GPU/RAM status without sending anything to vLLM.
 
-### 4. Test med et par filer
+### 4. Test with a few files
 
 ```bash
 python3 -m preprocessing.run_llm_extraction --limit 3 --verbose
 ```
 
-### 5. Fuld kørsel
+### 5. Full run
 
 ```bash
 python3 -m preprocessing.run_llm_extraction
 ```
 
-Filer der allerede er `done` eller `skipped` i `llm_logging` filtreres væk. `error`-rækker reprocesseres automatisk.
+Files already marked `done` or `skipped` in `llm_logging` are filtered out. `error` rows are reprocessed automatically.
 
 ---
 
-## CLI-flags
+## CLI flags
 
-| Flag | Default | Beskrivelse |
+| Flag | Default | Description |
 |---|---|---|
-| `--limit N` | None | Cap antal dokumenter (test) |
-| `--voyage KEY` | None | Filter på `voyage_key` |
-| `--sha256 HASH` | repeatable | Process kun de listede sha256-hashes |
-| `--fresh` | False | Slet `error`-rækker i `llm_logging` for matchede sha256s før kørsel (force retry) |
-| `--dry-run` | False | Kategoriser + rapporter uden LLM-kald |
-| `--max-tokens N` | 8196 | Output-budget for FULL mode |
-| `--classify-threshold N` | 300000 | Char-grænse hvor CLASSIFY tager over (-1 = altid FULL) |
-| `--batch-size N` | 15 | Batch-størrelse pr. tier (reduceres dynamisk ved GPU/RAM-pres) |
-| `--max-workers N` | None | Cap workers på tværs af alle tiers |
+| `--limit N` | None | Cap the number of documents (test) |
+| `--voyage KEY` | None | Filter on `voyage_key` |
+| `--sha256 HASH` | repeatable | Process only the listed sha256 hashes |
+| `--fresh` | False | Delete `error` rows in `llm_logging` for matched sha256s before the run (force retry) |
+| `--dry-run` | False | Categorize + report without LLM calls |
+| `--max-tokens N` | 8196 | Output budget for FULL mode |
+| `--classify-threshold N` | 300000 | Char limit where CLASSIFY takes over (-1 = always FULL) |
+| `--batch-size N` | 15 | Batch size per tier (reduced dynamically under GPU/RAM pressure) |
+| `--max-workers N` | None | Cap workers across all tiers |
 | `--temperature F` | 0.1 | Sampling temperature |
-| `--verbose` | False | Debug-niveau log |
+| `--verbose` | False | Debug-level log |
 
-`DATABASE_URL` og `LLM_BASE_URL` læses fra `.env` / miljø.
+`DATABASE_URL` and `LLM_BASE_URL` are read from `.env` / the environment.
 
 ---
 
-## Output-skemaer
+## Output schemas
 
-### `llm_structured` (resultat)
+### `llm_structured` (result)
 
-| Kolonne | Type | Note |
+| Column | Type | Note |
 |---|---|---|
 | `sha256` | CHAR(64) PK | FK → `docling.sha256` |
 | `mode` | TEXT | `full` / `classify` |
-| `document_type` | TEXT | Parset fra første `#`-overskrift (FULL) eller `DOCUMENT_TYPE:`-linje (CLASSIFY) |
-| `structured_md` | TEXT | Hele LLM-output (FULL) eller summary-linjen (CLASSIFY) |
+| `document_type` | TEXT | Parsed from the first `#` heading (FULL) or the `DOCUMENT_TYPE:` line (CLASSIFY) |
+| `structured_md` | TEXT | The full LLM output (FULL) or the summary line (CLASSIFY) |
 | `input_token_count` | INTEGER | vLLM `prompt_tokens` |
 | `output_token_count` | INTEGER | vLLM `completion_tokens` |
-| `model_name` | TEXT | Auto-detekteret fra vLLM `/v1/models` |
+| `model_name` | TEXT | Auto-detected from vLLM `/v1/models` |
 | `processed_at` | TIMESTAMPTZ | — |
 
-### `llm_logging` (telemetri pr. fil)
+### `llm_logging` (per-file telemetry)
 
-`status` ∈ {`pending`, `done`, `error`, `skipped`}; bruges til at filtrere allerede behandlede filer fra `llm_load_queue`.
+`status` ∈ {`pending`, `done`, `error`, `skipped`}; used to filter already-processed files out of `llm_load_queue`.
 
-Indeholder også `started_at`, `finished_at`, `duration_ms`, `error_message`, `gpu_util_pct`, `gpu_mem_pct`, `ram_pct`, `batch_idx`, `run_id`.
+Also contains `started_at`, `finished_at`, `duration_ms`, `error_message`, `gpu_util_pct`, `gpu_mem_pct`, `ram_pct`, `batch_idx`, `run_id`.
 
 ---
 
-## Verifikations-queries
+## Verification queries
 
 ```sql
--- Status-fordeling
+-- Status distribution
 SELECT status, COUNT(*) FROM llm_logging GROUP BY status;
 
--- Tier-fordeling
+-- Tier distribution
 SELECT size_category, mode, COUNT(*)
 FROM   llm_logging
 GROUP  BY size_category, mode
 ORDER  BY size_category;
 
--- Token-forbrug pr. mode
+-- Token usage per mode
 SELECT mode,
        AVG(input_token_count)::INT AS avg_in,
        AVG(output_token_count)::INT AS avg_out,
@@ -135,7 +135,7 @@ SELECT mode,
 FROM   llm_structured
 GROUP  BY mode;
 
--- Fejl-detaljer
+-- Error details
 SELECT sha256, file_path, error_message
 FROM   llm_logging
 WHERE  status = 'error'
@@ -145,12 +145,12 @@ LIMIT  20;
 
 ---
 
-## Fejlsøgning
+## Troubleshooting
 
-| Symptom | Sandsynlig årsag | Fix |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| `connection refused` på 8002 | vLLM ikke klar | `curl http://localhost:8002/v1/models`, vent og prøv igen |
-| Mange `skipped` med "pre-flight: ..." | Dokumenter overskrider 131k tokens efter trunkering | Sænk `--classify-threshold` så flere dokumenter går CLASSIFY-vejen |
-| OOM under inferens | For høj `--gpu-memory-utilization` på vLLM | Sænk i `docker/vllm/docker-compose.yml` (fx 0.75) |
-| Langsom large-tier | Forventet — 100k+ tokens på 270 GB/s LPDDR5x tager flere minutter pr. fil | Brug `--limit` ved test |
-| Tomt output for FULL mode | Modellen er ramt af `max_tokens=8196` cap uden at slutte | Check `output_token_count` — hvis = 8196, dokumentet er for komplekst til at restrukturere; kør evt. CLASSIFY i stedet |
+| `connection refused` on 8002 | vLLM not ready | `curl http://localhost:8002/v1/models`, wait and retry |
+| Many `skipped` with "pre-flight: ..." | Documents exceed 131k tokens after truncation | Lower `--classify-threshold` so more documents take the CLASSIFY path |
+| OOM during inference | `--gpu-memory-utilization` too high on vLLM | Lower it in `docker/vllm/docker-compose.yml` (e.g. 0.75) |
+| Slow large tier | Expected — 100k+ tokens on 270 GB/s LPDDR5x takes several minutes per file | Use `--limit` when testing |
+| Empty output for FULL mode | The model hit the `max_tokens=8196` cap without finishing | Check `output_token_count` — if = 8196, the document is too complex to restructure; consider running CLASSIFY instead |

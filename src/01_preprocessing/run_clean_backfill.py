@@ -36,9 +36,9 @@ def _iter_emails(conn, limit: int | None):
 def main() -> None:
     p = argparse.ArgumentParser(description="Backfill emails.body_cleaned from body_text")
     p.add_argument("--limit", type=int, default=None, metavar="N",
-                   help="Behandl kun de første N emails (til test)")
+                   help="Process only the first N emails (for testing)")
     p.add_argument("--dry-run", action="store_true",
-                   help="Beregn og rapportér ændringer uden at skrive til DB")
+                   help="Compute and report changes without writing to DB")
     args = p.parse_args()
 
     with connect() as conn:
@@ -71,7 +71,7 @@ def main() -> None:
                 )
                 conn.commit()
 
-    verb = "ville ændre" if args.dry_run else "ændrede"
+    verb = "would change" if args.dry_run else "changed"
     print(f"{verb} {changed}/{total} emails.body_cleaned")
 
 

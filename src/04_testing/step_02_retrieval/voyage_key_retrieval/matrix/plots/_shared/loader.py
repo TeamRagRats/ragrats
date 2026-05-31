@@ -1,9 +1,9 @@
-"""Indlæsning af voyage-key matrix-resultater fra test_retrieval_run_logging.
+"""Loading voyage-key matrix results from test_retrieval_run_logging.
 
-En matrix-kørsel deler ét matrix_id (gemt i flags). Hver (strategi, k) er én
-række pr. question_type (fact_single / summary / reasoning / total). Strategien
-ligger i flags->'strategy' som et JSON-array (fx ["plain"]), og metrikken
-afgøres af flags->>'rank_threshold' (NULL = recall@k, N = voting rank<= N).
+A matrix run shares one matrix_id (stored in flags). Each (strategy, k) is one
+row per question_type (fact_single / summary / reasoning / total). The strategy
+lives in flags->'strategy' as a JSON array (e.g. ["plain"]), and the metric is
+determined by flags->>'rank_threshold' (NULL = recall@k, N = voting rank<= N).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def metric_label(matrix_id: str) -> str:
 
 
 def load_total(matrix_id: str) -> dict[str, dict[str, list]]:
-    """{strategy: {'k': [...], 'recall': [...]}}, startende ved første k (k=1)."""
+    """{strategy: {'k': [...], 'recall': [...]}}, starting at the first k (k=1)."""
     with connect() as conn:
         rows = conn.execute("""
             SELECT flags->'strategy'->>0 AS strategy,
@@ -66,7 +66,7 @@ def load_total(matrix_id: str) -> dict[str, dict[str, list]]:
 
 
 def load_by_category(matrix_id: str) -> dict[str, dict[str, dict[str, list]]]:
-    """{strategy: {category: {'k': [...], 'recall': [...]}}}, startende ved første k (k=1)."""
+    """{strategy: {category: {'k': [...], 'recall': [...]}}}, starting at the first k (k=1)."""
     with connect() as conn:
         rows = conn.execute("""
             SELECT flags->'strategy'->>0 AS strategy,

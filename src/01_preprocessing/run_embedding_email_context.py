@@ -67,7 +67,7 @@ def _run_pipeline(args, embed_model, tokenizer, device, logger) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Email Context Chunking Pipeline")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
-                        help="Behandl kun de første N emails (til test)")
+                        help="Process only the first N emails (for testing)")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--device", default=None,
                         help="Torch device (default: cuda if available, else cpu)")
@@ -78,26 +78,26 @@ def main() -> None:
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("Device: %s", device)
 
-    logger.info("Indlæser tokenizer og model (%s) ...", MODEL_NAME)
+    logger.info("Loading tokenizer and model (%s) ...", MODEL_NAME)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
     embed_model = M.load_model(device=device)
     logger.info("Model klar")
 
     for attempt in range(1, MAX_RETRIES + 1):
         if attempt > 1:
-            logger.warning("Genstart %d/%d om %ds ...", attempt, MAX_RETRIES, RETRY_DELAY)
+            logger.warning("Restart %d/%d in %ds ...", attempt, MAX_RETRIES, RETRY_DELAY)
             time.sleep(RETRY_DELAY)
 
         try:
             t0 = time.monotonic()
-            logger.info("Starter pipeline (forsøg %d/%d)", attempt, MAX_RETRIES)
+            logger.info("Starting pipeline (attempt %d/%d)", attempt, MAX_RETRIES)
             _run_pipeline(args, embed_model, tokenizer, device, logger)
-            logger.info("Pipeline færdig. Total wall-time: %.1fs", time.monotonic() - t0)
+            logger.info("Pipeline finished. Total wall-time: %.1fs", time.monotonic() - t0)
             return
         except Exception as exc:
-            logger.error("Pipeline crashede: %s", exc, exc_info=True)
+            logger.error("Pipeline crashed: %s", exc, exc_info=True)
             if attempt == MAX_RETRIES:
-                logger.error("Max genstarter nået — stopper.")
+                logger.error("Max restarts reached — stopping.")
                 sys.exit(1)
 
 

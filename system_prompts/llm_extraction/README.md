@@ -2,21 +2,21 @@
 
 ## document_restructuring.md
 
-Bruges i **Step 5. LLM extraction** til at omstrukturere rå OCR-markdown fra Docling til et standardiseret dokumentformat.
+Used in **Step 5. LLM extraction** to restructure raw OCR markdown from Docling into a standardized document format.
 
-### Pipeline-step
-Step 5 (LLM extraction) — korer efter Step 4 (Docling document extraction).
+### Pipeline step
+Step 5 (LLM extraction) — runs after Step 4 (Docling document extraction).
 
-### Hvad prompten gor
-LLM'en modtager raat OCR-output fra Docling (PDF -> markdown) og transformerer det til en fast skabelon med sektioner: Document Type, Purpose, Key Information, Content og Notes. Prompten instruerer modellen i at vaere praecis, bevare alle navne/datoer/tal verbatim, og aldrig tilfoeje indledning eller refleksion.
+### What the prompt does
+The LLM receives raw OCR output from Docling (PDF -> markdown) and transforms it into a fixed template with the sections: Document Type, Purpose, Key Information, Content and Notes. The prompt instructs the model to be precise, preserve all names/dates/numbers verbatim, and never add a preamble or reflection.
 
-### Kaldt af
+### Called by
 - `Preprocessing/Step 5. LLM extraction/llm_to_db.py`
-  - Indlaest via `load_system_prompt(PROMPT_PATH)` ved opstart
-  - Sendt som system-besked til vLLM backend (port 8002) via OpenAI-kompatibelt API
+  - Loaded via `load_system_prompt(PROMPT_PATH)` at startup
+  - Sent as the system message to the vLLM backend (port 8002) via the OpenAI-compatible API
 
 ### Model backend
-- vLLM med Nvidia Nemotron Nano 8B (lokal GPU-server)
+- vLLM with Nvidia Nemotron Nano 8B (local GPU server)
 
 ### User prompt
-User-prompten er selve det raa Docling-output (markdown fra PDF). Ingen builder-funktion — dokumentet sendes direkte.
+The user prompt is the raw Docling output itself (markdown from PDF). No builder function — the document is sent directly.

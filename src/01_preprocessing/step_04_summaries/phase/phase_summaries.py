@@ -157,7 +157,7 @@ def run(
         timer.rows_in = len(pending)
 
         if not pending:
-            log.info("[phase] Ingen voyages at behandle — alt er up to date.")
+            log.info("[phase] No voyages to process — everything is up to date.")
             return 0
 
         log.info(f"[phase] {len(pending)} voyage(s) | {workers} workers")
@@ -166,17 +166,17 @@ def run(
         for i, vk in enumerate(pending, 1):
             emails = get_email_summaries(conn, vk)
             if not emails:
-                log.warning(f"  [phase {i}/{len(pending)}] {vk} → ingen emails, springer over")
+                log.warning(f"  [phase {i}/{len(pending)}] {vk} → no emails, skipping")
                 continue
 
             batches = [emails[j:j + PHASE_BATCH_SIZE] for j in range(0, len(emails), PHASE_BATCH_SIZE)]
             existing = get_existing_phases(conn, vk)
             missing = [(idx, b) for idx, b in enumerate(batches) if existing.get(idx, {}).get("status") != "ok"]
 
-            log.info(f"  [phase {i}/{len(pending)}] {vk} | {len(emails)} emails → {len(batches)} faser (batch={PHASE_BATCH_SIZE}, {len(missing)} missing)")
+            log.info(f"  [phase {i}/{len(pending)}] {vk} | {len(emails)} emails → {len(batches)} phases (batch={PHASE_BATCH_SIZE}, {len(missing)} missing)")
 
             if not missing:
-                log.info(f"  [phase {i}/{len(pending)}] {vk} → alle faser allerede OK")
+                log.info(f"  [phase {i}/{len(pending)}] {vk} → all phases already OK")
                 generated += len(batches)
                 continue
 
@@ -204,7 +204,7 @@ def run(
                             finished_at=finished_at, duration_ms=duration_ms, status="ok",
                             input_tokens=r.get("input_tokens"), output_tokens=r.get("output_tokens"),
                         )
-                        log.info(f"    [map] {vk} fase {r['phase_index']+1}/{len(batches)} OK ({r['secs']:.1f}s)")
+                        log.info(f"    [map] {vk} phase {r['phase_index']+1}/{len(batches)} OK ({r['secs']:.1f}s)")
                         generated += 1
                     else:
                         log_summary_finished(
@@ -212,10 +212,10 @@ def run(
                             finished_at=finished_at, duration_ms=duration_ms, status="error",
                             error_message=r.get("error"),
                         )
-                        log.error(f"    [map] {vk} fase {r['phase_index']+1}/{len(batches)} FEJL: {r['error']}")
+                        log.error(f"    [map] {vk} phase {r['phase_index']+1}/{len(batches)} ERROR: {r['error']}")
                         timer.errors += 1
 
         timer.rows_out = generated
 
-    log.info(f"[phase] Færdig: {generated} fase(r) genereret.")
+    log.info(f"[phase] Done: {generated} phase(s) generated.")
     return generated

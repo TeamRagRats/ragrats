@@ -60,7 +60,7 @@ def run(
         timer.rows_in = len(pending)
 
         if not pending:
-            log.info("[fixture] Ingen fixtures at behandle — alt er up to date.")
+            log.info("[fixture] No fixtures to process — everything is up to date.")
             return 0
 
         log.info(f"[fixture] {len(pending)} fixture(s) at behandle")
@@ -69,7 +69,7 @@ def run(
         for i, vk in enumerate(pending, 1):
             fixture = get_fixture(conn, vk)
             if fixture is None:
-                log.warning(f"  [fixture {i}/{len(pending)}] {vk} → ingen fixture fundet, springer over")
+                log.warning(f"  [fixture {i}/{len(pending)}] {vk} → no fixture found, skipping")
                 continue
 
             user_prompt = build_fixture_summary_prompt(fixture)
@@ -131,9 +131,9 @@ def run(
                     status="error", error_message=f"{type(exc).__name__}: {exc}",
                 )
                 timer.errors += 1
-                log.error(f"  [fixture {i}/{len(pending)}] {vk} → FEJL: {exc}")
+                log.error(f"  [fixture {i}/{len(pending)}] {vk} → ERROR: {exc}")
 
         timer.rows_out = generated
 
-    log.info(f"[fixture] Færdig: {generated}/{len(pending)} fixture summaries genereret.")
+    log.info(f"[fixture] Done: {generated}/{len(pending)} fixture summaries generated.")
     return generated

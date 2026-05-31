@@ -64,14 +64,14 @@ class LLMClient:
             models = self.client.models.list(timeout=10.0)
         except Exception as e:
             raise RuntimeError(
-                f"LLM server på {self.base_url} er ikke tilgængelig: {e}\n"
-                "Start serveren eller sæt LLM_MODEL env var."
+                f"LLM server at {self.base_url} is not available: {e}\n"
+                "Start the server or set the LLM_MODEL env var."
             ) from e
         available = [m.id for m in models.data]
         if not available:
             raise RuntimeError(
-                f"LLM server på {self.base_url} har ingen tilgængelige modeller.\n"
-                "Sæt LLM_MODEL eller start serveren."
+                f"LLM server at {self.base_url} has no available models.\n"
+                "Set LLM_MODEL or start the server."
             )
         return available[0]
 

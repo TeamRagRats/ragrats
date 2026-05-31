@@ -1,10 +1,10 @@
-"""Plot voyage-key resultater opdelt på kategori — én subplot pr. strategi.
+"""Plot voyage-key results split by category — one subplot per strategy.
 
-Samme matrix-kørsel som plot_strategies.py, men i stedet for den samlede
-'total'-række tegnes per-kategori-rækkerne (fact_single / summary / reasoning),
-så man kan se hvor en strategi kæmper når k stiger.
+Same matrix run as strategies/plot.py, but instead of the combined 'total' row
+it draws the per-category rows (fact_single / summary / reasoning), so you can
+see where a strategy struggles as k grows.
 
-Kør på SPARK (kræver postgres):
+Run on SPARK (requires postgres):
     cd src/04_testing/step_02_retrieval/voyage_key_retrieval/matrix/plots
     python by_category/plot.py
     python by_category/plot.py --matrix-id <uuid>
@@ -36,11 +36,11 @@ CATEGORIES = ["fact_single", "summary", "reasoning"]
 # (colour-blind friendly): circle, square, triangle, diamond.
 MARKERS = ["o", "s", "^", "D"]
 
-# Brudt x-akse: k=0–20 strækkes ud (1 enhed pr. k), k>20 komprimeres så hvert
-# 25. k fylder lige så meget som et 2-spring i lav-området. Ticks følger samme
-# logik: hvert 2. op til 20, derefter hvert 25.
+# Broken x-axis: k=0–20 is stretched out (1 unit per k), k>20 is compressed so
+# every 25th k takes up as much space as a 2-step in the low range. Ticks follow
+# the same logic: every 2 up to 20, then every 25.
 KNEE = 20.0
-HI_COMPRESS = 2.0 / 25.0  # 25 k i høj-området = 2 enheder (= et lav-tick-spring)
+HI_COMPRESS = 2.0 / 25.0  # 25 k in the high range = 2 units (= one low-tick step)
 XTICKS = [1] + list(range(2, 21, 2)) + list(range(45, 501, 25))
 
 
@@ -82,11 +82,11 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
         ax.set_ylim(0.6, 1)
         ax.grid(True, alpha=0.3)
         ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-        ax.legend(title="kategori", fontsize="small", loc="upper right")
+        ax.legend(title="category", fontsize="small", loc="upper right")
         if row == len(strategies) - 1:
             ax.set_xlabel("top-k")
 
-    fig.suptitle(f"Voyage-key {metric} pr. kategori")
+    fig.suptitle(f"Voyage-key {metric} per category")
     fig.text(0.01, 0.005, f"matrix_id={matrix_id}", fontsize=6, color="gray")
     fig.tight_layout()
     fig.savefig(out, dpi=150)
@@ -94,19 +94,19 @@ def plot(curves: dict[str, dict[str, dict[str, list]]], metric: str,
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Plot voyage-key kurver pr. kategori, én række pr. strategi")
-    p.add_argument("--matrix-id", default=None, help="Matrix-kørsel (default: seneste)")
+    p = argparse.ArgumentParser(description="Plot voyage-key curves per category, one row per strategy")
+    p.add_argument("--matrix-id", default=None, help="Matrix run (default: latest)")
     p.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "by_category.png",
                    help="Output PNG (default: ./by_category.png)")
     args = p.parse_args()
 
     matrix_id = args.matrix_id or latest_matrix_id()
     if not matrix_id:
-        raise SystemExit("Ingen matrix-kørsel fundet. Kør run_matrix.py først.")
+        raise SystemExit("No matrix run found. Run run_matrix.py first.")
 
     curves = load_by_category(matrix_id)
     if not curves:
-        raise SystemExit(f"Ingen kategori-rækker for matrix_id={matrix_id}.")
+        raise SystemExit(f"No category rows for matrix_id={matrix_id}.")
 
     metric = metric_label(matrix_id)
     for strategy, by_cat in curves.items():

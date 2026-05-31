@@ -1,7 +1,7 @@
-"""k-værdier for matrix-kørslen.
+"""k values for the matrix run.
 
-Tæt sampling i bunden hvor recall-kurven er stejl (k = 1..20, ét ad gangen),
-derefter grovere skridt på 10 op til 500. Det giver ~68 k-værdier pr. kategori.
+Dense sampling at the bottom where the recall curve is steep (k = 1..20, one at a
+time), then coarser steps of 10 up to 500. That gives ~68 k values per category.
 """
 
 from __future__ import annotations
@@ -20,4 +20,4 @@ def build_k_values(
 
 if __name__ == "__main__":
     ks = build_k_values()
-    print(f"{len(ks)} k-værdier: {ks}")
+    print(f"{len(ks)} k values: {ks}")

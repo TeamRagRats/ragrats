@@ -96,7 +96,7 @@ def run(
         timer.rows_in = len(pending)
 
         if not pending:
-            log.info("[voyage] Ingen voyages at behandle — alt er up to date.")
+            log.info("[voyage] No voyages to process — everything is up to date.")
             return 0
 
         log.info(f"[voyage] {len(pending)} voyage(s) at reducere")
@@ -105,7 +105,7 @@ def run(
         for i, vk in enumerate(pending, 1):
             email_count = get_email_count(conn, vk)
             if not email_count:
-                log.warning(f"  [voyage {i}/{len(pending)}] {vk} → ingen emails, springer over")
+                log.warning(f"  [voyage {i}/{len(pending)}] {vk} → no emails, skipping")
                 continue
 
             expected = math.ceil(email_count / PHASE_BATCH_SIZE)
@@ -113,8 +113,8 @@ def run(
 
             if len(ok_phases) != expected:
                 log.warning(
-                    f"  [voyage {i}/{len(pending)}] {vk} → {len(ok_phases)}/{expected} faser klar, "
-                    f"kør run_phase_summaries.py først"
+                    f"  [voyage {i}/{len(pending)}] {vk} → {len(ok_phases)}/{expected} phases ready, "
+                    f"run run_phase_summaries.py first"
                 )
                 timer.errors += 1
                 continue
@@ -146,7 +146,7 @@ def run(
                     finished_at=datetime.now(timezone.utc), duration_ms=int((time.monotonic() - t0) * 1000),
                     status="error", error_message=f"{type(exc).__name__}: {exc}",
                 )
-                log.error(f"  [voyage {i}/{len(pending)}] {vk} → reduce FEJL: {exc}")
+                log.error(f"  [voyage {i}/{len(pending)}] {vk} → reduce ERROR: {exc}")
                 timer.errors += 1
                 continue
 
@@ -176,5 +176,5 @@ def run(
 
         timer.rows_out = generated
 
-    log.info(f"[voyage] Færdig: {generated}/{len(pending)} voyage summaries genereret.")
+    log.info(f"[voyage] Done: {generated}/{len(pending)} voyage summaries generated.")
     return generated

@@ -6,23 +6,23 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS chunks (
-    chunk_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- unik id per chunk, auto-genereret
-    source_type TEXT NOT NULL CHECK (source_type IN ('email', 'voyage')), -- hvilken type summary chunken kommer fra
-    source_id   TEXT NOT NULL,   -- email_id (UUID som text) eller voyage_key
-    voyage_key  TEXT NOT NULL,   -- altid sat, så man kan filtrere retrieval til én voyage
-    chunk_index INTEGER NOT NULL, -- rækkefølgen af chunks inden for samme source (email = altid 0)
-    text        TEXT NOT NULL,   -- selve afsnittets tekst
-    embedding   halfvec(2560),   -- Qwen3-Embedding-4B vektor, NULL indtil run_embeddings kører
-    char_count  INTEGER,         -- antal tegn i teksten, til observability
-    UNIQUE (source_type, source_id, chunk_index) -- forhindrer dubletter ved genindkørsel
+    chunk_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- unique id per chunk, auto-generated
+    source_type TEXT NOT NULL CHECK (source_type IN ('email', 'voyage')), -- which type of summary the chunk comes from
+    source_id   TEXT NOT NULL,   -- email_id (UUID as text) or voyage_key
+    voyage_key  TEXT NOT NULL,   -- always set, so retrieval can be filtered to a single voyage
+    chunk_index INTEGER NOT NULL, -- the order of chunks within the same source (email = always 0)
+    text        TEXT NOT NULL,   -- the paragraph text itself
+    embedding   halfvec(2560),   -- Qwen3-Embedding-4B vector, NULL until run_embeddings runs
+    char_count  INTEGER,         -- number of characters in the text, for observability
+    UNIQUE (source_type, source_id, chunk_index) -- prevents duplicates on re-ingestion
 );
 
 CREATE INDEX IF NOT EXISTS chunks_source_idx  ON chunks (source_type, source_id);
 CREATE INDEX IF NOT EXISTS chunks_voyage_idx  ON chunks (voyage_key);
 
--- m = 16: antal forbindelser per node i HNSW-grafen. Højere = bedre recall, mere RAM.
--- ef_construction = 64: antal kandidater overvejet ved INSERT. Højere = bedre grafkvalitet, langsommere indsætning.
--- Begge er standardværdier og passer til vores datastørrelse.
+-- m = 16: number of connections per node in the HNSW graph. Higher = better recall, more RAM.
+-- ef_construction = 64: number of candidates considered at INSERT. Higher = better graph quality, slower insertion.
+-- Both are default values and fit our data size.
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
     ON chunks USING hnsw (embedding halfvec_cosine_ops)
     WITH (m = 16, ef_construction = 64);

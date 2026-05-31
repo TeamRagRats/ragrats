@@ -1,11 +1,11 @@
-"""Hent én kandidat-pool pr. (spørgsmål, strategi) og genbrug den på tværs af k.
+"""Fetch one candidate pool per (question, strategy) and reuse it across k.
 
-I stedet for at køre en HNSW-søgning for hvert k, henter vi de øverste `pool`
-chunks én gang med ef_search = pool og udregner hit@k ved at slæbe den ordnede
-voyage_key-liste:
-  - rank_threshold = None: recall@k = optræder expected_key blandt de første k?
-  - rank_threshold = N:    rammer votingen? expected_key skal være blandt de N
-    mest-stemte keys blandt de første k chunks (N=1 = den vindende key).
+Instead of running an HNSW search for each k, we fetch the top `pool` chunks
+once with ef_search = pool and compute hit@k by slicing the ordered
+voyage_key list:
+  - rank_threshold = None: recall@k = does expected_key appear among the first k?
+  - rank_threshold = N:    does it pass the voting? expected_key must be among the
+    N most-voted keys among the first k chunks (N=1 = the winning key).
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def ranked_voyage_keys(
     source_types: list[str] | None,
     strategy: str,
 ) -> list[str]:
-    """De `pool` nærmeste chunks' voyage_key, i similaritets-rækkefølge."""
+    """The voyage_key of the `pool` nearest chunks, in similarity order."""
     filters = ["strategy = %s"]
     params: list = [strategy]
     if source_types is not None:
@@ -42,10 +42,10 @@ def ranked_voyage_keys(
 
 
 def _expected_vote_rank(sliced_keys: list[str], expected_key: str) -> int | None:
-    """Rang af expected_key efter stemmetal blandt sliced_keys (None hvis fraværende).
+    """Rank of expected_key by vote count among sliced_keys (None if absent).
 
-    Samme voting og tiebreak som run_test._compute_rank: sortér på faldende
-    stemmetal og brug positionen (dict bevarer similaritets-rækkefølgen).
+    Same voting and tiebreak as run_test._compute_rank: sort by descending
+    vote count and use the position (dict preserves the similarity order).
     """
     counts: dict[str, int] = {}
     for key in sliced_keys:
@@ -62,7 +62,7 @@ def hit_at_k(
     k: int,
     rank_threshold: int | None,
 ) -> bool:
-    """Tæller (strategi, k) som et hit for dette spørgsmål?"""
+    """Does (strategy, k) count as a hit for this question?"""
     sliced = ranked_keys[:k]
     if rank_threshold is None:
         return expected_key in sliced

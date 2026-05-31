@@ -154,7 +154,7 @@ def run(
                 cur.execute("SELECT voyage_key FROM emails WHERE thread_id = %s LIMIT 1", (thread_id,))
                 row = cur.fetchone()
             if not row:
-                log.error(f"[thread] thread_id {thread_id} ikke fundet i emails-tabellen")
+                log.error(f"[thread] thread_id {thread_id} not found in the emails table")
                 return 0
             pending = [{"thread_id": thread_id, "voyage_key": row[0]}]
         else:
@@ -162,10 +162,10 @@ def run(
         timer.rows_in = len(pending)
 
         if not pending:
-            log.info("[thread] Ingen tråde at behandle — alt er up to date.")
+            log.info("[thread] No threads to process — everything is up to date.")
             return 0
 
-        log.info(f"[thread] {len(pending)} tråd(e) | {workers} workers")
+        log.info(f"[thread] {len(pending)} thread(s) | {workers} workers")
         generated = 0
 
         started_at = datetime.now(timezone.utc)
@@ -185,12 +185,12 @@ def run(
             vk = item["voyage_key"]
             emails = get_thread_emails(conn, tid)
             if not emails:
-                log.warning(f"  [thread] {tid} → ingen emails, springer over")
+                log.warning(f"  [thread] {tid} → no emails, skipping")
                 return {"thread_id": tid, "voyage_key": vk, "skipped": True}
 
             has_summaries = any(e["summary"] for e in emails)
             if not has_summaries:
-                log.warning(f"  [thread] {tid} → ingen email_attach_summaries, springer over")
+                log.warning(f"  [thread] {tid} → no email_attach_summaries, skipping")
                 return {"thread_id": tid, "voyage_key": vk, "skipped": True}
 
             subject = next((e["subject"] for e in emails if e.get("subject")), None)
@@ -233,10 +233,10 @@ def run(
                         finished_at=finished_at, duration_ms=duration_ms, status="error",
                         error_message=r.get("error"),
                     )
-                    log.error(f"  [thread {i}/{len(pending)}] {r['thread_id']} FEJL: {r['error']}")
+                    log.error(f"  [thread {i}/{len(pending)}] {r['thread_id']} ERROR: {r['error']}")
                     timer.errors += 1
 
         timer.rows_out = generated
 
-    log.info(f"[thread] Færdig: {generated} tråd(e) genereret.")
+    log.info(f"[thread] Done: {generated} thread(s) generated.")
     return generated

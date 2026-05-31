@@ -1,10 +1,10 @@
-"""Plot hvordan strategierne klarer sig: én linje pr. strategi vs. k.
+"""Plot how the strategies perform: one line per strategy vs k.
 
-Læser 'total'-rækkerne fra den seneste voyage-key matrix-kørsel (eller en
-specifik --matrix-id) og tegner én kurve pr. strategi. Y-aksen er recall@k eller
-voting hit-rate afhængigt af hvad matrixen blev kørt med.
+Reads the 'total' rows from the latest voyage-key matrix run (or a specific
+--matrix-id) and draws one curve per strategy. The y-axis is recall@k or voting
+hit-rate depending on what the matrix was run with.
 
-Kør på SPARK (kræver postgres):
+Run on SPARK (requires postgres):
     cd src/04_testing/step_02_retrieval/voyage_key_retrieval/matrix/plots
     python strategies/plot.py
     python strategies/plot.py --matrix-id <uuid>
@@ -35,11 +35,11 @@ STRATEGIES = ["plain", "late", "context", "summary"]
 # (colour-blind friendly): circle, square, triangle, diamond.
 MARKERS = ["o", "s", "^", "D"]
 
-# Brudt x-akse: k=0–20 strækkes ud (1 enhed pr. k), k>20 komprimeres så hvert
-# 25. k fylder lige så meget som et 2-spring i lav-området. Ticks følger samme
-# logik: hvert 2. op til 20, derefter hvert 25.
+# Broken x-axis: k=0–20 is stretched out (1 unit per k), k>20 is compressed so
+# every 25th k takes up as much space as a 2-step in the low range. Ticks follow
+# the same logic: every 2 up to 20, then every 25.
 KNEE = 20.0
-HI_COMPRESS = 2.0 / 25.0  # 25 k i høj-området = 2 enheder (= et lav-tick-spring)
+HI_COMPRESS = 2.0 / 25.0  # 25 k in the high range = 2 units (= one low-tick step)
 XTICKS = [1] + list(range(2, 21, 2)) + list(range(50, 501, 25))
 
 
@@ -74,7 +74,7 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
     ax.set_ylim(0.6, 0.9)
     ax.grid(True, alpha=0.3)
     ax.axvline(KNEE, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax.legend(title="strategi", loc="upper right", fontsize=12)
+    ax.legend(title="strategy", loc="upper right", fontsize=12)
 
 
     fig.text(0.01, 0.01, f"matrix_id={matrix_id}", fontsize=0, color="gray")
@@ -84,23 +84,23 @@ def plot(curves: dict[str, dict[str, list]], metric: str, matrix_id: str, out: P
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Plot voyage-key strategi-kurver vs k")
-    p.add_argument("--matrix-id", default=None, help="Matrix-kørsel (default: seneste)")
+    p = argparse.ArgumentParser(description="Plot voyage-key strategy curves vs k")
+    p.add_argument("--matrix-id", default=None, help="Matrix run (default: latest)")
     p.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "strategies.png",
                    help="Output PNG (default: ./strategies.png)")
     args = p.parse_args()
 
     matrix_id = args.matrix_id or latest_matrix_id()
     if not matrix_id:
-        raise SystemExit("Ingen matrix-kørsel fundet. Kør run_matrix.py først.")
+        raise SystemExit("No matrix run found. Run run_matrix.py first.")
 
     curves = load_total(matrix_id)
     if not curves:
-        raise SystemExit(f"Ingen 'total'-rækker for matrix_id={matrix_id}.")
+        raise SystemExit(f"No 'total' rows for matrix_id={matrix_id}.")
 
     metric = metric_label(matrix_id)
     for strategy, c in curves.items():
-        print(f"{strategy}: {len(c['k'])} k-punkter (k {c['k'][0]}..{c['k'][-1]})")
+        print(f"{strategy}: {len(c['k'])} k points (k {c['k'][0]}..{c['k'][-1]})")
     plot(curves, metric, matrix_id, args.out)
 
 
