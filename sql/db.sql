@@ -24,15 +24,6 @@ CREATE SEQUENCE chunking_logging_id_seq
 	START 1
 	CACHE 1
 	NO CYCLE;
--- DROP SEQUENCE embedding_logging_id_seq;
-
-CREATE SEQUENCE embedding_logging_id_seq
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 2147483647
-	START 1
-	CACHE 1
-	NO CYCLE;
 -- DROP SEQUENCE file_counters_id_seq;
 
 CREATE SEQUENCE file_counters_id_seq
@@ -597,29 +588,6 @@ CREATE TABLE email_thread_summaries (
 CREATE INDEX email_thread_summaries_prior_count_idx ON public.email_thread_summaries USING btree (prior_count);
 CREATE INDEX email_thread_summaries_thread_idx ON public.email_thread_summaries USING btree (thread_id);
 CREATE INDEX email_thread_summaries_voyage_idx ON public.email_thread_summaries USING btree (voyage_key);
-
-
--- public.embedding_logging definition
-
--- Drop table
-
--- DROP TABLE embedding_logging;
-
-CREATE TABLE embedding_logging (
-	id serial4 NOT NULL,
-	run_id uuid NULL,
-	batch_idx int4 NOT NULL,
-	n_chunks int4 NULL,
-	started_at timestamptz NOT NULL,
-	finished_at timestamptz NULL,
-	duration_ms int4 NULL,
-	status text DEFAULT 'pending'::text NOT NULL,
-	error_message text NULL,
-	model text NULL,
-	CONSTRAINT embedding_logging_pkey PRIMARY KEY (id),
-	CONSTRAINT embedding_logging_run_id_batch_idx_key UNIQUE (run_id, batch_idx),
-	CONSTRAINT embedding_logging_run_id_fkey FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE SET NULL
-);
 
 
 -- public.ingest_logging definition
