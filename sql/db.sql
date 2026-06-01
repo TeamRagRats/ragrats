@@ -1,10 +1,45 @@
--- Extensions. pgvector provides the halfvec/sparsevec/vector types used by the
--- chunks table and the HNSW index; pg_search (ParadeDB) provides the bm25 index
--- access method. Both must be created before any object that depends on them.
--- pg_search requires the paradedb/paradedb image — the plain pgvector image does
--- not ship it and CREATE EXTENSION will fail there.
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS pg_search;
+-- DROP SCHEMA public;
+
+CREATE SCHEMA public AUTHORIZATION pg_database_owner;
+
+-- DROP TYPE public.halfvec;
+
+CREATE TYPE public.halfvec (
+	INPUT = halfvec_in,
+	OUTPUT = halfvec_out,
+	RECEIVE = halfvec_recv,
+	SEND = halfvec_send,
+	TYPMOD_IN = halfvec_typmod_in,
+	ALIGNMENT = 4,
+	STORAGE = secondary,
+	CATEGORY = U,
+	DELIMITER = ',');
+
+-- DROP TYPE public.sparsevec;
+
+CREATE TYPE public.sparsevec (
+	INPUT = sparsevec_in,
+	OUTPUT = sparsevec_out,
+	RECEIVE = sparsevec_recv,
+	SEND = sparsevec_send,
+	TYPMOD_IN = sparsevec_typmod_in,
+	ALIGNMENT = 4,
+	STORAGE = secondary,
+	CATEGORY = U,
+	DELIMITER = ',');
+
+-- DROP TYPE public.vector;
+
+CREATE TYPE public.vector (
+	INPUT = vector_in,
+	OUTPUT = vector_out,
+	RECEIVE = vector_recv,
+	SEND = vector_send,
+	TYPMOD_IN = vector_typmod_in,
+	ALIGNMENT = 4,
+	STORAGE = secondary,
+	CATEGORY = U,
+	DELIMITER = ',');
 
 -- DROP SEQUENCE attachments_id_seq;
 
@@ -18,6 +53,15 @@ CREATE SEQUENCE attachments_id_seq
 -- DROP SEQUENCE chunking_logging_id_seq;
 
 CREATE SEQUENCE chunking_logging_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 2147483647
+	START 1
+	CACHE 1
+	NO CYCLE;
+-- DROP SEQUENCE embedding_logging_id_seq;
+
+CREATE SEQUENCE embedding_logging_id_seq
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 2147483647
@@ -77,43 +121,7 @@ CREATE SEQUENCE test_retrieval_vk_logging_id_seq
 	MAXVALUE 2147483647
 	START 1
 	CACHE 1
-	NO CYCLE;-- public.chunks definition
-
--- Drop table
-
--- DROP TABLE chunks;
-
-CREATE TABLE chunks (
-	chunk_id uuid DEFAULT gen_random_uuid() NOT NULL,
-	source_type text NOT NULL,
-	source_id text NOT NULL,
-	voyage_key text NOT NULL,
-	chunk_index int4 NOT NULL,
-	"text" text NOT NULL,
-	embedding public.halfvec(2560) NULL,
-	char_count int4 NULL,
-	strategy text DEFAULT 'paragraph'::text NOT NULL,
-	model text NULL,
-	thread_id uuid NULL,
-	text_tsv tsvector GENERATED ALWAYS AS (
-CASE
-    WHEN strategy = ANY (ARRAY['context'::text, 'plain'::text, 'late'::text, 'summary'::text]) THEN to_tsvector('simple'::regconfig, text)
-    ELSE NULL::tsvector
-END) STORED NULL,
-	CONSTRAINT chunks_pkey PRIMARY KEY (chunk_id),
-	CONSTRAINT chunks_source_type_check CHECK ((source_type = ANY (ARRAY['email_summaries'::text, 'fixture_summaries'::text, 'phase'::text, 'llm_structured'::text, 'email'::text, 'attachment'::text]))),
-	CONSTRAINT chunks_source_type_source_id_strategy_chunk_index_key UNIQUE (source_type, source_id, strategy, chunk_index),
-	CONSTRAINT chunks_strategy_check CHECK ((strategy = ANY (ARRAY['late'::text, 'context'::text, 'plain'::text, 'summary'::text])))
-);
-CREATE INDEX chunks_bm25_idx ON public.chunks USING bm25 (chunk_id, text, strategy, voyage_key, source_type) WITH (key_field=chunk_id);
-CREATE INDEX chunks_embedding_hnsw_idx ON public.chunks USING hnsw (embedding halfvec_cosine_ops) WITH (m='16', ef_construction='64');
-CREATE INDEX chunks_source_idx ON public.chunks USING btree (source_type, source_id);
-CREATE INDEX chunks_text_tsv_gin ON public.chunks USING gin (text_tsv) WHERE (strategy = ANY (ARRAY['context'::text, 'plain'::text, 'late'::text, 'summary'::text]));
-CREATE INDEX chunks_thread_id_idx ON public.chunks USING btree (thread_id) WHERE (thread_id IS NOT NULL);
-CREATE INDEX chunks_voyage_idx ON public.chunks USING btree (voyage_key);
-
-
--- public.docling definition
+	NO CYCLE;-- public.docling definition
 
 -- Drop table
 
@@ -126,55 +134,6 @@ CREATE TABLE docling (
 	token_count int4 NULL,
 	processed_at timestamptz DEFAULT now() NOT NULL,
 	CONSTRAINT docling_pkey PRIMARY KEY (sha256)
-);
-
-
--- public.emails definition
-
--- Drop table
-
--- DROP TABLE emails;
-
-CREATE TABLE emails (
-	email_id uuid NOT NULL,
-	voyage_key text NOT NULL,
-	thread_id uuid NOT NULL,
-	eml_path text NOT NULL,
-	direction text NOT NULL,
-	mailbox text NULL,
-	subject text NULL,
-	from_addr text NULL,
-	to_addr _text NULL,
-	sent_at timestamptz NULL,
-	body_text text NULL,
-	body_html text NULL,
-	body_cleaned text NULL,
-	has_attachment bool DEFAULT false NOT NULL,
-	raw_headers jsonb NULL,
-	email_json jsonb NOT NULL,
-	CONSTRAINT emails_direction_check CHECK ((direction = ANY (ARRAY['in'::text, 'out'::text]))),
-	CONSTRAINT emails_pkey PRIMARY KEY (email_id)
-);
-CREATE INDEX emails_sent_at_idx ON public.emails USING btree (sent_at);
-CREATE INDEX emails_thread_idx ON public.emails USING btree (thread_id);
-CREATE INDEX emails_voyage_idx ON public.emails USING btree (voyage_key);
-
-
--- public.fixture_summaries definition
-
--- Drop table
-
--- DROP TABLE fixture_summaries;
-
-CREATE TABLE fixture_summaries (
-	voyage_key text NOT NULL,
-	summary text DEFAULT ''::text NOT NULL,
-	status text DEFAULT 'ok'::text NOT NULL,
-	log text NULL,
-	generated_at timestamptz DEFAULT now() NOT NULL,
-	llm_input text NULL,
-	CONSTRAINT fixture_summaries_pkey PRIMARY KEY (voyage_key),
-	CONSTRAINT fixture_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text])))
 );
 
 
@@ -295,34 +254,6 @@ CREATE TABLE fixtures (
 	CONSTRAINT fixtures_pkey PRIMARY KEY (voyage_key)
 );
 
-
--- public.ground_truth definition
-
--- Drop table
-
--- DROP TABLE ground_truth;
-
-CREATE TABLE ground_truth (
-	question_id uuid DEFAULT gen_random_uuid() NOT NULL,
-	question text NOT NULL,
-	category text NOT NULL,
-	answer text NOT NULL,
-	body_cleaned text NULL,
-	structured_md text NULL,
-	thread_id uuid NOT NULL,
-	source_id uuid NOT NULL,
-	voyage_key text NOT NULL,
-	created_at timestamptz DEFAULT now() NOT NULL,
-	question_reformulated text NULL,
-	CONSTRAINT ground_truth_category_check CHECK ((category = ANY (ARRAY['fact_single'::text, 'reasoning'::text, 'summary'::text, 'unanswerable'::text]))),
-	CONSTRAINT ground_truth_pkey PRIMARY KEY (question_id),
-	CONSTRAINT ground_truth_source_id_category_key UNIQUE (source_id, category)
-);
-CREATE INDEX gt_category_idx ON public.ground_truth USING btree (category);
-CREATE INDEX gt_thread_idx ON public.ground_truth USING btree (thread_id);
-CREATE INDEX gt_voyage_idx ON public.ground_truth USING btree (voyage_key);
-
-
 -- public.runs_logging definition
 
 -- Drop table
@@ -336,6 +267,7 @@ CREATE TABLE runs_logging (
 	status text NOT NULL,
 	CONSTRAINT import_runs_pkey PRIMARY KEY (run_id)
 );
+
 
 -- public.test_generation_accuracy_logging definition
 
@@ -403,28 +335,6 @@ CREATE TABLE test_retrieval_run_logging (
 );
 
 
--- public.thread_summaries definition
-
--- Drop table
-
--- DROP TABLE thread_summaries;
-
-CREATE TABLE thread_summaries (
-	thread_id uuid NOT NULL,
-	voyage_key text NOT NULL,
-	subject text NULL,
-	email_count int4 NULL,
-	summary text DEFAULT ''::text NOT NULL,
-	status text DEFAULT 'ok'::text NOT NULL,
-	log text NULL,
-	generated_at timestamptz DEFAULT now() NOT NULL,
-	llm_input text NULL,
-	CONSTRAINT thread_summaries_pkey PRIMARY KEY (thread_id),
-	CONSTRAINT thread_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text])))
-);
-CREATE INDEX thread_summaries_voyage_idx ON public.thread_summaries USING btree (voyage_key);
-
-
 -- public.users definition
 
 -- Drop table
@@ -438,28 +348,6 @@ CREATE TABLE users (
 	CONSTRAINT users_pkey PRIMARY KEY (username),
 	CONSTRAINT users_username_key UNIQUE (username)
 );
-
--- public.attachments definition
-
--- Drop table
-
--- DROP TABLE attachments;
-
-CREATE TABLE attachments (
-	id bigserial NOT NULL,
-	email_id uuid NOT NULL,
-	voyage_key text NOT NULL,
-	file_name text NOT NULL,
-	file_path text NOT NULL,
-	file_type text NULL,
-	size_bytes int8 NULL,
-	sha256 bpchar(64) NULL,
-	docling_ready bool DEFAULT false NOT NULL,
-	CONSTRAINT attachments_pkey PRIMARY KEY (id),
-	CONSTRAINT attachments_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE
-);
-CREATE INDEX attachments_email_idx ON public.attachments USING btree (email_id);
-CREATE INDEX attachments_sha256_idx ON public.attachments USING btree (sha256);
 
 
 -- public.chunking_logging definition
@@ -485,8 +373,46 @@ CREATE TABLE chunking_logging (
 	truncated bool DEFAULT false NOT NULL,
 	CONSTRAINT chunking_logging_pkey PRIMARY KEY (id),
 	CONSTRAINT chunking_logging_source_type_source_id_key UNIQUE (source_type, source_id),
-	CONSTRAINT chunking_logging_run_id_fkey FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE SET NULL
+	CONSTRAINT chunking_logging_run_id_fkey FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE SET NULL,
+	CONSTRAINT chunking_logging_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
+
+
+-- public.chunks definition
+
+-- Drop table
+
+-- DROP TABLE chunks;
+
+CREATE TABLE chunks (
+	chunk_id uuid DEFAULT gen_random_uuid() NOT NULL,
+	source_type text NOT NULL,
+	source_id text NOT NULL,
+	voyage_key text NOT NULL,
+	chunk_index int4 NOT NULL,
+	"text" text NOT NULL,
+	embedding public.halfvec NULL,
+	char_count int4 NULL,
+	strategy text DEFAULT 'paragraph'::text NOT NULL,
+	model text NULL,
+	thread_id uuid NULL,
+	text_tsv tsvector GENERATED ALWAYS AS (
+CASE
+    WHEN strategy = ANY (ARRAY['context'::text, 'plain'::text, 'late'::text, 'summary'::text]) THEN to_tsvector('simple'::regconfig, text)
+    ELSE NULL::tsvector
+END) STORED NULL,
+	CONSTRAINT chunks_pkey PRIMARY KEY (chunk_id),
+	CONSTRAINT chunks_source_type_check CHECK ((source_type = ANY (ARRAY['email_summaries'::text, 'fixture_summaries'::text, 'phase'::text, 'llm_structured'::text, 'email'::text, 'attachment'::text]))),
+	CONSTRAINT chunks_source_type_source_id_strategy_chunk_index_key UNIQUE (source_type, source_id, strategy, chunk_index),
+	CONSTRAINT chunks_strategy_check CHECK ((strategy = ANY (ARRAY['late'::text, 'context'::text, 'plain'::text, 'summary'::text]))),
+	CONSTRAINT chunks_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
+);
+CREATE INDEX chunks_bm25_idx ON public.chunks USING bm25 (chunk_id, text, strategy, voyage_key, source_type) WITH (key_field=chunk_id);
+CREATE INDEX chunks_embedding_hnsw_idx ON public.chunks USING hnsw (embedding halfvec_cosine_ops) WITH (m='16', ef_construction='64');
+CREATE INDEX chunks_source_idx ON public.chunks USING btree (source_type, source_id);
+CREATE INDEX chunks_text_tsv_gin ON public.chunks USING gin (text_tsv) WHERE (strategy = ANY (ARRAY['context'::text, 'plain'::text, 'late'::text, 'summary'::text]));
+CREATE INDEX chunks_thread_id_idx ON public.chunks USING btree (thread_id) WHERE (thread_id IS NOT NULL);
+CREATE INDEX chunks_voyage_idx ON public.chunks USING btree (voyage_key);
 
 
 -- public.docling_logging definition
@@ -520,74 +446,83 @@ CREATE INDEX docling_logging_run_idx ON public.docling_logging USING btree (run_
 CREATE INDEX docling_logging_status_idx ON public.docling_logging USING btree (status);
 
 
--- public.email_attach_summaries definition
+-- public.emails definition
 
 -- Drop table
 
--- DROP TABLE email_attach_summaries;
+-- DROP TABLE emails;
 
-CREATE TABLE email_attach_summaries (
+CREATE TABLE emails (
 	email_id uuid NOT NULL,
 	voyage_key text NOT NULL,
+	thread_id uuid NOT NULL,
+	eml_path text NOT NULL,
+	direction text NOT NULL,
+	mailbox text NULL,
+	subject text NULL,
+	from_addr text NULL,
+	to_addr _text NULL,
 	sent_at timestamptz NULL,
-	summary text NULL,
-	status text NOT NULL,
-	log text NULL,
-	generated_at timestamptz DEFAULT now() NOT NULL,
-	llm_input text NULL,
-	CONSTRAINT email_attach_summaries_pkey PRIMARY KEY (email_id),
-	CONSTRAINT email_attach_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
-	CONSTRAINT email_attach_summaries_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE
+	body_text text NULL,
+	body_html text NULL,
+	body_cleaned text NULL,
+	has_attachment bool DEFAULT false NOT NULL,
+	raw_headers jsonb NULL,
+	email_json jsonb NOT NULL,
+	CONSTRAINT emails_direction_check CHECK ((direction = ANY (ARRAY['in'::text, 'out'::text]))),
+	CONSTRAINT emails_pkey PRIMARY KEY (email_id),
+	CONSTRAINT emails_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
-CREATE INDEX email_attach_summaries_voyage_idx ON public.email_attach_summaries USING btree (voyage_key);
+CREATE INDEX emails_sent_at_idx ON public.emails USING btree (sent_at);
+CREATE INDEX emails_thread_idx ON public.emails USING btree (thread_id);
+CREATE INDEX emails_voyage_idx ON public.emails USING btree (voyage_key);
 
 
--- public.email_summaries definition
+-- public.fixture_summaries definition
 
 -- Drop table
 
--- DROP TABLE email_summaries;
+-- DROP TABLE fixture_summaries;
 
-CREATE TABLE email_summaries (
-	email_id uuid NOT NULL,
-	thread_id uuid NOT NULL,
+CREATE TABLE fixture_summaries (
 	voyage_key text NOT NULL,
 	summary text DEFAULT ''::text NOT NULL,
 	status text DEFAULT 'ok'::text NOT NULL,
 	log text NULL,
 	generated_at timestamptz DEFAULT now() NOT NULL,
 	llm_input text NULL,
-	CONSTRAINT email_summaries_pkey PRIMARY KEY (email_id),
-	CONSTRAINT email_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
-	CONSTRAINT email_summaries_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE
+	CONSTRAINT fixture_summaries_pkey PRIMARY KEY (voyage_key),
+	CONSTRAINT fixture_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
+	CONSTRAINT fixture_summaries_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
-CREATE INDEX email_summaries_thread_idx ON public.email_summaries USING btree (thread_id);
-CREATE INDEX email_summaries_voyage_idx ON public.email_summaries USING btree (voyage_key);
 
 
--- public.email_thread_summaries definition
+-- public.ground_truth definition
 
 -- Drop table
 
--- DROP TABLE email_thread_summaries;
+-- DROP TABLE ground_truth;
 
-CREATE TABLE email_thread_summaries (
-	email_id uuid NOT NULL,
+CREATE TABLE ground_truth (
+	question_id uuid DEFAULT gen_random_uuid() NOT NULL,
+	question text NOT NULL,
+	category text NOT NULL,
+	answer text NOT NULL,
+	body_cleaned text NULL,
+	structured_md text NULL,
 	thread_id uuid NOT NULL,
+	source_id uuid NOT NULL,
 	voyage_key text NOT NULL,
-	prior_count int4 NOT NULL,
-	summary text DEFAULT ''::text NOT NULL,
-	status text DEFAULT 'ok'::text NOT NULL,
-	log text NULL,
-	generated_at timestamptz DEFAULT now() NOT NULL,
-	llm_input text NULL,
-	CONSTRAINT email_thread_summaries_pkey PRIMARY KEY (email_id),
-	CONSTRAINT email_thread_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
-	CONSTRAINT email_thread_summaries_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE
+	created_at timestamptz DEFAULT now() NOT NULL,
+	question_reformulated text NULL,
+	CONSTRAINT ground_truth_category_check CHECK ((category = ANY (ARRAY['fact_single'::text, 'reasoning'::text, 'summary'::text, 'unanswerable'::text]))),
+	CONSTRAINT ground_truth_pkey PRIMARY KEY (question_id),
+	CONSTRAINT ground_truth_source_id_category_key UNIQUE (source_id, category),
+	CONSTRAINT ground_truth_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
-CREATE INDEX email_thread_summaries_prior_count_idx ON public.email_thread_summaries USING btree (prior_count);
-CREATE INDEX email_thread_summaries_thread_idx ON public.email_thread_summaries USING btree (thread_id);
-CREATE INDEX email_thread_summaries_voyage_idx ON public.email_thread_summaries USING btree (voyage_key);
+CREATE INDEX gt_category_idx ON public.ground_truth USING btree (category);
+CREATE INDEX gt_thread_idx ON public.ground_truth USING btree (thread_id);
+CREATE INDEX gt_voyage_idx ON public.ground_truth USING btree (voyage_key);
 
 
 -- public.ingest_logging definition
@@ -607,7 +542,8 @@ CREATE TABLE ingest_logging (
 	n_errors int8 DEFAULT 0 NULL,
 	wall_time_ms int8 DEFAULT 0 NULL,
 	CONSTRAINT file_counters_pkey PRIMARY KEY (id),
-	CONSTRAINT file_counters_run_id_fkey FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE CASCADE
+	CONSTRAINT file_counters_run_id_fkey FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE CASCADE,
+	CONSTRAINT ingest_logging_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
 
 
@@ -726,7 +662,8 @@ CREATE TABLE summaries_logging (
 	output_tokens int4 NULL,
 	CONSTRAINT summaries_logging_pkey1 PRIMARY KEY (id),
 	CONSTRAINT summaries_logging_summary_type_entity_key_key UNIQUE (summary_type, entity_key),
-	CONSTRAINT summaries_logging_run_id_fkey1 FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE SET NULL
+	CONSTRAINT summaries_logging_run_id_fkey1 FOREIGN KEY (run_id) REFERENCES runs_logging(run_id) ON DELETE SET NULL,
+	CONSTRAINT summaries_logging_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
 
 
@@ -788,6 +725,103 @@ CREATE TABLE test_retrieval_vk_logging (
 CREATE INDEX vk_log_hit_idx ON public.test_retrieval_vk_logging USING btree (hit);
 CREATE INDEX vk_log_question_id_idx ON public.test_retrieval_vk_logging USING btree (question_id);
 CREATE INDEX vk_log_run_id_idx ON public.test_retrieval_vk_logging USING btree (run_id);
+
+
+-- public.attachments definition
+
+-- Drop table
+
+-- DROP TABLE attachments;
+
+CREATE TABLE attachments (
+	id bigserial NOT NULL,
+	email_id uuid NOT NULL,
+	voyage_key text NOT NULL,
+	file_name text NOT NULL,
+	file_path text NOT NULL,
+	file_type text NULL,
+	size_bytes int8 NULL,
+	sha256 bpchar(64) NULL,
+	docling_ready bool DEFAULT false NOT NULL,
+	CONSTRAINT attachments_pkey PRIMARY KEY (id),
+	CONSTRAINT attachments_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE,
+	CONSTRAINT attachments_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
+);
+CREATE INDEX attachments_email_idx ON public.attachments USING btree (email_id);
+CREATE INDEX attachments_sha256_idx ON public.attachments USING btree (sha256);
+
+
+-- public.email_attach_summaries definition
+
+-- Drop table
+
+-- DROP TABLE email_attach_summaries;
+
+CREATE TABLE email_attach_summaries (
+	email_id uuid NOT NULL,
+	voyage_key text NOT NULL,
+	sent_at timestamptz NULL,
+	summary text NULL,
+	status text NOT NULL,
+	log text NULL,
+	generated_at timestamptz DEFAULT now() NOT NULL,
+	llm_input text NULL,
+	CONSTRAINT email_attach_summaries_pkey PRIMARY KEY (email_id),
+	CONSTRAINT email_attach_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
+	CONSTRAINT email_attach_summaries_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE,
+	CONSTRAINT email_attach_summaries_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
+);
+CREATE INDEX email_attach_summaries_voyage_idx ON public.email_attach_summaries USING btree (voyage_key);
+
+
+-- public.email_summaries definition
+
+-- Drop table
+
+-- DROP TABLE email_summaries;
+
+CREATE TABLE email_summaries (
+	email_id uuid NOT NULL,
+	thread_id uuid NOT NULL,
+	voyage_key text NOT NULL,
+	summary text DEFAULT ''::text NOT NULL,
+	status text DEFAULT 'ok'::text NOT NULL,
+	log text NULL,
+	generated_at timestamptz DEFAULT now() NOT NULL,
+	llm_input text NULL,
+	CONSTRAINT email_summaries_pkey PRIMARY KEY (email_id),
+	CONSTRAINT email_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
+	CONSTRAINT email_summaries_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE,
+	CONSTRAINT email_summaries_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
+);
+CREATE INDEX email_summaries_thread_idx ON public.email_summaries USING btree (thread_id);
+CREATE INDEX email_summaries_voyage_idx ON public.email_summaries USING btree (voyage_key);
+
+
+-- public.email_thread_summaries definition
+
+-- Drop table
+
+-- DROP TABLE email_thread_summaries;
+
+CREATE TABLE email_thread_summaries (
+	email_id uuid NOT NULL,
+	thread_id uuid NOT NULL,
+	voyage_key text NOT NULL,
+	prior_count int4 NOT NULL,
+	summary text DEFAULT ''::text NOT NULL,
+	status text DEFAULT 'ok'::text NOT NULL,
+	log text NULL,
+	generated_at timestamptz DEFAULT now() NOT NULL,
+	llm_input text NULL,
+	CONSTRAINT email_thread_summaries_pkey PRIMARY KEY (email_id),
+	CONSTRAINT email_thread_summaries_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'error'::text]))),
+	CONSTRAINT email_thread_summaries_email_id_fkey FOREIGN KEY (email_id) REFERENCES emails(email_id) ON DELETE CASCADE,
+	CONSTRAINT email_thread_summaries_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
+);
+CREATE INDEX email_thread_summaries_prior_count_idx ON public.email_thread_summaries USING btree (prior_count);
+CREATE INDEX email_thread_summaries_thread_idx ON public.email_thread_summaries USING btree (thread_id);
+CREATE INDEX email_thread_summaries_voyage_idx ON public.email_thread_summaries USING btree (voyage_key);
 
 
 -- public.queries definition
@@ -921,6 +955,7 @@ AS SELECT DISTINCT ON (d.sha256) d.sha256,
   WHERE d.markdown IS NOT NULL AND length(regexp_replace(d.markdown, '<!--[^>]*-->|\s+'::text, ''::text, 'g'::text)) >= 50
   ORDER BY d.sha256;
 
+
 -- public.operator_queries_v source
 
 CREATE OR REPLACE VIEW operator_queries_v
@@ -932,3 +967,5 @@ AS SELECT query_id,
     created_at
    FROM queries
   WHERE lower(username) <> ALL (ARRAY['nsl'::text, 'dev'::text, 'developer'::text]);
+
+
