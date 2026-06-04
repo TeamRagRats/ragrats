@@ -130,14 +130,19 @@ def run(
     target_chars: int,
 ) -> int:
     emails = db.get_pending_emails(conn, chunker=str(target_chars), limit=limit)
-    logger.info("Found %d pending emails", len(emails))
+    n = len(emails)
+    logger.info("Found %d pending emails", n)
 
     total = 0
-    for email in emails:
+    processed = 0
+    for i, email in enumerate(emails, 1):
         try:
             total += _process_email(
                 conn, embed_model, tokenizer, device, run_id, email, target_chars, logger
             )
+            processed += 1
         except Exception:
-            continue
+            pass
+        logger.info("Progress: %d/%d emails processed (%d chunks so far)", i, n, total)
+    logger.info("Done: %d/%d emails processed, %d chunks total", processed, n, total)
     return total

@@ -109,12 +109,17 @@ def run(
     voyage: str | None,
 ) -> int:
     rows = db.get_pending(conn, voyage=voyage, limit=limit)
-    logger.info("Found %d pending attach summaries", len(rows))
+    n = len(rows)
+    logger.info("Found %d pending attach summaries", n)
 
     total = 0
-    for row in rows:
+    processed = 0
+    for i, row in enumerate(rows, 1):
         try:
             total += _process_row(conn, embed_model, tokenizer, device, run_id, row, logger)
+            processed += 1
         except Exception:
-            continue
+            pass
+        logger.info("Progress: %d/%d summaries processed (%d chunks so far)", i, n, total)
+    logger.info("Done: %d/%d summaries processed, %d chunks total", processed, n, total)
     return total

@@ -137,14 +137,19 @@ def run(
     target_chars: int,
 ) -> int:
     sha256s = get_pending_sha256s(conn, chunker=str(target_chars), voyage=voyage, limit=limit)
-    logger.info("Found %d pending attachments", len(sha256s))
+    n = len(sha256s)
+    logger.info("Found %d pending attachments", n)
 
     total = 0
-    for sha256 in sha256s:
+    processed = 0
+    for i, sha256 in enumerate(sha256s, 1):
         try:
             total += _process_attachment(
                 conn, embed_model, tokenizer, device, run_id, sha256, target_chars, logger
             )
+            processed += 1
         except Exception:
-            continue
+            pass
+        logger.info("Progress: %d/%d attachments processed (%d chunks so far)", i, n, total)
+    logger.info("Done: %d/%d attachments processed, %d chunks total", processed, n, total)
     return total
