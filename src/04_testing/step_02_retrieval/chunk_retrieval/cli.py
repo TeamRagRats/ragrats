@@ -10,7 +10,7 @@ import argparse
 from clients.embed_client import DEFAULT_BASE_URL
 from clients.rerank_client import DEFAULT_BASE_URL as DEFAULT_RERANK_URL
 from step_03_rerank import DEFAULT_RERANK_OVERSAMPLE
-from filter_args import resolve_source_types, resolve_strategies
+from filter_args import resolve_source_types, resolve_strategies, resolve_chunkers
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,6 +23,9 @@ def parse_args() -> argparse.Namespace:
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
                    help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
+    p.add_argument("--chunker", action="append", dest="chunkers", metavar="CHUNKER",
+                   help="Filter by chunk collection label: e.g. 1500, 1000, naive, all "
+                        "(repeatable; default: 1500). 'all' blends every size.")
     p.add_argument("--voyage", type=str, default=None,
                    help="Run only on this voyage_key (default: all voyages in ground_truth)")
     p.add_argument("--reformulate", action="store_true",
@@ -53,6 +56,7 @@ def parse_args() -> argparse.Namespace:
 def resolve_config(args: argparse.Namespace) -> dict:
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
+    chunkers = resolve_chunkers(args.chunkers)
     if args.bm25_only and args.tsrank_only:
         raise SystemExit("--bm25-only and --tsrank-only are mutually exclusive")
     if args.bm25_only:
@@ -87,6 +91,7 @@ def resolve_config(args: argparse.Namespace) -> dict:
         "top_k": args.top_k,
         "ef_search": ef,
         "strategy": strategies if strategies is not None else "all",
+        "chunker": chunkers if chunkers is not None else "all",
         "source_types": source_types if source_types is not None else "all",
         "hybrid": hybrid_mode,
         "lexical": lexical,
@@ -98,6 +103,7 @@ def resolve_config(args: argparse.Namespace) -> dict:
     return {
         "source_types": source_types,
         "strategies": strategies,
+        "chunkers": chunkers,
         "hybrid_mode": hybrid_mode,
         "lexical": lexical,
         "rerank_pool": rerank_pool,

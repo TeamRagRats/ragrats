@@ -25,7 +25,10 @@ from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
 from step_02_chunk_retrieval import retrieve_chunks, hybrid_retrieve_chunks
 from step_03_rerank import rerank_chunks, DEFAULT_RERANK_OVERSAMPLE
-from filter_args import resolve_source_types, resolve_strategies, DEFAULT_STRATEGIES
+from filter_args import (
+    resolve_source_types, resolve_strategies, resolve_chunkers,
+    DEFAULT_STRATEGIES, DEFAULT_CHUNKERS,
+)
 
 
 def main() -> None:
@@ -45,7 +48,10 @@ def main() -> None:
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
+    p.add_argument("--chunker", action="append", dest="chunkers", metavar="CHUNKER",
+                   help="Filter by chunk collection label: e.g. 1500, 1000, naive, all "
+                        "(repeatable; default: 1500). 'all' blends every size.")
     p.add_argument("--no-voyage-key", action="store_true", dest="no_voyage_key",
                    help="Skip step 1 (voyage_key voting); retrieve chunks across the whole index")
     p.add_argument("--embed-url", default=DEFAULT_BASE_URL,
@@ -77,6 +83,7 @@ def main() -> None:
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
+    chunkers = resolve_chunkers(args.chunkers)
 
     retrieval_query = args.query
     if args.reformulate:
@@ -98,7 +105,7 @@ def main() -> None:
             t1 = time.monotonic()
             winning_keys, vote_counts = find_winning_voyage_keys(
                 conn, embedding, top_k=args.top_k_1,
-                source_types=source_types, strategies=strategies,
+                source_types=source_types, strategies=strategies, chunkers=chunkers,
                 ef_search=args.ef_search_1,
             )
             step1_ms = int((time.monotonic() - t1) * 1000)
@@ -140,6 +147,7 @@ def main() -> None:
                 top_k=step2_top_k,
                 source_types=source_types,
                 strategies=strategies,
+                chunkers=chunkers,
                 rrf_k=args.rrf_k,
                 mode=mode,
                 lexical=args.lexical,
@@ -152,6 +160,7 @@ def main() -> None:
                 top_k=step2_top_k,
                 source_types=source_types,
                 strategies=strategies,
+                chunkers=chunkers,
                 ef_search=args.ef_search_2,
             )
         step2_ms = int((time.monotonic() - t2) * 1000)
@@ -185,6 +194,7 @@ def main() -> None:
             query_text=args.query,
             source_types=source_types if source_types is not None else ["all"],
             strategy=strategies if strategies is not None else DEFAULT_STRATEGIES,
+            chunker=chunkers if chunkers is not None else DEFAULT_CHUNKERS,
             top_k_1=args.top_k_1,
             top_k_2=args.top_k_2,
             winning_keys=winning_keys,

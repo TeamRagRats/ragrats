@@ -70,6 +70,7 @@ def _run_for_category(
     rrf_k: int,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    chunkers: list[str] | None,
     ef_search: int | None,
     flags: dict,
     email_thread_map: dict[str, str],
@@ -89,7 +90,7 @@ def _run_for_category(
             question=question, expected_key=expected_key,
             top_k=top_k, rerank_pool=rerank_pool,
             hybrid_mode=hybrid_mode, lexical=lexical or "bm25", rrf_k=rrf_k,
-            source_types=source_types, strategies=strategies,
+            source_types=source_types, strategies=strategies, chunkers=chunkers,
             ef_search=ef_search,
         )
 
@@ -157,6 +158,7 @@ def main() -> None:
                 hybrid_mode=config["hybrid_mode"], lexical=config["lexical"],
                 rrf_k=args.rrf_k,
                 source_types=config["source_types"], strategies=config["strategies"],
+                chunkers=config["chunkers"],
                 ef_search=args.ef_search,
                 flags=config["flags"],
                 email_thread_map=email_thread_map,

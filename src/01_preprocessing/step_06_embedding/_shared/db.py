@@ -11,7 +11,7 @@ import psycopg
 def upsert_chunks(conn: psycopg.Connection, rows: Sequence[dict]) -> None:
     """Batch upsert chunk rows. Each row dict must contain:
         source_type, source_id, voyage_key, thread_id, chunk_index,
-        text, embedding (halfvec literal str), char_count, strategy, model.
+        text, embedding (halfvec literal str), char_count, strategy, chunker, model.
     """
     if not rows:
         return
@@ -21,10 +21,10 @@ def upsert_chunks(conn: psycopg.Connection, rows: Sequence[dict]) -> None:
                 """
                 INSERT INTO chunks
                     (source_type, source_id, voyage_key, thread_id, chunk_index,
-                     text, embedding, char_count, strategy, model)
+                     text, embedding, char_count, strategy, chunker, model)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s::halfvec, %s, %s, %s)
-                ON CONFLICT (source_type, source_id, strategy, chunk_index)
+                    (%s, %s, %s, %s, %s, %s, %s::halfvec, %s, %s, %s, %s)
+                ON CONFLICT (source_type, source_id, strategy, chunker, chunk_index)
                 DO UPDATE SET
                     voyage_key = EXCLUDED.voyage_key,
                     thread_id  = EXCLUDED.thread_id,
@@ -43,6 +43,7 @@ def upsert_chunks(conn: psycopg.Connection, rows: Sequence[dict]) -> None:
                     r["embedding"],
                     r["char_count"],
                     r["strategy"],
+                    r["chunker"],
                     r["model"],
                 ),
             )

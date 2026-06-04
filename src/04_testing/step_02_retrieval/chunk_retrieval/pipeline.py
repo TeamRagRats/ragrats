@@ -28,6 +28,7 @@ def retrieve_for_question(
     rrf_k: int,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    chunkers: list[str] | None,
     ef_search: int | None,
     query_embedding: list[float] | None = None,
 ) -> list:
@@ -42,14 +43,14 @@ def retrieve_for_question(
         chunks = hybrid_retrieve_chunks(
             conn, query_text=question, query_embedding=embedding,
             voyage_keys=[expected_key], top_k=step2_top_k,
-            source_types=source_types, strategies=strategies,
+            source_types=source_types, strategies=strategies, chunkers=chunkers,
             rrf_k=rrf_k, mode=hybrid_mode, lexical=lexical,
             ef_search=ef_search,
         )
     else:
         chunks = retrieve_chunks(
             conn, embedding, voyage_keys=[expected_key], top_k=step2_top_k,
-            source_types=source_types, strategies=strategies,
+            source_types=source_types, strategies=strategies, chunkers=chunkers,
             ef_search=ef_search,
         )
 

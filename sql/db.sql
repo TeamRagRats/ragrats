@@ -394,6 +394,7 @@ CREATE TABLE chunks (
 	embedding public.halfvec NULL,
 	char_count int4 NULL,
 	strategy text DEFAULT 'paragraph'::text NOT NULL,
+	chunker text DEFAULT 'naive'::text NOT NULL,
 	model text NULL,
 	thread_id uuid NULL,
 	text_tsv tsvector GENERATED ALWAYS AS (
@@ -403,7 +404,7 @@ CASE
 END) STORED NULL,
 	CONSTRAINT chunks_pkey PRIMARY KEY (chunk_id),
 	CONSTRAINT chunks_source_type_check CHECK ((source_type = ANY (ARRAY['email_summaries'::text, 'fixture_summaries'::text, 'phase'::text, 'llm_structured'::text, 'email'::text, 'attachment'::text]))),
-	CONSTRAINT chunks_source_type_source_id_strategy_chunk_index_key UNIQUE (source_type, source_id, strategy, chunk_index),
+	CONSTRAINT chunks_source_type_source_id_strategy_chunk_index_key UNIQUE (source_type, source_id, strategy, chunker, chunk_index),
 	CONSTRAINT chunks_strategy_check CHECK ((strategy = ANY (ARRAY['late'::text, 'context'::text, 'plain'::text, 'summary'::text]))),
 	CONSTRAINT chunks_voyage_key_fkey FOREIGN KEY (voyage_key) REFERENCES fixtures(voyage_key)
 );
@@ -870,6 +871,7 @@ CREATE TABLE retrieval_logging (
 	created_at timestamptz DEFAULT now() NOT NULL,
 	query_variants jsonb NULL,
 	strategy _text NULL,
+	chunker _text NULL,
 	reranked bool DEFAULT false NOT NULL,
 	rerank_model text NULL,
 	rerank_pool int4 NULL,

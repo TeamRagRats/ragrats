@@ -57,7 +57,7 @@ def _run_pipeline(args, embed_model, tokenizer, device, logger) -> None:
             logger.info("=" * 60)
             logger.info("Email Plain Chunking Pipeline")
             logger.info("=" * 60)
-            total = pipeline.run(conn, embed_model, tokenizer, device, run_id, logger, args.limit)
+            total = pipeline.run(conn, embed_model, tokenizer, device, run_id, logger, args.limit, args.target_chars)
             logger.info("[email_plain] %d chunks inserted", total)
         except Exception:
             status = "failed"
@@ -70,6 +70,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Email Plain Chunking Pipeline")
     parser.add_argument("--limit", type=int, default=None, metavar="N",
                         help="Process only the first N emails (for testing)")
+    parser.add_argument("--target-chars", type=int, default=1500, metavar="N",
+                        help="Chunk window size; stored as the 'chunker' label (default: 1500)")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--device", default=None,
                         help="Torch device (default: cuda if available, else cpu)")

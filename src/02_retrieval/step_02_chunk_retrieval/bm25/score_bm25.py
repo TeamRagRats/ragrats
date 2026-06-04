@@ -15,6 +15,7 @@ def bm25_retrieve(
     voyage_keys: list[str] | None = None,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    chunkers: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """Real BM25 lexical retrieval via ParadeDB's pg_search extension.
 
@@ -49,6 +50,9 @@ def bm25_retrieve(
     if source_types is not None:
         where_parts.append("source_type = ANY(%s)")
         where_params.append(source_types)
+    if chunkers is not None:
+        where_parts.append("chunker = ANY(%s)")
+        where_params.append(chunkers)
 
     sql = f"""
         SELECT chunk_id::text, source_type, source_id, strategy, voyage_key, chunk_index, text,

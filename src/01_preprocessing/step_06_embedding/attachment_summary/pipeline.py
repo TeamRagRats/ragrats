@@ -57,6 +57,7 @@ def _process_row(
             "embedding":   format_halfvec(vec),
             "char_count":  len(summary),
             "strategy":    "summary",
+            "chunker":     "naive",
             "model":       MODEL_NAME,
         }
         db.upsert_chunks(conn, [chunk_row])

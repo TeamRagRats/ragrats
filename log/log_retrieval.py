@@ -10,6 +10,7 @@ def log_retrieval(
     query_text: str,
     source_types: list[str] | None,
     strategy: list[str] | None = None,
+    chunker: list[str] | None = None,
     top_k_1: int,
     top_k_2: int,
     winning_keys: list[str],
@@ -59,13 +60,13 @@ def log_retrieval(
         cur.execute(
             """
             INSERT INTO retrieval_logging
-                (query_id, query_text, source_types, strategy, top_k_1, top_k_2, winning_keys,
+                (query_id, query_text, source_types, strategy, chunker, top_k_1, top_k_2, winning_keys,
                  key_vote_counts, step1_ms, step2_ms, total_ms, chunks_returned, chunks,
                  chunks_expanded_returned, chunks_expanded,
                  retrieved_source_types, retrieved_source_ids,
                  reranked, rerank_model, rerank_pool, rerank_ms,
                  ef_search_1, ef_search_2, embed_input)
-            VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s,
+            VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s::jsonb, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s)
             """,
@@ -74,6 +75,7 @@ def log_retrieval(
                 query_text,
                 source_types,
                 strategy,
+                chunker,
                 top_k_1,
                 top_k_2,
                 winning_keys,

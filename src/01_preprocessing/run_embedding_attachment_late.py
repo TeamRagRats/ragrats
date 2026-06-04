@@ -57,7 +57,7 @@ def _run_pipeline(args, embed_model, tokenizer, device, logger) -> None:
             logger.info("=" * 60)
             total = pipeline.run(
                 conn, embed_model, tokenizer, device, run_id, logger,
-                limit=args.limit, voyage=args.voyage,
+                limit=args.limit, voyage=args.voyage, target_chars=args.target_chars,
             )
             logger.info("[attachment_late] %d chunks inserted", total)
         except Exception:
@@ -75,6 +75,8 @@ def main() -> None:
                         help="Filter by voyage_key")
     parser.add_argument("--sha256", default=None, metavar="HASH",
                         help="Process a single attachment by sha256 (overrides --limit/--voyage)")
+    parser.add_argument("--target-chars", type=int, default=1500, metavar="N",
+                        help="Chunk window size; stored as the 'chunker' label (default: 1500)")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--device", default=None,
                         help="Torch device (default: cuda if available, else cpu)")
@@ -96,7 +98,7 @@ def main() -> None:
             run_id = start_run(conn)
             try:
                 from step_06_embedding.attachment_late.pipeline import _process_attachment
-                n = _process_attachment(conn, embed_model, tokenizer, device, run_id, args.sha256, logger)
+                n = _process_attachment(conn, embed_model, tokenizer, device, run_id, args.sha256, args.target_chars, logger)
                 logger.info("Done: %d chunks", n)
             finally:
                 finish_run(conn, run_id, "ok")

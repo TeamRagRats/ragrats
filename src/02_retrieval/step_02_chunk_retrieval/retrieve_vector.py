@@ -24,6 +24,7 @@ def retrieve_chunks(
     top_k: int = 20,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    chunkers: list[str] | None = None,
     ef_search: int | None = None,
 ) -> list[RetrievedChunk]:
     """
@@ -48,6 +49,9 @@ def retrieve_chunks(
     if strategies is not None:
         filters.append("strategy = ANY(%s)")
         params.append(strategies)
+    if chunkers is not None:
+        filters.append("chunker = ANY(%s)")
+        params.append(chunkers)
     where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
     params.append(top_k)
 

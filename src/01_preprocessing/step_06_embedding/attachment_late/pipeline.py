@@ -56,6 +56,7 @@ def _process_attachment(
     device: str,
     run_id: UUID,
     sha256: str,
+    target_chars: int,
     logger: logging.Logger,
 ) -> int:
     data = db.get_attachment_data(conn, sha256)
@@ -64,7 +65,7 @@ def _process_attachment(
         return 0
 
     structured_md: str = data["structured_md"]
-    chunks = chunk_structured_md(structured_md)
+    chunks = chunk_structured_md(structured_md, target_chars=target_chars)
     if not chunks:
         logger.warning("sha256 %s produced no chunks — skipping", sha256)
         return 0
@@ -104,6 +105,7 @@ def _process_attachment(
                 "embedding":   format_halfvec(vec),
                 "char_count":  chunk.char_count,
                 "strategy":    "late",
+                "chunker":     str(target_chars),
                 "model":       MODEL_NAME,
             })
 
@@ -159,15 +161,16 @@ def run(
     logger: logging.Logger,
     limit: int | None,
     voyage: str | None,
+    target_chars: int,
 ) -> int:
-    sha256s = db.get_pending_sha256s(conn, voyage=voyage, limit=limit)
+    sha256s = db.get_pending_sha256s(conn, chunker=str(target_chars), voyage=voyage, limit=limit)
     logger.info("Found %d pending attachments", len(sha256s))
 
     total = 0
     for sha256 in sha256s:
         try:
             total += _process_attachment(
-                conn, embed_model, tokenizer, device, run_id, sha256, logger
+                conn, embed_model, tokenizer, device, run_id, sha256, target_chars, logger
             )
         except Exception:
             continue

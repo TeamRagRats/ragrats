@@ -28,12 +28,22 @@ class Chunk:
     end_offset: int     # exclusive char offset in source text
 
 
-def chunk_text(text: str) -> list[Chunk]:
-    """Split text with fixed-window + overlap."""
+def chunk_text(
+    text: str,
+    target_chars: int = TARGET_CHARS,
+    overlap_chars: int = OVERLAP_CHARS,
+    lookback_fraction: float = LOOKBACK_FRACTION,
+) -> list[Chunk]:
+    """Split text with fixed-window + overlap.
+
+    target_chars/overlap_chars/lookback_fraction default to the module
+    constants; callers (the chunking pipelines) override target_chars to
+    produce different chunk collections from the same source text.
+    """
     text = text.strip()
     if not text:
         return []
-    if len(text) <= TARGET_CHARS:
+    if len(text) <= target_chars:
         return [_make_chunk(text, 0, 0, len(text))]
 
     chunks: list[Chunk] = []
@@ -41,15 +51,15 @@ def chunk_text(text: str) -> list[Chunk]:
     n = len(text)
 
     while pos < n:
-        end = pos + TARGET_CHARS
+        end = pos + target_chars
         if end >= n:
             chunks.append(_make_chunk(text[pos:].rstrip(), len(chunks), pos, n))
             break
 
-        cut = _find_break(text, pos, end)
+        cut = _find_break(text, pos, end, lookback_fraction)
         chunks.append(_make_chunk(text[pos:cut].rstrip(), len(chunks), pos, cut))
 
-        next_pos = cut - OVERLAP_CHARS
+        next_pos = cut - overlap_chars
         if next_pos <= pos:
             next_pos = cut  # overlap pushed us backwards; advance forcibly
         pos = next_pos
@@ -73,12 +83,12 @@ def _make_chunk(text: str, index: int, start: int, end: int) -> Chunk:
     )
 
 
-def _find_break(text: str, start: int, end: int) -> int:
+def _find_break(text: str, start: int, end: int, lookback_fraction: float = LOOKBACK_FRACTION) -> int:
     """Return a cut position in (lookback_start, end] preferring natural boundaries.
 
     Falls back to `end` (hard cut) if no boundary is found in the lookback window.
     """
-    lookback_start = end - int((end - start) * LOOKBACK_FRACTION)
+    lookback_start = end - int((end - start) * lookback_fraction)
 
     # Paragraph break: prefer the LAST '\n\n' in the lookback window.
     para = text.rfind("\n\n", lookback_start, end)

@@ -9,6 +9,7 @@ def find_winning_voyage_keys(
     top_k: int = 500,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    chunkers: list[str] | None = None,
     ef_search: int | None = None,
     return_candidates: bool = False,
 ):
@@ -30,7 +31,7 @@ def find_winning_voyage_keys(
     """
     if return_candidates:
         return _find_with_candidates(
-            conn, query_embedding, top_k, source_types, strategies, ef_search
+            conn, query_embedding, top_k, source_types, strategies, chunkers, ef_search
         )
 
     filters: list[str] = []
@@ -41,6 +42,9 @@ def find_winning_voyage_keys(
     if strategies is not None:
         filters.append("strategy = ANY(%s)")
         filter_params.append(strategies)
+    if chunkers is not None:
+        filters.append("chunker = ANY(%s)")
+        filter_params.append(chunkers)
     where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
     params = [query_embedding] + filter_params + [query_embedding, top_k]
 
@@ -78,6 +82,7 @@ def _find_with_candidates(
     top_k: int,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    chunkers: list[str] | None,
     ef_search: int | None,
 ) -> tuple[list[str], dict[str, int], list[dict]]:
     """Same voting as find_winning_voyage_keys, but materializes the top_k
@@ -91,6 +96,9 @@ def _find_with_candidates(
     if strategies is not None:
         filters.append("strategy = ANY(%s)")
         filter_params.append(strategies)
+    if chunkers is not None:
+        filters.append("chunker = ANY(%s)")
+        filter_params.append(chunkers)
     where_clause = ("WHERE " + " AND ".join(filters)) if filters else ""
     params = [query_embedding] + filter_params + [query_embedding, top_k]
 

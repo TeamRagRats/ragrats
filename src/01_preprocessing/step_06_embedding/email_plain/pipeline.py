@@ -30,11 +30,12 @@ def _process_email(
     device: str,
     run_id: UUID,
     email: dict,
+    target_chars: int,
     logger: logging.Logger,
 ) -> int:
     email_id = email["email_id"]
     body = email["body_cleaned"]
-    chunks = chunk_email_body(body)
+    chunks = chunk_email_body(body, target_chars=target_chars)
     if not chunks:
         logger.warning("email %s produced no chunks — skipping", email_id)
         return 0
@@ -75,6 +76,7 @@ def _process_email(
                 "embedding": embedder.format_halfvec(vec),
                 "char_count": chunk.char_count,
                 "strategy": "plain",
+                "chunker": str(target_chars),
                 "model": MODEL_NAME,
             })
 
@@ -125,15 +127,16 @@ def run(
     run_id: UUID,
     logger: logging.Logger,
     limit: int | None,
+    target_chars: int,
 ) -> int:
-    emails = db.get_pending_emails(conn, limit)
+    emails = db.get_pending_emails(conn, chunker=str(target_chars), limit=limit)
     logger.info("Found %d pending emails", len(emails))
 
     total = 0
     for email in emails:
         try:
             total += _process_email(
-                conn, embed_model, tokenizer, device, run_id, email, logger
+                conn, embed_model, tokenizer, device, run_id, email, target_chars, logger
             )
         except Exception:
             continue

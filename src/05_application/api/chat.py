@@ -74,6 +74,7 @@ def send_message(
         source="application",
         session_id=body.session_id,
         strategies=["summary"],   # voyage-key + chunk-retrieval bruger summary
+        chunkers=["naive"],       # summary-chunks er labelet 'naive'
         top_k_1=10,               # voyage-key-kandidater (step 1)
         hybrid=True,              # chunk-retrieval: vector + BM25 fusioneret via RRF
     )

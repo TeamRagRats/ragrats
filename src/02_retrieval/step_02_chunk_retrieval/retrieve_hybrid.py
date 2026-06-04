@@ -21,6 +21,7 @@ def hybrid_retrieve_chunks(
     voyage_keys: list[str] | None = None,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    chunkers: list[str] | None = None,
     rrf_k: int = 60,
     mode: Mode = "hybrid",
     lexical: Lexical = "bm25",
@@ -50,14 +51,14 @@ def hybrid_retrieve_chunks(
         return tsrank_retrieve(
             conn, query_text, top_k=top_k,
             voyage_keys=voyage_keys, source_types=source_types,
-            strategies=strategies,
+            strategies=strategies, chunkers=chunkers,
         )
 
     if mode == "bm25_only":
         return bm25_retrieve(
             conn, query_text, top_k=top_k,
             voyage_keys=voyage_keys, source_types=source_types,
-            strategies=strategies,
+            strategies=strategies, chunkers=chunkers,
         )
 
     lexical_fn = bm25_retrieve if lexical == "bm25" else tsrank_retrieve
@@ -65,14 +66,14 @@ def hybrid_retrieve_chunks(
     lexical_hits = lexical_fn(
         conn, query_text, top_k=lexical_pool,
         voyage_keys=voyage_keys, source_types=source_types,
-        strategies=strategies,
+        strategies=strategies, chunkers=chunkers,
     )
 
     vector_pool = max(top_k, 2 * top_k)
     vector_hits = retrieve_chunks(
         conn, query_embedding,
         voyage_keys=voyage_keys, top_k=vector_pool,
-        source_types=source_types, strategies=strategies,
+        source_types=source_types, strategies=strategies, chunkers=chunkers,
         ef_search=ef_search,
     )
 

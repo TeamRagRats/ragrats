@@ -32,7 +32,7 @@ from clients.embed_client import EmbedClient, DEFAULT_BASE_URL
 from clients.llm_client import LLMClient
 from step_00_query_reformulation import reformulate_query
 from step_01_voyage_key import find_winning_voyage_keys
-from filter_args import resolve_source_types, resolve_strategies
+from filter_args import resolve_source_types, resolve_strategies, resolve_chunkers
 from log.log_voyage_key_testing import log_voyage_key_testing
 from log.log_testing import log_retrieval_run
 
@@ -54,6 +54,7 @@ def _run_for_type(
     rank_threshold: int | None,
     source_types: list[str] | None,
     strategies: list[str] | None,
+    chunkers: list[str] | None,
     flags: dict,
     llm: LLMClient | None = None,
     ef_search: int | None = None,
@@ -64,7 +65,7 @@ def _run_for_type(
         embedding = client.embed([q])[0]
         winning_keys, vote_counts, candidates = find_winning_voyage_keys(
             conn, embedding, top_k=top_k,
-            source_types=source_types, strategies=strategies,
+            source_types=source_types, strategies=strategies, chunkers=chunkers,
             ef_search=ef_search, return_candidates=True,
         )
 
@@ -106,7 +107,10 @@ def main() -> None:
     p.add_argument("--source-type", action="append", dest="source_types", metavar="TYPE",
                    help="Filter by source type: email, attachment, all (repeatable; default: email + attachment)")
     p.add_argument("--strategy", action="append", dest="strategies", metavar="STRATEGY",
-                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: late)")
+                   help="Filter by embedding strategy: plain, late, context, summary, all (repeatable; default: plain)")
+    p.add_argument("--chunker", action="append", dest="chunkers", metavar="CHUNKER",
+                   help="Filter by chunk collection label: e.g. 1500, 1000, naive, all "
+                        "(repeatable; default: 1500). 'all' blends every size.")
     p.add_argument("--rank-threshold", type=int, default=None, dest="rank_threshold",
                    help="Stricter hit definition: expected_key must be in the top-N "
                         "by vote count among the top_k chunks (e.g. --rank-threshold 3). "
@@ -121,6 +125,7 @@ def main() -> None:
 
     source_types = resolve_source_types(args.source_types)
     strategies = resolve_strategies(args.strategies)
+    chunkers = resolve_chunkers(args.chunkers)
 
     voyage_filter_sql = "WHERE voyage_key = %(voyage)s" if args.voyage else ""
     voyage_params = {"voyage": args.voyage} if args.voyage else {}
@@ -148,6 +153,7 @@ def main() -> None:
         "top_k": args.top_k,
         "ef_search": ef,
         "strategy": strategies if strategies is not None else "all",
+        "chunker": chunkers if chunkers is not None else "all",
         "source_types": source_types if source_types is not None else "all",
         "rank_threshold": args.rank_threshold,
         "reformulator": args.reformulate,
@@ -162,7 +168,7 @@ def main() -> None:
         for category, rows in sorted(rows_by_category.items()):
             hits, total = _run_for_type(
                 conn, client, rows, run_id, args.top_k, category, args.rank_threshold,
-                source_types=source_types, strategies=strategies,
+                source_types=source_types, strategies=strategies, chunkers=chunkers,
                 flags=flags,
                 llm=llm,
                 ef_search=args.ef_search,

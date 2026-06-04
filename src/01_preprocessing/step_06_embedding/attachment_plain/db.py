@@ -13,10 +13,11 @@ from step_06_embedding.attachment_late.db import get_attachment_data, upsert_chu
 
 def get_pending_sha256s(
     conn: psycopg.Connection,
+    chunker: str,
     voyage: str | None = None,
     limit: int | None = None,
 ) -> list[str]:
-    """llm_structured rows not yet plain-embedded as attachments."""
+    """llm_structured rows not yet plain-embedded as attachments with this chunker."""
     parts = [
         """
         SELECT DISTINCT ls.sha256
@@ -28,11 +29,12 @@ def get_pending_sha256s(
               SELECT 1 FROM chunks c
               WHERE c.source_type = 'attachment'
                 AND c.strategy    = 'plain'
+                AND c.chunker     = %s
                 AND c.source_id   = ls.sha256
           )
         """
     ]
-    params: list[Any] = []
+    params: list[Any] = [chunker]
 
     if voyage is not None:
         parts.append("AND a.voyage_key = %s")

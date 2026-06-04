@@ -17,6 +17,7 @@ def tsrank_retrieve(
     voyage_keys: list[str] | None = None,
     source_types: list[str] | None = None,
     strategies: list[str] | None = None,
+    chunkers: list[str] | None = None,
 ) -> list[RetrievedChunk]:
     """Lexical retrieval against chunks via Postgres ts_rank.
 
@@ -54,6 +55,9 @@ def tsrank_retrieve(
     if source_types is not None:
         where_parts.append("source_type = ANY(%s)")
         where_params.append(source_types)
+    if chunkers is not None:
+        where_parts.append("chunker = ANY(%s)")
+        where_params.append(chunkers)
 
     sql = f"""
         SELECT chunk_id::text, source_type, source_id, strategy, voyage_key, chunk_index, text,
