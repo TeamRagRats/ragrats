@@ -28,11 +28,16 @@ services:
       - vllm_cache:/root/.cache/vllm
       - torchinductor_cache:/root/.cache/torchinductor
       - triton_cache:/root/.cache/triton
+    # VLLM_EXTRA_ARGS is empty by default (the Nemotron weights are already
+    # NVFP4-quantized). The llamarine target sets it to "--quantization fp8" so
+    # vLLM quantizes the bf16 weights to FP8 on-the-fly at load — that brings the
+    # 71B model down from ~132 GB to ~71 GB so it fits in the Spark's 128 GB.
     command: >
       vllm serve ${VLLM_MODEL:-nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4}
       --dtype auto
       --max-model-len ${VLLM_MAX_MODEL_LEN:-170000}
       --gpu-memory-utilization ${VLLM_GPU_MEM_UTIL:-0.60}
+      ${VLLM_EXTRA_ARGS:-}
       --enable-prefix-caching
       --trust-remote-code
       --port 8000
