@@ -29,7 +29,7 @@ super:
 llamarine:
 	VLLM_MODEL=pentagoniac/llamarine \
 	VLLM_MAX_MODEL_LEN=32768 \
-	VLLM_GPU_MEM_UTIL=0.85 \
+	VLLM_GPU_MEM_UTIL=0.80 \
 	VLLM_EXTRA_ARGS="--quantization fp8" \
 	$(COMPOSE) up -d
 
